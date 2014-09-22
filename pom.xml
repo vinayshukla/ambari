@@ -23,6 +23,12 @@
   <name>Ambari Main</name>
   <version>1.3.0-SNAPSHOT</version>
   <description>Ambari</description>
+  <modules>
+    <module>ambari-metrics-hadoop-timelineservice</module>
+    <module>ambari-metrics</module>
+    <module>ambari-metrics</module>
+    <module>ambari-metrics</module>
+  </modules>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <clover.license>${user.home}/clover.license</clover.license>
@@ -305,6 +311,7 @@
         <module>ambari-agent</module>
         <module>ambari-client</module>
         <module>ambari-shell</module>
+        <module>ambari-metrics</module>
       </modules>
     </profile>
     <profile>
