@@ -37,14 +37,18 @@ import java.util.List;
 import java.util.Map;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricClusterAggregate;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricHostAggregate;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_TABLE_SQL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_AGGREGATE_RECORD_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_METRICS_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricClusterAggregator.TimelineClusterMetric;
 
@@ -153,7 +157,10 @@ public class PhoenixHBaseAccessor {
     try {
       LOG.info("Initializing metrics schema...");
       stmt = conn.createStatement();
-      stmt.executeUpdate(CREATE_METRICS_TABLE_SQL);
+      stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
+        METRICS_RECORD_TABLE_NAME, METRICS_RECORD_TABLE_TTL));
+      stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
+        METRICS_RECORD_CACHE_TABLE_NAME, METRICS_RECORD_CACHE_TABLE_TTL));
       stmt.executeUpdate(CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL);
       stmt.executeUpdate(CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL);
       stmt.executeUpdate(CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL);
@@ -189,34 +196,52 @@ public class PhoenixHBaseAccessor {
     }
 
     Connection conn = getConnection();
-    PreparedStatement stmt = null;
+    PreparedStatement metricRecordStmt = null;
+    PreparedStatement metricRecordTmpStmt = null;
     long currentTime = System.currentTimeMillis();
 
     try {
-      stmt = conn.prepareStatement(UPSERT_METRICS_SQL);
+      metricRecordStmt = conn.prepareStatement(String.format(
+        UPSERT_METRICS_SQL, METRICS_RECORD_TABLE_NAME));
+      metricRecordTmpStmt = conn.prepareStatement(String.format
+        (UPSERT_METRICS_SQL, METRICS_RECORD_CACHE_TABLE_NAME));
 
       for (TimelineMetric metric : timelineMetrics) {
-        stmt.clearParameters();
+        metricRecordStmt.clearParameters();
 
         LOG.trace("host: " + metric.getHostName() + ", " +
+          "metricName = " + metric.getMetricName() + ", " +
           "values: " + metric.getMetricValues());
         Double[] aggregates = calculateAggregates(metric.getMetricValues());
 
-        stmt.setString(1, metric.getMetricName());
-        stmt.setString(2, metric.getHostName());
-        stmt.setString(3, metric.getAppId());
-        stmt.setString(4, metric.getInstanceId());
-        stmt.setLong(5, currentTime);
-        stmt.setLong(6, metric.getStartTime());
-        stmt.setString(7, metric.getType());
-        stmt.setDouble(8, aggregates[0]);
-        stmt.setDouble(9, aggregates[1]);
-        stmt.setDouble(10, aggregates[2]);
-        stmt.setString(11,
-          TimelineUtils.dumpTimelineRecordtoJSON(metric.getMetricValues()));
+        metricRecordStmt.setString(1, metric.getMetricName());
+        metricRecordTmpStmt.setString(1, metric.getMetricName());
+        metricRecordStmt.setString(2, metric.getHostName());
+        metricRecordTmpStmt.setString(2, metric.getHostName());
+        metricRecordStmt.setString(3, metric.getAppId());
+        metricRecordTmpStmt.setString(3, metric.getAppId());
+        metricRecordStmt.setString(4, metric.getInstanceId());
+        metricRecordTmpStmt.setString(4, metric.getInstanceId());
+        metricRecordStmt.setLong(5, currentTime);
+        metricRecordTmpStmt.setLong(5, currentTime);
+        metricRecordStmt.setLong(6, metric.getStartTime());
+        metricRecordTmpStmt.setLong(6, metric.getStartTime());
+        metricRecordStmt.setString(7, metric.getType());
+        metricRecordTmpStmt.setString(7, metric.getType());
+        metricRecordStmt.setDouble(8, aggregates[0]);
+        metricRecordTmpStmt.setDouble(8, aggregates[0]);
+        metricRecordStmt.setDouble(9, aggregates[1]);
+        metricRecordTmpStmt.setDouble(9, aggregates[1]);
+        metricRecordStmt.setDouble(10, aggregates[2]);
+        metricRecordTmpStmt.setDouble(10, aggregates[2]);
+        String json =
+          TimelineUtils.dumpTimelineRecordtoJSON(metric.getMetricValues());
+        metricRecordStmt.setString(11, json);
+        metricRecordTmpStmt.setString(11, json);
 
         try {
-          stmt.executeUpdate();
+          metricRecordStmt.executeUpdate();
+          metricRecordTmpStmt.executeUpdate();
         } catch (SQLException sql) {
           LOG.error(sql);
         }
@@ -225,9 +250,16 @@ public class PhoenixHBaseAccessor {
       conn.commit();
 
     } finally {
-      if (stmt != null) {
+      if (metricRecordStmt != null) {
         try {
-          stmt.close();
+          metricRecordStmt.close();
+        } catch (SQLException e) {
+          // Ignore
+        }
+      }
+      if (metricRecordTmpStmt != null) {
+        try {
+          metricRecordTmpStmt.close();
         } catch (SQLException e) {
           // Ignore
         }

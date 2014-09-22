@@ -125,9 +125,9 @@ public class HBaseTimelineMetricStore extends AbstractService
 
   @Override
   public TimelineMetrics getTimelineMetrics(List<String> metricNames,
-                                            String hostname, String applicationId, String instanceId,
-                                            Long startTime, Long endTime, Integer limit,
-                                            boolean groupedByHosts) throws SQLException, IOException {
+      String hostname, String applicationId, String instanceId,
+      Long startTime, Long endTime, Integer limit,
+      boolean groupedByHosts) throws SQLException, IOException {
 
     Condition condition = new Condition(metricNames, hostname, applicationId,
       instanceId, startTime, endTime, limit, groupedByHosts);
@@ -141,9 +141,9 @@ public class HBaseTimelineMetricStore extends AbstractService
 
   @Override
   public TimelineMetric getTimelineMetric(String metricName, String hostname,
-                                          String applicationId, String instanceId, Long startTime,
-                                          Long endTime, Integer limit)
-    throws SQLException, IOException {
+      String applicationId, String instanceId, Long startTime,
+      Long endTime, Integer limit)
+      throws SQLException, IOException {
 
     TimelineMetrics metrics = hBaseAccessor.getMetricRecords(
       new Condition(Collections.singletonList(metricName), hostname,

@@ -42,28 +42,4 @@ public class TestPhoenixTransactSQL {
     Assert.assertNotNull(preparedClause);
     Assert.assertEquals(expectedClause, preparedClause);
   }
-
-  @Test
-  public void testTimelineMetricHourlyAggregateSerialization() throws Exception {
-    final long now = System.currentTimeMillis();
-
-    MetricHostAggregate hostAggregate = new MetricHostAggregate();
-    TimelineMetric metric = new TimelineMetric();
-    metric.setMetricName("m01");
-    metric.setAppId("app01");
-    metric.setHostName("h1");
-    metric.setInstanceId("i1");
-    metric.setTimestamp(now);
-    metric.setStartTime(now);
-    metric.addMetricValues(new HashMap<Long, Double>() {{
-      put(now, 0.1);
-      put(now + 10000, 0.2);
-    }});
-
-    hostAggregate.updateMinuteAggregates(metric);
-    //String json = hostAggregate.toJSON();
-    ObjectMapper mapper = new ObjectMapper();
-    System.out.println(mapper.writeValueAsString(hostAggregate));
-    System.out.println(hostAggregate.toJSON());
-  }
 }

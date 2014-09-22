@@ -32,12 +32,13 @@ import java.util.Map;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_AGGREGATE_ONLY_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_MINUTE_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.prepareGetMetricsSqlStmt;
 
 public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
   static final Long SLEEP_INTERVAL = 300000l; // 5 mins
-  static final Long CHECKPOINT_CUT_OFF_INTERVAL = SLEEP_INTERVAL * 4;
+  static final Long CHECKPOINT_CUT_OFF_INTERVAL = SLEEP_INTERVAL * 3;
   private static final Log LOG = LogFactory.getLog(TimelineMetricAggregatorMinute.class);
 
   public TimelineMetricAggregatorMinute(PhoenixHBaseAccessor hBaseAccessor,
@@ -47,7 +48,8 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
 
   @Override
   protected boolean doWork(long startTime, long endTime) {
-    LOG.info("Start aggregation cycle @ " + new Date());
+    LOG.info("Start aggregation cycle @ " + new Date() + ", " +
+      "startTime = " + new Date(startTime) + ", endTime = " + new Date(endTime));
 
     boolean success = true;
     Condition condition = new Condition(null, null, null, null, startTime,
@@ -55,7 +57,10 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
     condition.setNoLimit();
     condition.setFetchSize(RESULTSET_FETCH_SIZE);
     condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
-      METRICS_RECORD_TABLE_NAME));
+      METRICS_RECORD_CACHE_TABLE_NAME));
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("HOSTNAME");
+    condition.addOrderByColumn("TIMESTAMP");
 
     Connection conn = null;
     PreparedStatement stmt = null;
@@ -63,9 +68,9 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
     try {
       conn = hBaseAccessor.getConnection();
       stmt = prepareGetMetricsSqlStmt(conn, condition);
-      LOG.info("Query issued @: " + new Date());
+      LOG.debug("Query issued @: " + new Date());
       ResultSet rs = stmt.executeQuery();
-      LOG.info("Query returned @: " + new Date());
+      LOG.debug("Query returned @: " + new Date());
       TimelineMetric existingMetric = null;
       MetricHostAggregate hostAggregate = null;
 
@@ -90,7 +95,7 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
           hostAggregate.updateAggregates(currentHostAggregate);
 
         } else {
-          // Switched over to a new metric - save existing
+          // Switched over to a new metric - create new aggregate
           hostAggregate = new MetricHostAggregate();
           hostAggregate.updateAggregates(currentHostAggregate);
           hostAggregateMap.put(currentMetric, hostAggregate);

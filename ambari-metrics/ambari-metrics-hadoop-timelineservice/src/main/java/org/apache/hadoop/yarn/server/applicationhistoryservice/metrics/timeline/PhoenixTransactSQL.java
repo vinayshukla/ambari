@@ -23,7 +23,10 @@ import org.apache.commons.logging.LogFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Encapsulate all metrics related SQL queries.
@@ -36,13 +39,14 @@ public class PhoenixTransactSQL {
   * Create table to store individual metric records.
   */
   public static final String CREATE_METRICS_TABLE_SQL = "CREATE TABLE IF NOT " +
-    "EXISTS METRIC_RECORD (METRIC_NAME VARCHAR, HOSTNAME VARCHAR, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, TIMESTAMP UNSIGNED_LONG NOT NULL, " +
+    "EXISTS %s (METRIC_NAME VARCHAR, " +
+    "HOSTNAME VARCHAR, TIMESTAMP UNSIGNED_LONG NOT NULL, " +
+    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
     "START_TIME UNSIGNED_LONG, UNITS CHAR(20), " +
     "METRIC_AVG DOUBLE, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE, " +
     "METRICS VARCHAR CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=86400";
+    "PRIMARY KEY (METRIC_NAME, HOSTNAME, TIMESTAMP, APP_ID, INSTANCE_ID)) " +
+    "IMMUTABLE_ROWS=true, TTL=%s, COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_HOURLY " +
@@ -51,7 +55,7 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=2592000";
+    "IMMUTABLE_ROWS=true, TTL=2592000, COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_MINUTE " +
@@ -60,7 +64,7 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=604800";
+    "IMMUTABLE_ROWS=true, TTL=604800, COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE " +
@@ -68,7 +72,7 @@ public class PhoenixTransactSQL {
     "TIMESTAMP UNSIGNED_LONG NOT NULL, UNITS CHAR(20), METRIC_SUM DOUBLE, " +
     "HOSTS_COUNT UNSIGNED_INT, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
     "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=2592000";
+    "IMMUTABLE_ROWS=true, TTL=2592000, COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE_HOURLY " +
@@ -76,12 +80,12 @@ public class PhoenixTransactSQL {
     "TIMESTAMP UNSIGNED_LONG NOT NULL, UNITS CHAR(20), METRIC_AVG DOUBLE, " +
     "METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
     "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=31536000";
+    "IMMUTABLE_ROWS=true, TTL=31536000, COMPRESSION='SNAPPY'";
 
   /**
    * Insert into metric records table.
    */
-  public static final String UPSERT_METRICS_SQL = "UPSERT INTO METRIC_RECORD " +
+  public static final String UPSERT_METRICS_SQL = "UPSERT INTO %s " +
     "(METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, START_TIME, " +
     "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN, METRICS) VALUES " +
     "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -101,10 +105,10 @@ public class PhoenixTransactSQL {
    */
   public static final String GET_METRIC_SQL = "SELECT METRIC_NAME, " +
     "HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, START_TIME, UNITS, METRIC_AVG, " +
-    "METRIC_MAX, METRIC_MIN, METRICS FROM METRIC_RECORD";
+    "METRIC_MAX, METRIC_MIN, METRICS FROM %s";
 
   public static final String GET_METRIC_AGGREGATE_ONLY_SQL = "SELECT " +
-    "METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, " +
+    "/* RANGE_SCAN */ METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, " +
     "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN FROM %s";
 
   public static final String GET_CLUSTER_AGGREGATE_SQL =
@@ -118,6 +122,10 @@ public class PhoenixTransactSQL {
   public static final Integer DEFAULT_RESULT_LIMIT = 5760;
   public static final String METRICS_RECORD_TABLE_NAME =
     "METRIC_RECORD";
+  public static final int METRICS_RECORD_TABLE_TTL = 86400;
+  public static final String METRICS_RECORD_CACHE_TABLE_NAME =
+    "METRIC_RECORD_TEMP";
+  public static final int METRICS_RECORD_CACHE_TABLE_TTL = 900;
   public static final String METRICS_AGGREGATE_MINUTE_TABLE_NAME =
     "METRIC_RECORD_MINUTE";
   public static final String METRICS_AGGREGATE_HOURLY_TABLE_NAME =
@@ -137,7 +145,12 @@ public class PhoenixTransactSQL {
     StringBuilder sb = new StringBuilder(stmtStr);
     sb.append(" WHERE ");
     sb.append(condition.getConditionClause());
-    sb.append(" ORDER BY METRIC_NAME, TIMESTAMP");
+    String orderByClause = condition.getOrderByClause();
+    if (orderByClause != null) {
+      sb.append(orderByClause);
+    } else {
+      sb.append(" ORDER BY METRIC_NAME, TIMESTAMP");
+    }
     if (condition.getLimit() != null) {
       sb.append(" LIMIT ").append(condition.getLimit());
     }
@@ -225,6 +238,7 @@ public class PhoenixTransactSQL {
     boolean noLimit = false;
     Integer fetchSize;
     String statement;
+    Set<String> orderByColumns = new HashSet<String>();
 
     Condition(List<String> metricNames, String hostname, String appId,
               String instanceId, Long startTime, Long endTime, Integer limit,
@@ -378,6 +392,25 @@ public class PhoenixTransactSQL {
 
     void setFetchSize(Integer fetchSize) {
       this.fetchSize = fetchSize;
+    }
+
+    void addOrderByColumn(String column) {
+      orderByColumns.add(column);
+    }
+
+    String getOrderByClause() {
+      String orderByStr = " ORDER BY ";
+      if (!orderByColumns.isEmpty()) {
+        StringBuilder sb = new StringBuilder(orderByStr);
+        for (String orderByColumn : orderByColumns) {
+          if (sb.length() != orderByStr.length()) {
+            sb.append(", ");
+          }
+          sb.append(orderByColumn);
+        }
+        return sb.toString();
+      }
+      return null;
     }
 
     @Override

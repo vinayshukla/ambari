@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.prepareGetMetricsSqlStmt;
 
 /**
@@ -56,14 +57,16 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
    * @param endTime Sample end time
    */
   protected boolean doWork(long startTime, long endTime) {
-    LOG.info("Start aggregation cycle @ " + new Date());
+    LOG.info("Start aggregation cycle @ " + new Date() + ", " +
+      "startTime = " + new Date(startTime) + ", endTime = " + new Date(endTime));
 
     boolean success = true;
     Condition condition = new Condition(null, null, null, null, startTime,
                                         endTime, null, true);
     condition.setFetchSize(RESULTSET_FETCH_SIZE);
     condition.setNoLimit();
-    condition.setStatement(GET_METRIC_SQL);
+    condition.setStatement(String.format(GET_METRIC_SQL,
+      METRICS_RECORD_CACHE_TABLE_NAME));
 
     Connection conn;
     PreparedStatement stmt;
@@ -71,9 +74,9 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     try {
       conn = hBaseAccessor.getConnection();
       stmt = prepareGetMetricsSqlStmt(conn, condition);
-      LOG.info("Query issued @: " + new Date());
+      LOG.debug("Query issued @: " + new Date());
       ResultSet rs = stmt.executeQuery();
-      LOG.info("Query returned @: " + new Date());
+      LOG.debug("Query returned @: " + new Date());
       Map<TimelineClusterMetric, MetricClusterAggregate> aggregateClusterMetrics =
         new HashMap<TimelineClusterMetric, MetricClusterAggregate>();
       List<Long[]> timeSlices = new ArrayList<Long[]>();
