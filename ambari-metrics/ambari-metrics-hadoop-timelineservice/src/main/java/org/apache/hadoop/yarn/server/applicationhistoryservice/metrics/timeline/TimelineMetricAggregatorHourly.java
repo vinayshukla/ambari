@@ -58,6 +58,9 @@ public class TimelineMetricAggregatorHourly extends AbstractTimelineAggregator {
     condition.setFetchSize(RESULTSET_FETCH_SIZE);
     condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
       METRICS_AGGREGATE_MINUTE_TABLE_NAME));
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("HOSTNAME");
+    condition.addOrderByColumn("TIMESTAMP");
 
     Connection conn = null;
     PreparedStatement stmt = null;
