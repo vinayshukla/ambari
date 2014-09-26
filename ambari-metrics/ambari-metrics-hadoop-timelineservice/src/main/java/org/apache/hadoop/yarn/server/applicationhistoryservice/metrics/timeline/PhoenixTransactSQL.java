@@ -23,8 +23,7 @@ import org.apache.commons.logging.LogFactory;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -40,80 +39,89 @@ public class PhoenixTransactSQL {
   */
   public static final String CREATE_METRICS_TABLE_SQL = "CREATE TABLE IF NOT " +
     "EXISTS %s (METRIC_NAME VARCHAR, " +
-    "HOSTNAME VARCHAR, TIMESTAMP UNSIGNED_LONG NOT NULL, " +
+    "HOSTNAME VARCHAR, SERVER_TIME UNSIGNED_LONG NOT NULL, " +
     "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
     "START_TIME UNSIGNED_LONG, UNITS CHAR(20), " +
     "METRIC_AVG DOUBLE, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE, " +
     "METRICS VARCHAR CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, TIMESTAMP, APP_ID, INSTANCE_ID)) " +
-    "IMMUTABLE_ROWS=true, TTL=%s, COMPRESSION='SNAPPY'";
+    "PRIMARY KEY (METRIC_NAME, HOSTNAME, SERVER_TIME, APP_ID, " +
+    "INSTANCE_ID)) DATA_BLOCK_ENCODING='NONE', IMMUTABLE_ROWS=true, TTL=%s, " +
+    "COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_HOURLY " +
     "(METRIC_NAME VARCHAR, HOSTNAME VARCHAR, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, TIMESTAMP UNSIGNED_LONG NOT NULL, " +
+    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
+    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=2592000, COMPRESSION='SNAPPY'";
+    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='NONE', IMMUTABLE_ROWS=true, TTL=2592000, " +
+    "COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_MINUTE " +
     "(METRIC_NAME VARCHAR, HOSTNAME VARCHAR, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, TIMESTAMP UNSIGNED_LONG NOT NULL, " +
+    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
+    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=604800, COMPRESSION='SNAPPY'";
+    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='NONE', IMMUTABLE_ROWS=true, TTL=604800, " +
+    "COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE " +
     "(METRIC_NAME VARCHAR, APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "TIMESTAMP UNSIGNED_LONG NOT NULL, UNITS CHAR(20), METRIC_SUM DOUBLE, " +
+    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+    "UNITS CHAR(20), METRIC_SUM DOUBLE, " +
     "HOSTS_COUNT UNSIGNED_INT, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
-    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=2592000, COMPRESSION='SNAPPY'";
+    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='NONE', IMMUTABLE_ROWS=true, TTL=2592000, " +
+    "COMPRESSION='SNAPPY'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE_HOURLY " +
     "(METRIC_NAME VARCHAR, APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "TIMESTAMP UNSIGNED_LONG NOT NULL, UNITS CHAR(20), METRIC_AVG DOUBLE, " +
+    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+    "UNITS CHAR(20), METRIC_AVG DOUBLE, " +
     "METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
-    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, TIMESTAMP)) " +
-    "IMMUTABLE_ROWS=true, TTL=31536000, COMPRESSION='SNAPPY'";
+    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='NONE', IMMUTABLE_ROWS=true, TTL=31536000, " +
+    "COMPRESSION='SNAPPY'";
 
   /**
    * Insert into metric records table.
    */
   public static final String UPSERT_METRICS_SQL = "UPSERT INTO %s " +
-    "(METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, START_TIME, " +
+    "(METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, " +
     "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN, METRICS) VALUES " +
     "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   public static final String UPSERT_CLUSTER_AGGREGATE_SQL = "UPSERT INTO " +
-    "METRIC_AGGREGATE (METRIC_NAME, APP_ID, INSTANCE_ID, TIMESTAMP, " +
+    "METRIC_AGGREGATE (METRIC_NAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
     "UNITS, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, METRIC_MIN) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   public static final String UPSERT_AGGREGATE_RECORD_SQL = "UPSERT INTO " +
     "%s (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "TIMESTAMP, UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN) " +
+    "SERVER_TIME, UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   /**
    * Retrieve a set of rows from metrics records table.
    */
   public static final String GET_METRIC_SQL = "SELECT METRIC_NAME, " +
-    "HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, START_TIME, UNITS, METRIC_AVG, " +
+    "HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, UNITS, METRIC_AVG, " +
     "METRIC_MAX, METRIC_MIN, METRICS FROM %s";
 
   public static final String GET_METRIC_AGGREGATE_ONLY_SQL = "SELECT " +
-    "/* RANGE_SCAN */ METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, TIMESTAMP, " +
+    "METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
     "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN FROM %s";
 
   public static final String GET_CLUSTER_AGGREGATE_SQL =
     "SELECT METRIC_NAME, APP_ID, " +
-    "INSTANCE_ID, TIMESTAMP, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, " +
+    "INSTANCE_ID, SERVER_TIME, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, " +
     "METRIC_MIN FROM METRIC_AGGREGATE";
 
   /**
@@ -130,6 +138,7 @@ public class PhoenixTransactSQL {
     "METRIC_RECORD_MINUTE";
   public static final String METRICS_AGGREGATE_HOURLY_TABLE_NAME =
     "METRIC_RECORD_HOURLY";
+  public static final String DEFAULT_TABLE_COMPRESSION = "SNAPPY";
 
   public static PreparedStatement prepareGetMetricsSqlStmt(
       Connection connection, Condition condition) throws SQLException {
@@ -137,7 +146,7 @@ public class PhoenixTransactSQL {
     if (condition.isEmpty()) {
       throw new IllegalArgumentException("Condition is empty.");
     }
-    String stmtStr = GET_METRIC_SQL;
+    String stmtStr = String.format(GET_METRIC_SQL, METRICS_RECORD_TABLE_NAME);
     if (condition.getStatement() != null) {
       stmtStr = condition.getStatement();
     }
@@ -146,10 +155,11 @@ public class PhoenixTransactSQL {
     sb.append(" WHERE ");
     sb.append(condition.getConditionClause());
     String orderByClause = condition.getOrderByClause();
+
     if (orderByClause != null) {
       sb.append(orderByClause);
     } else {
-      sb.append(" ORDER BY METRIC_NAME, TIMESTAMP");
+      sb.append(" ORDER BY METRIC_NAME, SERVER_TIME ");
     }
     if (condition.getLimit() != null) {
       sb.append(" LIMIT ").append(condition.getLimit());
@@ -196,7 +206,7 @@ public class PhoenixTransactSQL {
     StringBuilder sb = new StringBuilder(GET_CLUSTER_AGGREGATE_SQL);
     sb.append(" WHERE ");
     sb.append(condition.getConditionClause());
-    sb.append(" ORDER BY METRIC_NAME, TIMESTAMP");
+    sb.append(" ORDER BY METRIC_NAME, SERVER_TIME");
     if (condition.getLimit() != null) {
       sb.append(" LIMIT ").append(condition.getLimit());
     }
@@ -238,7 +248,7 @@ public class PhoenixTransactSQL {
     boolean noLimit = false;
     Integer fetchSize;
     String statement;
-    Set<String> orderByColumns = new HashSet<String>();
+    Set<String> orderByColumns = new LinkedHashSet<String>();
 
     Condition(List<String> metricNames, String hostname, String appId,
               String instanceId, Long startTime, Long endTime, Integer limit,
@@ -319,14 +329,14 @@ public class PhoenixTransactSQL {
       }
       appendConjunction = false;
       if (getStartTime() != null) {
-        sb.append(" TIMESTAMP >= ?");
+        sb.append(" SERVER_TIME >= ?");
         appendConjunction = true;
       }
       if (appendConjunction) {
         sb.append(" AND");
       }
       if (getEndTime() != null) {
-        sb.append(" TIMESTAMP < ?");
+        sb.append(" SERVER_TIME < ?");
       }
       return sb.toString();
     }
@@ -408,6 +418,7 @@ public class PhoenixTransactSQL {
           }
           sb.append(orderByColumn);
         }
+        sb.append(" ");
         return sb.toString();
       }
       return null;
@@ -424,6 +435,7 @@ public class PhoenixTransactSQL {
         ", endTime=" + endTime +
         ", limit=" + limit +
         ", grouped=" + grouped +
+        ", orderBy=" + orderByColumns +
         ", noLimit=" + noLimit +
         '}';
     }

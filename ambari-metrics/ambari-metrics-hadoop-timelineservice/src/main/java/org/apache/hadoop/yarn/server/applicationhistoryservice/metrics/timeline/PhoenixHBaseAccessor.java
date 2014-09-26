@@ -43,6 +43,7 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.DEFAULT_TABLE_COMPRESSION;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
@@ -118,11 +119,11 @@ public class PhoenixHBaseAccessor {
     metric.setAppId(rs.getString("APP_ID"));
     metric.setInstanceId(rs.getString("INSTANCE_ID"));
     metric.setHostName(rs.getString("HOSTNAME"));
-    metric.setTimestamp(rs.getLong("TIMESTAMP"));
+    metric.setTimestamp(rs.getLong("SERVER_TIME"));
     metric.setStartTime(rs.getLong("START_TIME"));
     metric.setType(rs.getString("UNITS"));
     metric.setMetricValues(
-      (Map<Long, Double>) TimelineUtilsExt.readMetricFromJSON(
+      (Map<Long, Double>) TimelineUtils.readMetricFromJSON(
         rs.getString("METRICS")));
     return metric;
   }
@@ -134,7 +135,7 @@ public class PhoenixHBaseAccessor {
     metric.setAppId(rs.getString("APP_ID"));
     metric.setInstanceId(rs.getString("INSTANCE_ID"));
     metric.setHostName(rs.getString("HOSTNAME"));
-    metric.setTimestamp(rs.getLong("TIMESTAMP"));
+    metric.setTimestamp(rs.getLong("SERVER_TIME"));
     metric.setType(rs.getString("UNITS"));
     return metric;
   }
@@ -158,9 +159,11 @@ public class PhoenixHBaseAccessor {
       LOG.info("Initializing metrics schema...");
       stmt = conn.createStatement();
       stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
-        METRICS_RECORD_TABLE_NAME, METRICS_RECORD_TABLE_TTL));
+        METRICS_RECORD_TABLE_NAME, METRICS_RECORD_TABLE_TTL,
+        DEFAULT_TABLE_COMPRESSION));
       stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
-        METRICS_RECORD_CACHE_TABLE_NAME, METRICS_RECORD_CACHE_TABLE_TTL));
+        METRICS_RECORD_CACHE_TABLE_NAME, METRICS_RECORD_CACHE_TABLE_TTL,
+        "NONE"));
       stmt.executeUpdate(CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL);
       stmt.executeUpdate(CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL);
       stmt.executeUpdate(CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL);
@@ -518,10 +521,10 @@ public class PhoenixHBaseAccessor {
         metric.setMetricName(rs.getString("METRIC_NAME"));
         metric.setAppId(rs.getString("APP_ID"));
         metric.setInstanceId(rs.getString("INSTANCE_ID"));
-        metric.setTimestamp(rs.getLong("TIMESTAMP"));
-        metric.setStartTime(rs.getLong("TIMESTAMP"));
+        metric.setTimestamp(rs.getLong("SERVER_TIME"));
+        metric.setStartTime(rs.getLong("SERVER_TIME"));
         Map<Long, Double> valueMap = new HashMap<Long, Double>();
-        valueMap.put(rs.getLong("TIMESTAMP"), rs.getDouble("METRIC_SUM") /
+        valueMap.put(rs.getLong("SERVER_TIME"), rs.getDouble("METRIC_SUM") /
                                               rs.getInt("HOSTS_COUNT"));
         metric.setMetricValues(valueMap);
 

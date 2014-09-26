@@ -60,7 +60,9 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
       METRICS_RECORD_CACHE_TABLE_NAME));
     condition.addOrderByColumn("METRIC_NAME");
     condition.addOrderByColumn("HOSTNAME");
-    condition.addOrderByColumn("TIMESTAMP");
+    condition.addOrderByColumn("APP_ID");
+    condition.addOrderByColumn("INSTANCE_ID");
+    condition.addOrderByColumn("SERVER_TIME");
 
     Connection conn = null;
     PreparedStatement stmt = null;

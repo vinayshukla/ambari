@@ -67,6 +67,10 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     condition.setNoLimit();
     condition.setStatement(String.format(GET_METRIC_SQL,
       METRICS_RECORD_CACHE_TABLE_NAME));
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("APP_ID");
+    condition.addOrderByColumn("INSTANCE_ID");
+    condition.addOrderByColumn("SERVER_TIME");
 
     Connection conn;
     PreparedStatement stmt;
