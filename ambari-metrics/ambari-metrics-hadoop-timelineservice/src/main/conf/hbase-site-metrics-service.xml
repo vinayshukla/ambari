@@ -46,27 +46,35 @@
     <value>12582912</value>
   </property>
   <property>
-      <name>hbase.zookeeper.property.dataDir</name>
-      <value>/grid/0/zookeeper</value>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/grid/0/zookeeper</value>
   </property>
   <property>
-      <name>hbase.client.scanner.caching</name>
-      <value>10000</value>
+    <name>hbase.client.scanner.caching</name>
+    <value>10000</value>
   </property>
   <property>
     <name>hfile.block.cache.size</name>
-    <value>0.6</value>
+    <value>0.3</value>
   </property>
   <property>
     <name>hbase.regionserver.global.memstore.upperLimit</name>
-    <value>0.2</value>
+    <value>0.5</value>
   </property>
   <property>
     <name>hbase.regionserver.global.memstore.lowerLimit</name>
-    <value>0.1</value>
+    <value>0.4</value>
   </property>
   <property>
     <name>phoenix.groupby.maxCacheSize</name>
     <value>307200000</value>
+  </property>
+  <property>
+    <name>hbase.hregion.memstore.block.multiplier</name>
+    <value>4</value>
+  </property>
+  <property>
+    <name>hbase.hstore.flusher.count</name>
+    <value>2</value>
   </property>
 </configuration>

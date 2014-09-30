@@ -123,7 +123,7 @@ public class PhoenixHBaseAccessor {
     metric.setStartTime(rs.getLong("START_TIME"));
     metric.setType(rs.getString("UNITS"));
     metric.setMetricValues(
-      (Map<Long, Double>) TimelineUtils.readMetricFromJSON(
+      (Map<Long, Double>) TimelineUtilsExt.readMetricFromJSON(
         rs.getString("METRICS")));
     return metric;
   }
