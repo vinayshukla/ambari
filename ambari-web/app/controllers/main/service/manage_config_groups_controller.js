@@ -176,7 +176,6 @@ App.ManageConfigGroupsController = Em.Controller.extend({
       data.items.forEach(function (configGroup) {
         configGroup = configGroup.ConfigGroup;
         var hostNames = configGroup.hosts.mapProperty('host_name');
-        var publicHostNames = this.hostsToPublic(hostNames);
         var newConfigGroup = App.ConfigGroup.create({
           id: configGroup.id,
           name: configGroup.group_name,
@@ -185,7 +184,6 @@ App.ManageConfigGroupsController = Em.Controller.extend({
           parentConfigGroup: defaultConfigGroup,
           service: App.Service.find().findProperty('serviceName', configGroup.tag),
           hosts: hostNames,
-          publicHosts: publicHostNames,
           configSiteTags: [],
           properties: [],
           apiResponse: configGroup
@@ -210,7 +208,6 @@ App.ManageConfigGroupsController = Em.Controller.extend({
       }, this);
       defaultConfigGroup.set('childConfigGroups', configGroups);
       defaultConfigGroup.set('hosts', unusedHosts);
-      defaultConfigGroup.set('publicHosts', this.hostsToPublic(unusedHosts));
       var allGroups = [defaultConfigGroup].concat(configGroups);
       this.set('configGroups', allGroups);
       var originalGroups = this.copyConfigGroups(allGroups);
@@ -218,43 +215,6 @@ App.ManageConfigGroupsController = Em.Controller.extend({
       this.loadProperties(groupToTypeToTagMap);
       this.set('isLoaded', true);
     }
-  },
-  /**
-   * Get public_host_name by host_name.
-   *
-   * @param {Array|String} hostsList
-   * @return {Array|String}
-   **/
-  hostsToPublic: function(hostsList) {
-    return this.convertHostNames(hostsList, true);
-  },
-  /**
-   * Get host_name by public_host_name
-   *
-   * @param {Array|String} hostsList
-   * @return {Array|String}
-   **/
-  publicToHostName: function(hostsList) {
-    return this.convertHostNames(hostsList, false);
-  },
-  /***
-   * Switch between public_host_name and host_name
-   *
-   * @param {Array|String} hostsList
-   * @param {Boolean} toPublic
-   * @return {Array|String}
-   **/
-  convertHostNames: function(hostsList, toPublic) {
-    var allHosts = this.get('clusterHosts');
-    var convertTarget = !!toPublic ?
-      { from: 'hostName', to: 'publicHostName' } : { from: 'publicHostName', to: 'hostName'};
-    if (this.get('isInstaller')) {
-      allHosts = App.router.get(!!this.get('isAddService') ? 'addServiceController' : 'installerController').get('allHosts');
-    }
-    if (typeof hostsList == 'string') return allHosts.findProperty(convertTarget.from, hostsList).get(convertTarget.to);
-    return hostsList.map(function(hostName) {
-      return allHosts.findProperty(convertTarget.from, hostName).get(convertTarget.to);
-    }, this);
   },
 
   onLoadConfigGroupsError: function () {
@@ -292,10 +252,10 @@ App.ManageConfigGroupsController = Em.Controller.extend({
       App.config.loadedConfigurationsCache[configs.type + "_" + configs.tag] = configs.properties;
       var group = params.typeTagToGroupMap[configs.type + "///" + configs.tag];
       for (var config in configs.properties) {
-        typeTagConfigs.push(Em.Object.create({
+        typeTagConfigs.push({
           name: config,
           value: configs.properties[config]
-        }));
+        });
       }
       this.get('configGroups').findProperty('name', group).get('properties').pushObjects(typeTagConfigs);
     }, this);
@@ -314,7 +274,7 @@ App.ManageConfigGroupsController = Em.Controller.extend({
     var availableHosts = this.get('selectedConfigGroup.availableHosts');
     var popupDescription = {
       header: Em.I18n.t('hosts.selectHostsDialog.title'),
-      dialogMessage: Em.I18n.t('hosts.selectHostsDialog.message').format(this.get('selectedConfigGroup.displayName'))
+      dialogMessage: Em.I18n.t('hosts.selectHostsDialog.message').format(this.get('displayName'))
     };
     hostsManagement.launchHostsSelectionDialog(availableHosts, [], false, this.get('componentsForFilter'), this.addHostsCallback.bind(this), popupDescription);
   },
@@ -326,16 +286,12 @@ App.ManageConfigGroupsController = Em.Controller.extend({
     var group = this.get('selectedConfigGroup');
     if (selectedHosts) {
       var defaultHosts = group.get('parentConfigGroup.hosts').slice();
-      var defaultPublicHosts = group.get('parentConfigGroup.publicHosts').slice();
       var configGroupHosts = group.get('hosts');
       selectedHosts.forEach(function (hostName) {
         configGroupHosts.pushObject(hostName);
-        group.get('publicHosts').pushObject(this.hostsToPublic(hostName));
         defaultHosts.removeObject(hostName);
-        defaultPublicHosts.removeObject(this.hostsToPublic(hostName));
-      }, this);
+      });
       group.set('parentConfigGroup.hosts', defaultHosts);
-      group.set('parentConfigGroup.publicHosts', this.hostsToPublic(defaultHosts));
     }
   },
 
@@ -348,15 +304,11 @@ App.ManageConfigGroupsController = Em.Controller.extend({
     }
     var groupHosts = this.get('selectedConfigGroup.hosts');
     var defaultGroupHosts = this.get('selectedConfigGroup.parentConfigGroup.hosts').slice();
-    var defaultGroupPublicHosts = this.get('selectedConfigGroup.parentConfigGroup.publicHosts').slice();
     this.get('selectedHosts').slice().forEach(function (hostName) {
-      defaultGroupHosts.pushObject(this.publicToHostName(hostName));
-      defaultGroupPublicHosts.pushObject(hostName);
-      groupHosts.removeObject(this.publicToHostName(hostName));
-      this.get('selectedConfigGroup.publicHosts').removeObject(hostName);
-    }, this);
+      defaultGroupHosts.pushObject(hostName);
+      groupHosts.removeObject(hostName);
+    });
     this.set('selectedConfigGroup.parentConfigGroup.hosts', defaultGroupHosts);
-    this.set('selectedConfigGroup.parentConfigGroup.publicHosts', this.hostsToPublic(defaultGroupHosts));
     this.set('selectedHosts', []);
   },
 
@@ -385,7 +337,7 @@ App.ManageConfigGroupsController = Em.Controller.extend({
     return App.StackServiceComponent.find().filterProperty('serviceName', this.get('serviceName')).map(function (component) {
       return Em.Object.create({
         displayName: component.get('displayName'),
-        componentName: component.get('componentName'),
+        componentName: component.get('isClient') ? 'CLIENT' : component.get('componentName'),
         selected: false
       });
     });
@@ -422,7 +374,7 @@ App.ManageConfigGroupsController = Em.Controller.extend({
       }),
       configGroupName: self.get('selectedConfigGroup.name'),
       configGroupDesc: self.get('selectedConfigGroup.description'),
-      warningMessage: null,
+      warningMessage: '',
       isDescriptionDirty: false,
       validate: function () {
         var warningMessage = '';
@@ -444,7 +396,7 @@ App.ManageConfigGroupsController = Em.Controller.extend({
         this.set('warningMessage', warningMessage);
       }.observes('configGroupName', 'configGroupDesc'),
       disablePrimary: function () {
-        return !(this.get('configGroupName').trim().length > 0 && (this.get('warningMessage') !== null && !this.get('warningMessage')));
+        return !(this.get('configGroupName').trim().length > 0 && !this.get('warningMessage'));
       }.property('warningMessage', 'configGroupName', 'configGroupDesc'),
       onPrimary: function () {
         self.set('selectedConfigGroup.name', this.get('configGroupName'));
@@ -455,6 +407,7 @@ App.ManageConfigGroupsController = Em.Controller.extend({
         this.hide();
       }
     });
+    this.get('renameGroupPopup').validate();
   },
 
   /**
@@ -498,7 +451,6 @@ App.ManageConfigGroupsController = Em.Controller.extend({
           parentConfigGroup: defaultConfigGroup,
           service: Em.Object.create({id: self.get('serviceName')}),
           hosts: [],
-          publicHosts: [],
           configSiteTags: [],
           properties: []
         });
@@ -533,30 +485,27 @@ App.ManageConfigGroupsController = Em.Controller.extend({
     var groupsToCreate = [];
     var groups = this.get('configGroups');
     var originalGroups = this.get('originalConfigGroups');
-    // remove default group
-    originalGroups = originalGroups.without(originalGroups.findProperty('isDefault'));
-    var originalGroupsIds = originalGroups.mapProperty('id');
+    var originalGroupsNames = originalGroups.mapProperty('name').without(originalGroups.findProperty('isDefault').get('name'));
     groups.forEach(function (group) {
       if (!group.get('isDefault')) {
-        var originalGroup = originalGroups.findProperty('id', group.get('id'));
+        var originalGroup = originalGroups.findProperty('name', group.get('name'));
         if (originalGroup) {
           if (!(JSON.stringify(group.get('hosts').slice().sort()) === JSON.stringify(originalGroup.get('hosts').sort()))) {
             groupsToClearHosts.push(group.set('id', originalGroup.get('id')));
             if (group.get('hosts').length) {
               groupsToSetHosts.push(group.set('id', originalGroup.get('id')));
             }
-          // should update name or description
-          } else if (group.get('description') !== originalGroup.get('description') || group.get('name') !== originalGroup.get('name') ) {
+          } else if (group.get('description') !== originalGroup.get('description')) {
             groupsToSetHosts.push(group.set('id', originalGroup.get('id')));
           }
-          originalGroupsIds = originalGroupsIds.without(group.get('id'));
+          originalGroupsNames = originalGroupsNames.without(group.get('name'));
         } else {
           groupsToCreate.push(group);
         }
       }
     });
-    originalGroupsIds.forEach(function (id) {
-      groupsToDelete.push(originalGroups.findProperty('id', id));
+    originalGroupsNames.forEach(function (groupName) {
+      groupsToDelete.push(originalGroups.findProperty('name', groupName));
     }, this);
     return {
       toClearHosts: groupsToClearHosts,

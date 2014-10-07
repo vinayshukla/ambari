@@ -118,15 +118,7 @@ describe('App.MainDashboardWidgetsView', function() {
   });
 
   describe('#persistKey', function() {
-    beforeEach(function() {
-      sinon.stub(App.router, 'get', function(k) {
-        if ('loginName' === k) return 'tdk';
-        return Em.get(App.router, k);
-      });
-    });
-    afterEach(function() {
-      App.router.get.restore();
-    });
+    App.router.set('loginName', 'tdk');
     it('Check it', function() {
       expect(mainDashboardWidgetsView.get('persistKey')).to.equal('user-pref-tdk-dashboard');
     });

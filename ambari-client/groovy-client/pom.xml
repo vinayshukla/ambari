@@ -53,10 +53,6 @@
       <artifactId>spock-core</artifactId>
       <version>0.7-groovy-2.0</version>
     </dependency>
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -87,6 +83,7 @@
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
           <excludes>
+            <exclude>**/*.iml</exclude>
             <exclude>src/main/resources/blueprints/**</exclude>
             <exclude>src/test/resources/**</exclude>
           </excludes>

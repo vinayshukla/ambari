@@ -61,12 +61,14 @@ App.HighAvailabilityWizardStep9Controller = App.HighAvailabilityProgressPageCont
 
   reconfigureHBase: function () {
     var data = this.get('content.serviceConfigProperties');
-    var configData = this.reconfigureSites(['hbase-site'],data);
+    var hbaseSiteProperties = data.items.findProperty('type', 'hbase-site').properties;
+
     App.ajax.send({
-      name: 'common.service.configurations',
+      name: 'admin.high_availability.save_configs',
       sender: this,
       data: {
-        desired_config: configData
+        siteName: 'hbase-site',
+        properties: hbaseSiteProperties
       },
       success: 'saveConfigTag',
       error: 'onTaskError'

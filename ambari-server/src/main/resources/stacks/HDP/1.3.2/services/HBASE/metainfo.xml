@@ -20,7 +20,6 @@
   <services>
     <service>
       <name>HBASE</name>
-      <displayName>HBase</displayName>
       <comment>Non-relational distributed database and centralized service for configuration management &amp;
         synchronization
       </comment>
@@ -28,9 +27,8 @@
       <components>
         <component>
           <name>HBASE_MASTER</name>
-          <displayName>HBase Master</displayName>
           <category>MASTER</category>
-          <cardinality>1+</cardinality>
+          <cardinality>1</cardinality>
           <dependencies>
             <dependency>
               <name>HDFS/HDFS_CLIENT</name>
@@ -67,7 +65,6 @@
 
         <component>
           <name>HBASE_REGIONSERVER</name>
-          <displayName>RegionServer</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -88,30 +85,12 @@
 
         <component>
           <name>HBASE_CLIENT</name>
-          <displayName>HBase Client</displayName>
           <category>CLIENT</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality>
           <commandScript>
             <script>scripts/hbase_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>hbase-site.xml</fileName>
-              <dictionaryName>hbase-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hbase-env.sh</fileName>
-              <dictionaryName>hbase-env</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>log4j.properties</fileName>
-              <dictionaryName>hbase-log4j</dictionaryName>
-            </configFile>            
-          </configFiles>
         </component>
       </components>
 
@@ -131,11 +110,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>HDFS</service>
-        <service>ZOOKEEPER</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>hbase-policy</config-type>

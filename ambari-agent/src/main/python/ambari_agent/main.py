@@ -25,60 +25,41 @@ import sys
 import traceback
 import os
 import time
+import platform
 import ConfigParser
 import ProcessHelper
 from Controller import Controller
-from AmbariConfig import AmbariConfig
+import AmbariConfig
 from NetUtil import NetUtil
 from PingPortListener import PingPortListener
 import hostname
 from DataCleaner import DataCleaner
 import socket
-
 logger = logging.getLogger()
+
+IS_WINDOWS = platform.system() == "Windows"
+
+if IS_WINDOWS:
+  from HeartbeatHandlers_windows import bind_signal_handlers
+else:
+  from HeartbeatStopHandler_linux import bind_signal_handlers
+
 formatstr = "%(levelname)s %(asctime)s %(filename)s:%(lineno)d - %(message)s"
 agentPid = os.getpid()
-config = AmbariConfig()
-configFile = config.CONFIG_FILE
-two_way_ssl_property = config.TWO_WAY_SSL_PROPERTY
-
-if 'AMBARI_LOG_DIR' in os.environ:
-  logfile = os.environ['AMBARI_LOG_DIR'] + "/ambari-agent.log"
-else:
-  logfile = "/var/log/ambari-agent/ambari-agent.log"
-
-def signal_handler(signum, frame):
-  #we want the handler to run only for the agent process and not
-  #for the children (e.g. namenode, etc.)
-  if os.getpid() != agentPid:
-    os._exit(0)
-  logger.info('signal received, exiting.')
-  ProcessHelper.stopAgent()
-
-def debug(sig, frame):
-  """Interrupt running process, and provide a python prompt for
-  interactive debugging."""
-  d={'_frame':frame}         # Allow access to frame object.
-  d.update(frame.f_globals)  # Unless shadowed by global
-  d.update(frame.f_locals)
-
-  message  = "Signal received : entering python shell.\nTraceback:\n"
-  message += ''.join(traceback.format_stack(frame))
-  logger.info(message)
 
 
 def setup_logging(verbose):
   formatter = logging.Formatter(formatstr)
-  rotateLog = logging.handlers.RotatingFileHandler(logfile, "a", 10000000, 25)
+  rotateLog = logging.handlers.RotatingFileHandler(AmbariConfig.AmbariConfig.getLogFile(), "a", 10000000, 25)
   rotateLog.setFormatter(formatter)
   logger.addHandler(rotateLog)
 
   if verbose:
-    logging.basicConfig(format=formatstr, level=logging.DEBUG, filename=logfile)
+    logging.basicConfig(format=formatstr, level=logging.DEBUG, filename=AmbariConfig.AmbariConfig.getLogFile())
     logger.setLevel(logging.DEBUG)
     logger.info("loglevel=logging.DEBUG")
   else:
-    logging.basicConfig(format=formatstr, level=logging.INFO, filename=logfile)
+    logging.basicConfig(format=formatstr, level=logging.INFO, filename=AmbariConfig.AmbariConfig.getLogFile())
     logger.setLevel(logging.INFO)
     logger.info("loglevel=logging.INFO")
 
@@ -89,44 +70,37 @@ def update_log_level(config):
     loglevel = config.get('agent', 'loglevel')
     if loglevel is not None:
       if loglevel == 'DEBUG':
-        logging.basicConfig(format=formatstr, level=logging.DEBUG, filename=logfile)
+        logging.basicConfig(format=formatstr, level=logging.DEBUG, filename=AmbariConfig.AmbariConfig.getLogFile())
         logger.setLevel(logging.DEBUG)
         logger.info("Newloglevel=logging.DEBUG")
       else:
-        logging.basicConfig(format=formatstr, level=logging.INFO, filename=logfile)
+        logging.basicConfig(format=formatstr, level=logging.INFO, filename=AmbariConfig.AmbariConfig.getLogFile())
         logger.setLevel(logging.INFO)
         logger.debug("Newloglevel=logging.INFO")
   except Exception, err:
     logger.info("Default loglevel=DEBUG")
 
 
-def bind_signal_handlers():
-  signal.signal(signal.SIGINT, signal_handler)
-  signal.signal(signal.SIGTERM, signal_handler)
-  signal.signal(signal.SIGUSR1, debug)
-
-
 #  ToDo: move that function inside AmbariConfig
 def resolve_ambari_config():
   global config
+  configPath = os.path.abspath(AmbariConfig.AmbariConfig.getConfigFile())
+
   try:
-    if os.path.exists(configFile):
-        config.read(configFile)
+    if os.path.exists(configPath):
+      config.read(configPath)
     else:
-      raise Exception("No config found, use default")
+      raise Exception("No config found at {0}, use default".format(configPath))
 
   except Exception, err:
     logger.warn(err)
-  return config
 
 
 def perform_prestart_checks(expected_hostname):
   # Check if current hostname is equal to expected one (got from the server
   # during bootstrap.
-  global config
-
   if expected_hostname is not None:
-    current_hostname = hostname.hostname(config)
+    current_hostname = hostname.hostname()
     if current_hostname != expected_hostname:
       print("Determined hostname does not match expected. Please check agent "
             "log for details")
@@ -137,13 +111,18 @@ def perform_prestart_checks(expected_hostname):
       logger.error(msg)
       sys.exit(1)
   # Check if there is another instance running
-  if os.path.isfile(ProcessHelper.pidfile):
-    print("%s already exists, exiting" % ProcessHelper.pidfile)
-    sys.exit(1)
-  # check if ambari prefix exists
-  elif not os.path.isdir(config.get("agent", "prefix")):
+  # if os.path.isfile(ProcessHelper.pidfile):
+  #   print("%s already exists, exiting" % ProcessHelper.pidfile)
+  #   sys.exit(1)
+  # # check if ambari prefix exists
+  elif config.has_option('agent', 'prefix') and not os.path.isdir(os.path.abspath(config.get('agent', 'prefix'))):
     msg = "Ambari prefix dir %s does not exists, can't continue" \
           % config.get("agent", "prefix")
+    logger.error(msg)
+    print(msg)
+    sys.exit(1)
+  elif not config.has_option('agent', 'prefix'):
+    msg = "Ambari prefix dir %s not configured, can't continue"
     logger.error(msg)
     print(msg)
     sys.exit(1)
@@ -181,7 +160,9 @@ def stop_agent():
     os._exit(1)
 
 
-def main():
+# event - event, that will be passed to Controller and NetUtil to make able to interrupt loops form outside process
+# we need this for windows os, where no sigterm available
+def main(heartbeat_stop_callback):
   global config
   parser = OptionParser()
   parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="verbose log output", default=False)
@@ -193,32 +174,32 @@ def main():
 
   setup_logging(options.verbose)
 
-  default_cfg = {'agent': {'prefix': '/home/ambari'}}
-  config.load(default_cfg)
+  default_cfg = { 'agent' : { 'prefix' : '/home/ambari' } }
+  config = ConfigParser.RawConfigParser(default_cfg)
 
-  bind_signal_handlers()
-
-  if (len(sys.argv) > 1) and sys.argv[1] == 'stop':
+  if (len(sys.argv) >1) and sys.argv[1]=='stop':
     stop_agent()
 
   # Check for ambari configuration file.
-  config = resolve_ambari_config()
+  resolve_ambari_config()
 
   # Starting data cleanup daemon
   data_cleaner = None
-  if int(config.get('agent', 'data_cleanup_interval')) > 0:
+  if config.has_option('agent', 'data_cleanup_interval') and int(config.get('agent','data_cleanup_interval')) > 0:
     data_cleaner = DataCleaner(config)
     data_cleaner.start()
 
   perform_prestart_checks(expected_hostname)
-  daemonize()
+
+  if not IS_WINDOWS:
+    daemonize()
 
   # Starting ping port listener
   try:
     ping_port_listener = PingPortListener(config)
   except Exception as ex:
     err_message = "Failed to start ping port listener of: " + str(ex)
-    logger.error(err_message)
+    logger.error(err_message);
     sys.stderr.write(err_message)
     sys.exit(1)
   ping_port_listener.start()
@@ -226,7 +207,7 @@ def main():
   update_log_level(config)
 
   server_hostname = config.get('server', 'hostname')
-  server_url = config.get_api_url()
+  server_url = 'https://' + server_hostname + ':' + config.get('server', 'url_port')
 
   try:
     server_ip = socket.gethostbyname(server_hostname)
@@ -235,15 +216,18 @@ def main():
     logger.warn("Unable to determine the IP address of the Ambari server '%s'", server_hostname)
 
   # Wait until server is reachable
-  netutil = NetUtil()
-  netutil.try_to_connect(server_url, -1, logger)
-
-  # Launch Controller communication
-  controller = Controller(config)
-  controller.start()
-  controller.join()
-  stop_agent()
+  netutil = NetUtil(heartbeat_stop_callback)
+  retries, connected = netutil.try_to_connect(server_url, -1, logger)
+  # Ambari Agent was stopped using stop event
+  if connected:
+    # Launch Controller communication
+    controller = Controller(config, heartbeat_stop_callback)
+    controller.start()
+    controller.join()
+  #stop_agent()
   logger.info("finished")
 
 if __name__ == "__main__":
-  main()
+  heartbeat_stop_callback = bind_signal_handlers(agentPid)
+
+  main(heartbeat_stop_callback)

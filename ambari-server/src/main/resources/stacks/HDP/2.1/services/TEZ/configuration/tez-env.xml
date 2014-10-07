@@ -24,14 +24,13 @@
   <property>
     <name>tez_user</name>
     <value>tez</value>
-    <property-type>USER</property-type>
     <description></description>
   </property>
 
   <!-- tez-env.sh -->
   <property>
     <name>content</name>
-    <description>This is the jinja template for tez-env.sh file</description>
+    <description>tez-env.sh content</description>
     <value>
 # Tez specific configuration
 export TEZ_CONF_DIR={{config_dir}}

@@ -45,23 +45,20 @@ class Heartbeat:
     timestamp = int(time.time()*1000)
     queueResult = self.actionQueue.result()
 
-
+    
     nodeStatus = { "status" : "HEALTHY",
-                   "cause" : "NONE" }
-    nodeStatus["alerts"] = []
-
-
-
+                   "cause" : "NONE"}
+    
     heartbeat = { 'responseId'        : int(id),
                   'timestamp'         : timestamp,
-                  'hostname'          : hostname.hostname(self.config),
+                  'hostname'          : hostname.hostname(),
                   'nodeStatus'        : nodeStatus
                 }
 
     commandsInProgress = False
     if not self.actionQueue.commandQueue.empty():
       commandsInProgress = True
-
+      
     if len(queueResult) != 0:
       heartbeat['reports'] = queueResult['reports']
       heartbeat['componentStatus'] = queueResult['componentStatus']
@@ -74,27 +71,27 @@ class Heartbeat:
     if int(id) == 0:
       componentsMapped = False
 
-    logger.info("Building Heartbeat: {responseId = %s, timestamp = %s, commandsInProgress = %s, componentsMapped = %s}",
+    logger.info("Building Heartbeat: {responseId = %s, timestamp = %s, commandsInProgress = %s, componentsMapped = %s}", 
         str(id), str(timestamp), repr(commandsInProgress), repr(componentsMapped))
-
+    
     if logger.isEnabledFor(logging.DEBUG):
       logger.debug("Heartbeat: %s", pformat(heartbeat))
 
-    hostInfo = HostInfo(self.config)
     if (int(id) >= 0) and state_interval > 0 and (int(id) % state_interval) == 0:
+      hostInfo = HostInfo(self.config)
       nodeInfo = { }
+      
       # for now, just do the same work as registration
       # this must be the last step before returning heartbeat
       hostInfo.register(nodeInfo, componentsMapped, commandsInProgress)
       heartbeat['agentEnv'] = nodeInfo
       mounts = Hardware.osdisks()
       heartbeat['mounts'] = mounts
-
+            
       if logger.isEnabledFor(logging.DEBUG):
         logger.debug("agentEnv: %s", str(nodeInfo))
         logger.debug("mounts: %s", str(mounts))
 
-    nodeStatus["alerts"] = hostInfo.createAlerts(nodeStatus["alerts"])
     return heartbeat
 
 def main(argv=None):

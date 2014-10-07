@@ -31,19 +31,21 @@ def oozie(is_server=False # TODO: see if see can remove this
                          owner=params.oozie_user,
                          mode=params.oozie_hdfs_user_mode
     )
-  Directory( params.conf_dir,
-             recursive = True,
-             owner = params.oozie_user,
-             group = params.user_group
-  )
+  #TODO hack for falcon el
+  oozie_site = dict(params.config['configurations']['oozie-site'])
+  oozie_site["oozie.services.ext"] = 'org.apache.oozie.service.JMSAccessorService,' + oozie_site["oozie.services.ext"]
   XmlConfig( "oozie-site.xml",
-    conf_dir = params.conf_dir,
-    configurations = params.config['configurations']['oozie-site'],
-    configuration_attributes=params.config['configuration_attributes']['oozie-site'],
+    conf_dir = params.conf_dir, 
+    configurations = oozie_site,
     owner = params.oozie_user,
     group = params.user_group,
     mode = 0664
   )
+  Directory( params.conf_dir,
+    owner = params.oozie_user,
+    group = params.user_group
+  )
+  
   File(format("{conf_dir}/oozie-env.sh"),
     owner=params.oozie_user,
     content=InlineTemplate(params.oozie_env_sh_template)
@@ -121,25 +123,25 @@ def oozie_server_specific(
     not_if="ls {pid_file} >/dev/null 2>&1 && !(ps `cat {pid_file}` >/dev/null 2>&1)"
   )
   
-  oozie_server_directorties = [params.oozie_pid_dir, params.oozie_log_dir, params.oozie_tmp_dir, params.oozie_data_dir, params.oozie_lib_dir, params.oozie_webapps_dir, params.oozie_webapps_conf_dir]
+  oozie_server_directorties = [params.oozie_pid_dir, params.oozie_log_dir, params.oozie_tmp_dir, params.oozie_data_dir, params.oozie_lib_dir, params.oozie_webapps_dir]            
   Directory( oozie_server_directorties,
     owner = params.oozie_user,
     mode = 0755,
     recursive = True
   )
 
-  cmd1 = format("cd {oozie_home} && tar -xvf oozie-sharelib.tar.gz")
-  cmd2 = format("cd {oozie_home} && mkdir -p {oozie_tmp_dir}")
+  cmd1 = "cd /usr/lib/oozie && tar -xvf oozie-sharelib.tar.gz"
+  cmd2 =  format("cd /usr/lib/oozie && mkdir -p {oozie_tmp_dir}")
   
   # this is different for HDP1
-  cmd3 = format("cd {oozie_home} && chown {oozie_user}:{user_group} {oozie_tmp_dir} && mkdir -p {oozie_libext_dir} && cp {ext_js_path} {oozie_libext_dir}")
+  cmd3 = format("cd /usr/lib/oozie && chown {oozie_user}:{user_group} {oozie_tmp_dir} && mkdir -p {oozie_libext_dir} && cp {ext_js_path} {oozie_libext_dir}")
   if params.jdbc_driver_name=="com.mysql.jdbc.Driver" or params.jdbc_driver_name=="oracle.jdbc.driver.OracleDriver":
     cmd3 += format(" && cp {jdbc_driver_jar} {oozie_libext_dir}")
   #falcon el extension
   if params.has_falcon_host:
     cmd3 += format(' && cp {falcon_home}/oozie/ext/falcon-oozie-el-extension-*.jar {oozie_libext_dir}')
   # this is different for HDP1
-  cmd4 = format("cd {oozie_tmp_dir} && {oozie_setup_sh} prepare-war")
+  cmd4 = format("cd {oozie_tmp_dir} && /usr/lib/oozie/bin/oozie-setup.sh prepare-war")
 
   no_op_test = format("ls {pid_file} >/dev/null 2>&1 && ps `cat {pid_file}` >/dev/null 2>&1")
   Execute( [cmd1, cmd2, cmd3],

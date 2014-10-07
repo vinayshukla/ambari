@@ -19,9 +19,34 @@
   <schemaVersion>2.0</schemaVersion>
   <services>
     <service>
-      <name>HDFS</name>
-      <comment>Apache Hadoop Distributed File System</comment>
+      <name>GLUSTERFS</name>
+      <comment>An Hadoop Compatible File System</comment>
       <version>2.2.0.2.0.6.0</version>
+      <components>
+        <component>
+          <name>GLUSTERFS_CLIENT</name>
+          <category>CLIENT</category>
+          <commandScript>
+            <script>scripts/glusterfs_client.py</script>
+            <scriptType>PYTHON</scriptType>
+            <timeout>600</timeout>
+          </commandScript>
+        </component>
+      </components>
+
+      <commandScript>
+        <script>scripts/service_check.py</script>
+        <scriptType>PYTHON</scriptType>
+        <timeout>300</timeout>
+      </commandScript>
+
+      <configuration-dependencies>
+        <config-type>core-site</config-type>
+        <config-type>global</config-type>
+        <config-type>hadoop-policy</config-type>
+        <config-type>hdfs-site</config-type>
+      </configuration-dependencies>
+
     </service>
   </services>
 </metainfo>

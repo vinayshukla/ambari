@@ -40,7 +40,6 @@ class TestTezClient(RMFTestCase):
       group = 'hadoop',
       conf_dir = '/etc/tez/conf',
       configurations = self.getConfig()['configurations']['tez-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['tez-site'],
       mode = 0664
     )
 

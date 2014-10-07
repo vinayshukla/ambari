@@ -17,7 +17,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-import os
 from mock.mock import MagicMock, call, patch
 from stacks.utils.RMFTestCase import *
 
@@ -42,9 +41,8 @@ class TestServiceCheck(RMFTestCase):
                           user = 'ambari-qa',
                           try_sleep = 5,
     )
-    self.assertResourceCalled('Execute', 'yarn --config /etc/hadoop/conf node -list',
-                              path = [os.environ['PATH'] + os.pathsep + "/usr/bin" + os.pathsep + "/usr/lib/hadoop-yarn/bin"],
-                              user = 'ambari-qa',
+    self.assertResourceCalled('Execute', '/usr/bin/yarn node -list',
+                          user = 'ambari-qa',
     )
     self.assertNoMoreResources()
 
@@ -65,8 +63,7 @@ class TestServiceCheck(RMFTestCase):
                           user = 'ambari-qa',
                           try_sleep = 5,
     )
-    self.assertResourceCalled('Execute', 'yarn --config /etc/hadoop/conf node -list',
-                              path = [os.environ['PATH'] + os.pathsep + "/usr/bin" + os.pathsep + "/usr/lib/hadoop-yarn/bin"],
+    self.assertResourceCalled('Execute', '/usr/bin/yarn node -list',
                           user = 'ambari-qa',
     )
     self.assertNoMoreResources()

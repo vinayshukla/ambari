@@ -134,8 +134,7 @@ App.WizardStep3HostWarningPopupBody = Em.View.extend({
   categoryWarnings: function () {
     var warningsByHost = this.get('warningsByHost');
     if (Em.isNone(warningsByHost)) return [];
-    var category = warningsByHost.findProperty('name', this.get('category'));
-    return Em.isNone(category) ? []: category.warnings;
+    return warningsByHost.findProperty('name', this.get('category')).warnings;
   }.property('warningsByHost', 'category'),
 
   /**
@@ -180,16 +179,16 @@ App.WizardStep3HostWarningPopupBody = Em.View.extend({
         category: 'disk',
         isCollapsed: true
       }),
-      Em.Object.create({
-        warnings: repoCategoryWarnings,
-        title: Em.I18n.t('installer.step3.hostWarningsPopup.repositories'),
-        message: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.message'),
-        type: Em.I18n.t('common.issues'),
-        emptyName: Em.I18n.t('installer.step3.hostWarningsPopup.empty.repositories'),
-        action: Em.I18n.t('installer.step3.hostWarningsPopup.action.invalid'),
-        category: 'repositories',
-        isCollapsed: true
-      }),
+//      Em.Object.create({
+//        warnings: repoCategoryWarnings,
+//        title: Em.I18n.t('installer.step3.hostWarningsPopup.repositories'),
+//        message: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.message'),
+//        type: Em.I18n.t('common.issues'),
+//        emptyName: Em.I18n.t('installer.step3.hostWarningsPopup.empty.repositories'),
+//        action: Em.I18n.t('installer.step3.hostWarningsPopup.action.invalid'),
+//        category: 'repositories',
+//        isCollapsed: true
+//      }),
       Em.Object.create({
         warnings: categoryWarnings.filterProperty('category', 'firewall'),
         title: Em.I18n.t('installer.step3.hostWarningsPopup.firewall'),

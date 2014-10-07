@@ -54,6 +54,12 @@ define servicegroup {
   alias  OOZIE Checks
 }
 {% endif %}
+{% if hostgroup_defs['webhcat-server'] %}
+define servicegroup {
+  servicegroup_name  WEBHCAT
+  alias  WEBHCAT Checks
+}
+{% endif %}
 {% if hostgroup_defs['nagios-server'] %}
 define servicegroup {
   servicegroup_name  NAGIOS
@@ -66,7 +72,7 @@ define servicegroup {
   alias  GANGLIA Checks
 }
 {% endif %}
-{% if hostgroup_defs['hiveserver'] or hostgroup_defs['webhcat-server'] %}
+{% if hostgroup_defs['hiveserver'] %}
 define servicegroup {
   servicegroup_name  HIVE
   alias  HIVE Checks

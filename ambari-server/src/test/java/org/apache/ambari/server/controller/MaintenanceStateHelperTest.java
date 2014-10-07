@@ -107,7 +107,7 @@ public class MaintenanceStateHelperTest {
     
     Map<String, String> map = new HashMap<String, String>();
     map.put("context", "abc");
-    maintenanceStateHelper.createRequests(amc, map, sch.getClusterName());
+    maintenanceStateHelper.createRequests(amc, map, Collections.singleton(sch.getClusterName()));
     
     ExecuteActionRequest ear = earCapture.getValue();
     map = rpCapture.getValue();
@@ -120,8 +120,7 @@ public class MaintenanceStateHelperTest {
     Assert.assertEquals("NAGIOS", resourceFilter.getServiceName());
     Assert.assertEquals("NAGIOS_SERVER", resourceFilter.getComponentName());
     Assert.assertEquals("c1", ear.getClusterName());
-    Assert.assertTrue(map.containsKey("context"));
-    Assert.assertEquals(ear.getOperationLevel().getLevel(), Type.HostComponent);
+    Assert.assertTrue(map.containsKey("context"));  
   }
 
   private void testHost(MaintenanceState state) throws Exception {
@@ -167,7 +166,7 @@ public class MaintenanceStateHelperTest {
     
     Map<String, String> map = new HashMap<String, String>();
     map.put("context", "abc");
-    maintenanceStateHelper.createRequests(amc, map, cluster.getClusterName());
+    maintenanceStateHelper.createRequests(amc, map, Collections.singleton(cluster.getClusterName()));
     
     ExecuteActionRequest ear = earCapture.getValue();
     rpCapture.getValue();
@@ -179,8 +178,7 @@ public class MaintenanceStateHelperTest {
     Assert.assertEquals("NAGIOS", resourceFilter.getServiceName());
     Assert.assertEquals("NAGIOS_SERVER", resourceFilter.getComponentName());
     Assert.assertEquals("c1", ear.getClusterName());
-    Assert.assertTrue(map.containsKey("context"));
-    Assert.assertEquals(ear.getOperationLevel().getLevel(), Type.HostComponent);
+    Assert.assertTrue(map.containsKey("context"));    
   }
   
   private void testService(MaintenanceState state) throws Exception {
@@ -227,7 +225,7 @@ public class MaintenanceStateHelperTest {
     
     Map<String, String> map = new HashMap<String, String>();
     map.put("context", "abc");
-    maintenanceStateHelper.createRequests(amc, map, "c1");
+    maintenanceStateHelper.createRequests(amc, map, Collections.singleton("c1"));
     
     ExecuteActionRequest ear = earCapture.getValue();
     map = rpCapture.getValue();
@@ -240,7 +238,6 @@ public class MaintenanceStateHelperTest {
     Assert.assertEquals("NAGIOS_SERVER", resourceFilter.getComponentName());
     Assert.assertEquals("c1", ear.getClusterName());
     Assert.assertTrue(map.containsKey("context"));
-    Assert.assertEquals(ear.getOperationLevel().getLevel(), Type.HostComponent);
   }
 
   @Test
@@ -538,34 +535,6 @@ public class MaintenanceStateHelperTest {
     Assert.assertEquals(ignored.size(), 2);
     Assert.assertTrue(ignored.contains("host1"));
     Assert.assertTrue(ignored.contains("host3"));
-  }
-
-  @Test
-  public void testcreateRequests() throws AmbariException {
-    Injector injector = createStrictMock(Injector.class);
-    MaintenanceStateHelper maintenanceStateHelper =
-            createMockBuilder(MaintenanceStateHelper.class)
-                    .withConstructor(injector)
-                    .createNiceMock();
-    replay(maintenanceStateHelper);
-
-    RequestStatusResponse rsrMock = EasyMock.createMock(RequestStatusResponse.class);
-    AmbariManagementController amcMock = EasyMock.createMock(AmbariManagementController.class);
-
-    Capture<Map<String, String>> rpCapture = new Capture<Map<String, String>>();
-    Capture<ExecuteActionRequest> actReqCapture = new Capture<ExecuteActionRequest>();
-    expect(amcMock.createAction(capture(actReqCapture), capture(rpCapture))).andReturn(rsrMock);
-    replay(amcMock, rsrMock);
-
-    Map<String, String> requestProperties = new HashMap<String, String>();
-    requestProperties.put("context", "some.request.description");
-
-    maintenanceStateHelper.createRequests(amcMock, requestProperties, "dummy_cluster");
-
-    verify(amcMock);
-
-    // Check that new request name is substituted
-    Assert.assertEquals(rpCapture.getValue().get("context"), MaintenanceStateHelper.UPDATE_NAGIOS_REQUEST_NAME);
   }
 
   private static void injectField(MaintenanceStateHelper maintenanceStateHelper, Clusters clusters)

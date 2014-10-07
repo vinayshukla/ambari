@@ -34,8 +34,8 @@ class TestActualConfigHandler(TestCase):
   def setUp(self):
     LiveStatus.SERVICES = [
       "HDFS", "MAPREDUCE", "GANGLIA", "HBASE",
-      "NAGIOS", "ZOOKEEPER", "OOZIE",
-      "KERBEROS", "TEMPLETON", "HIVE",
+      "NAGIOS", "ZOOKEEPER", "OOZIE", "HCATALOG",
+      "KERBEROS", "TEMPLETON", "HIVE", "WEBHCAT",
       "YARN", "MAPREDUCE2", "FLUME", "TEZ",
       "FALCON", "STORM"
     ]
@@ -108,7 +108,7 @@ class TestActualConfigHandler(TestCase):
        "componentName" : "HIVE_METASTORE"},
       {"serviceName" : "HIVE",
        "componentName" : "MYSQL_SERVER"},
-      {"serviceName" : "HIVE",
+      {"serviceName" : "WEBHCAT",
        "componentName" : "WEBHCAT_SERVER"},
       {"serviceName" : "YARN",
        "componentName" : "RESOURCEMANAGER"},
@@ -193,7 +193,6 @@ class TestActualConfigHandler(TestCase):
 
     tags1 = { "global": "version1", "core-site": "version2" }
     tags2 = { "global": "version33", "core-site": "version33" }
-    clientsToUpdateConfigs1 = ["*"]
     handler = ActualConfigHandler(config, {})
     handler.write_actual_component('HDFS_CLIENT', tags1)
     handler.write_actual_component('HBASE_CLIENT', tags1)
@@ -202,7 +201,7 @@ class TestActualConfigHandler(TestCase):
     handler.write_actual_component('DATANODE', tags2)
     self.assertEquals(tags2, handler.read_actual_component('DATANODE'))
     self.assertEquals(tags1, handler.read_actual_component('HDFS_CLIENT'))
-    handler.write_client_components('HDFS', tags2, clientsToUpdateConfigs1)
+    handler.write_client_components('HDFS', tags2)
     self.assertEquals(tags2, handler.read_actual_component('HDFS_CLIENT'))
     self.assertEquals(tags1, handler.read_actual_component('HBASE_CLIENT'))
 
@@ -219,35 +218,15 @@ class TestActualConfigHandler(TestCase):
     tags0 = {"global": "version0", "core-site": "version0"}
     tags1 = {"global": "version1", "core-site": "version2"}
     tags2 = {"global": "version33", "core-site": "version33"}
-    clientsToUpdateConfigs1 = ["HDFS_CLIENT","HBASE_CLIENT"]
     configTags = {'HDFS_CLIENT': tags0, 'HBASE_CLIENT': tags1}
     handler = ActualConfigHandler(config, configTags)
     self.assertEquals(tags0, handler.read_actual_component('HDFS_CLIENT'))
     self.assertEquals(tags1, handler.read_actual_component('HBASE_CLIENT'))
-    handler.write_client_components('HDFS', tags2, clientsToUpdateConfigs1)
+    handler.write_client_components('HDFS', tags2)
     self.assertEquals(tags2, handler.read_actual_component('HDFS_CLIENT'))
     self.assertEquals(tags1, handler.read_actual_component('HBASE_CLIENT'))
     self.assertTrue(write_file_mock.called)
     self.assertEqual(1, write_file_mock.call_count)
-
-  @patch.object(ActualConfigHandler, "write_file")
-  def test_write_empty_client_components(self, write_file_mock):
-    config = AmbariConfig().getConfig()
-    tmpdir = tempfile.gettempdir()
-    config.set('agent', 'prefix', tmpdir)
-
-    tags0 = {"global": "version0", "core-site": "version0"}
-    tags1 = {"global": "version1", "core-site": "version2"}
-    tags2 = {"global": "version33", "core-site": "version33"}
-    clientsToUpdateConfigs1 = []
-    configTags = {'HDFS_CLIENT': tags0, 'HBASE_CLIENT': tags1}
-    handler = ActualConfigHandler(config, configTags)
-    self.assertEquals(tags0, handler.read_actual_component('HDFS_CLIENT'))
-    self.assertEquals(tags1, handler.read_actual_component('HBASE_CLIENT'))
-    handler.write_client_components('HDFS', tags2, clientsToUpdateConfigs1)
-    self.assertEquals(tags0, handler.read_actual_component('HDFS_CLIENT'))
-    self.assertEquals(tags1, handler.read_actual_component('HBASE_CLIENT'))
-    self.assertFalse(write_file_mock.called)
 
   @patch.object(ActualConfigHandler, "write_file")
   @patch.object(ActualConfigHandler, "read_file")

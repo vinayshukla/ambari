@@ -44,17 +44,13 @@ public class ViewVersionResourceProvider extends AbstractResourceProvider {
   /**
    * View property id constants.
    */
-  public static final String VIEW_NAME_PROPERTY_ID          = "ViewVersionInfo/view_name";
-  public static final String VIEW_VERSION_PROPERTY_ID       = "ViewVersionInfo/version";
-  public static final String LABEL_PROPERTY_ID              = "ViewVersionInfo/label";
-  public static final String DESCRIPTION_PROPERTY_ID        = "ViewVersionInfo/description";
-  public static final String VERSION_PROPERTY_ID            = "ViewVersionInfo/version";
-  public static final String PARAMETERS_PROPERTY_ID         = "ViewVersionInfo/parameters";
-  public static final String ARCHIVE_PROPERTY_ID            = "ViewVersionInfo/archive";
-  public static final String MASKER_CLASS_PROPERTY_ID       = "ViewVersionInfo/masker_class";
-  public static final String VIEW_STATUS_PROPERTY_ID        = "ViewVersionInfo/status";
-  public static final String VIEW_STATUS_DETAIL_PROPERTY_ID = "ViewVersionInfo/status_detail";
-  public static final String SYSTEM_PROPERTY_ID             = "ViewVersionInfo/system";
+  public static final String VIEW_NAME_PROPERTY_ID      = "ViewVersionInfo/view_name";
+  public static final String VIEW_VERSION_PROPERTY_ID   = "ViewVersionInfo/version";
+  public static final String LABEL_PROPERTY_ID          = "ViewVersionInfo/label";
+  public static final String VERSION_PROPERTY_ID        = "ViewVersionInfo/version";
+  public static final String PARAMETERS_PROPERTY_ID     = "ViewVersionInfo/parameters";
+  public static final String ARCHIVE_PROPERTY_ID        = "ViewVersionInfo/archive";
+  public static final String MASKER_CLASS_PROPERTY_ID   = "ViewVersionInfo/masker_class";
 
   /**
    * The key property ids for a view resource.
@@ -73,14 +69,10 @@ public class ViewVersionResourceProvider extends AbstractResourceProvider {
     propertyIds.add(VIEW_NAME_PROPERTY_ID);
     propertyIds.add(VIEW_VERSION_PROPERTY_ID);
     propertyIds.add(LABEL_PROPERTY_ID);
-    propertyIds.add(DESCRIPTION_PROPERTY_ID);
     propertyIds.add(VERSION_PROPERTY_ID);
     propertyIds.add(PARAMETERS_PROPERTY_ID);
     propertyIds.add(ARCHIVE_PROPERTY_ID);
     propertyIds.add(MASKER_CLASS_PROPERTY_ID);
-    propertyIds.add(VIEW_STATUS_PROPERTY_ID);
-    propertyIds.add(VIEW_STATUS_DETAIL_PROPERTY_ID);
-    propertyIds.add(SYSTEM_PROPERTY_ID);
   }
 
 
@@ -100,7 +92,7 @@ public class ViewVersionResourceProvider extends AbstractResourceProvider {
   public RequestStatus createResources(Request request)
       throws SystemException, UnsupportedPropertyException,
       ResourceAlreadyExistsException, NoSuchParentResourceException {
-    throw new UnsupportedOperationException("Not supported.");
+    throw new UnsupportedOperationException("Not yet supported.");
   }
 
   @Override
@@ -129,15 +121,11 @@ public class ViewVersionResourceProvider extends AbstractResourceProvider {
             setResourceProperty(resource, VIEW_NAME_PROPERTY_ID, viewDefinition.getCommonName(), requestedIds);
             setResourceProperty(resource, VIEW_VERSION_PROPERTY_ID, viewDefinition.getVersion(), requestedIds);
             setResourceProperty(resource, LABEL_PROPERTY_ID, viewDefinition.getLabel(), requestedIds);
-            setResourceProperty(resource, DESCRIPTION_PROPERTY_ID, viewDefinition.getDescription(), requestedIds);
             setResourceProperty(resource, VERSION_PROPERTY_ID, viewDefinition.getVersion(), requestedIds);
             setResourceProperty(resource, PARAMETERS_PROPERTY_ID,
                 viewDefinition.getConfiguration().getParameters(), requestedIds);
             setResourceProperty(resource, ARCHIVE_PROPERTY_ID, viewDefinition.getArchive(), requestedIds);
             setResourceProperty(resource, MASKER_CLASS_PROPERTY_ID, viewDefinition.getMask(), requestedIds);
-            setResourceProperty(resource, VIEW_STATUS_PROPERTY_ID, viewDefinition.getStatus().toString(), requestedIds);
-            setResourceProperty(resource, VIEW_STATUS_DETAIL_PROPERTY_ID, viewDefinition.getStatusDetail(), requestedIds);
-            setResourceProperty(resource, SYSTEM_PROPERTY_ID, viewDefinition.isSystem(), requestedIds);
 
             resources.add(resource);
           }
@@ -150,13 +138,13 @@ public class ViewVersionResourceProvider extends AbstractResourceProvider {
   @Override
   public RequestStatus updateResources(Request request, Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    throw new UnsupportedOperationException("Not supported.");
+    throw new UnsupportedOperationException("Not yet supported.");
   }
 
   @Override
   public RequestStatus deleteResources(Predicate predicate)
       throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
-    throw new UnsupportedOperationException("Not supported.");
+    throw new UnsupportedOperationException("Not yet supported.");
   }
 
   @Override

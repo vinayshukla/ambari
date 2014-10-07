@@ -34,11 +34,6 @@ App.SliderApp = DS.Model.extend({
   status: DS.attr('string'),
 
   /**
-   * @type {displayStatus}
-   */
-  displayStatus: DS.attr('string'),
-
-  /**
    * @type {string}
    */
   user: DS.attr('string'),
@@ -61,11 +56,6 @@ App.SliderApp = DS.Model.extend({
   /**
    * @type {string}
    */
-
-  description: DS.attr('string'),
-  /**
-   * @type {string}
-   */
   diagnostics: DS.attr('string'),
 
   /**
@@ -77,11 +67,6 @@ App.SliderApp = DS.Model.extend({
    * @type {App.QuickLink[]}
    */
   quickLinks: DS.hasMany('quickLink', {async:true}),
-
-  /**
-   * @type {App.SliderAppAlert[]}
-   */
-  alerts: DS.hasMany('sliderAppAlert', {async:true}),
 
   /**
    * @type {App.TypedProperty[]}
@@ -109,29 +94,47 @@ App.SliderApp = DS.Model.extend({
 
   jmx: DS.attr('object'),
 
-  supportedMetricNames: DS.attr('string'),
-
-  // Config categories, that should be hidden on app page
-  hiddenCategories: [],
+  /**
+   * Global configs
+   * @type {{key: string, value: *}[]}
+   */
+  globals: function() {
+    var c = this.get('configs.global');
+    return this.mapObject(c);
+  }.property('configs.@each'),
 
   /**
-   * @type {boolean}
+   * HBase-Site configs
+   * @type {{key: string, value: *}[]}
    */
-  doNotShowComponentsAndAlerts: function(){
-    return this.get('status') == "FROZEN" || this.get('status') == "FAILED";
-  }.property('status', 'components', 'alerts'),
+  hbaseSite: function() {
+    var c = this.get('configs.hbase-site');
+    return this.mapObject(c);
+  }.property('configs.@each'),
+
+  /**
+   * Configs which are not in global or hbase-site
+   * @type {{key: string, value: *}[]}
+   */
+  otherConfigs: function() {
+    var c = this.get('configs'),
+      ret = [],
+      self = this;
+    if (Ember.typeOf(c) !== 'object') return [];
+    Ember.keys(c).forEach(function(key) {
+      if (['hbase-site', 'global'].contains(key)) return;
+      ret = ret.concat(self.mapObject(c[key]));
+    });
+    return ret;
+  }.property('configs.@each'),
 
   /**
    * Display metrics only for running apps
    * @type {boolean}
    */
   showMetrics: function() {
-    var global = this.get('configs')['global'];
-    if (App.get('gangliaHost') != null) {
-      return true;
-    }
     return App.SliderApp.Status.running === this.get('status');
-  }.property('status', 'configs'),
+  }.property('status'),
 
   /**
    * Map object to array
@@ -141,11 +144,7 @@ App.SliderApp = DS.Model.extend({
   mapObject: function(o) {
     if (Ember.typeOf(o) !== 'object') return [];
     return Ember.keys(o).map(function(key) {
-      return {
-        key: key,
-        value: o[key],
-        isMultiline: o[key].indexOf("\n") !== -1 || o[key].length > 100
-      };
+      return {key: key, value: o[key]};
     });
   }
 

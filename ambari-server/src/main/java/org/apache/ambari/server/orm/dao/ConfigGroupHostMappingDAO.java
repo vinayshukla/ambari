@@ -262,8 +262,6 @@ public class ConfigGroupHostMappingDAO {
 
   @Transactional
   public void removeAllByGroup(final Long groupId) {
-    populateCache();
-
     TypedQuery<Long> query = entityManagerProvider.get().createQuery
       ("DELETE FROM ConfigGroupHostMappingEntity confighosts WHERE " +
         "confighosts.configGroupId = ?1", Long.class);

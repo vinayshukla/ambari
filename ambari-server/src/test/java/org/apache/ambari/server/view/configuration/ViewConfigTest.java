@@ -45,9 +45,7 @@ public class ViewConfigTest {
   private static String xml = "<view>\n" +
       "    <name>MY_VIEW</name>\n" +
       "    <label>My View!</label>\n" +
-      "    <description>Description</description>" +
       "    <version>1.0.0</version>\n" +
-      "    <system>true</system>\n" +
       "    <icon64>/this/is/the/icon/url/icon64.png</icon64>\n" +
       "    <icon>/this/is/the/icon/url/icon.png</icon>\n" +
       "    <masker-class>org.apache.ambari.server.view.DefaultMasker</masker-class>" +
@@ -118,20 +116,6 @@ public class ViewConfigTest {
       "    <view-class>ViewImpl</view-class>\n" +
       "</view>";
 
-  private static String system_xml = "<view>\n" +
-      "    <name>MY_VIEW</name>\n" +
-      "    <label>My View!</label>\n" +
-      "    <version>1.0.0</version>\n" +
-      "    <system>true</system>\n" +
-      "</view>";
-
-  private static String non_system_xml = "<view>\n" +
-      "    <name>MY_VIEW</name>\n" +
-      "    <label>My View!</label>\n" +
-      "    <version>1.0.0</version>\n" +
-      "    <system>false</system>\n" +
-      "</view>";
-
   @Test
   public void testGetName() throws Exception {
     ViewConfig config = getConfig();
@@ -142,12 +126,6 @@ public class ViewConfigTest {
   public void testGetLabel() throws Exception {
     ViewConfig config = getConfig();
     Assert.assertEquals("My View!", config.getLabel());
-  }
-
-  @Test
-  public void testGetDescription() throws Exception {
-    ViewConfig config = getConfig();
-    Assert.assertEquals("Description", config.getDescription());
   }
 
   @Test
@@ -223,15 +201,6 @@ public class ViewConfigTest {
     instances = config.getInstances();
     Assert.assertNotNull(instances);
     Assert.assertEquals(0, instances.size());
-  }
-
-  @Test
-  public void testIsSystem() throws Exception {
-    ViewConfig config = getConfig(system_xml);
-    Assert.assertTrue(config.isSystem());
-
-    config = getConfig(non_system_xml);
-    Assert.assertFalse(config.isSystem());
   }
 
   public static  ViewConfig getConfig() throws JAXBException {

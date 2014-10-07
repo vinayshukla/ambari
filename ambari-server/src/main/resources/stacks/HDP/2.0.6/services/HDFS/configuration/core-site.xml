@@ -89,17 +89,6 @@
     <description>Defines the maximum number of retries for IPC connections.</description>
   </property>
 
-  <property>
-    <name>ipc.server.tcpnodelay</name>
-    <value>true</value>
-    <description>Turn on/off Nagle's algorithm for the TCP socket
-      connection on
-      the server. Setting to true disables the algorithm and may
-      decrease latency
-      with a cost of more/smaller packets.
-    </description>
-  </property>
-
   <!-- Web Interface Configuration -->
   <property>
     <name>mapreduce.jobtracker.webinterface.trusted</name>
@@ -174,16 +163,6 @@ If you want to treat all principals from APACHE.ORG with /admin as "admin", your
 
 RULE[2:$1%$2@$0](.%admin@APACHE.ORG)s/./admin/
 DEFAULT
-    </description>
-  </property>
-
-  <property>
-    <name>dfs.http.policy</name>
-    <value>HTTP_ONLY</value>
-    <description>
-      Decide if HTTPS(SSL) is supported on HDFS This configures the HTTP endpoint for HDFS daemons:
-      The following values are supported: - HTTP_ONLY : Service is provided only on http - HTTPS_ONLY :
-      Service is provided only on https - HTTP_AND_HTTPS : Service is provided both on http and https
     </description>
   </property>
 

@@ -30,7 +30,6 @@ class SqoopServiceCheck(Script):
         Execute(format("{kinit_path_local}  -kt {smoke_user_keytab} {smokeuser}"))
     Execute("sqoop version",
             user = params.smokeuser,
-            path = params.sqoop_bin_dir,
             logoutput = True
     )
 

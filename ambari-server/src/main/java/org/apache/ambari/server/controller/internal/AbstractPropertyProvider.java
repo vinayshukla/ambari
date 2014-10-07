@@ -18,6 +18,9 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import org.apache.ambari.server.controller.spi.PropertyProvider;
+import org.apache.ambari.server.controller.utilities.PropertyHelper;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -27,9 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.ambari.server.controller.spi.PropertyProvider;
-import org.apache.ambari.server.controller.utilities.PropertyHelper;
 
 /**
  *  Abstract property provider implementation.
@@ -123,13 +123,12 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
       return;
     }
 
-    Map.Entry<String, Pattern> regexEntry = getRegexEntry(propertyId);
+    String regExpKey = getRegExpKey(propertyId);
 
-    if (regexEntry != null) {
-      String regexKey = regexEntry.getKey();
-      propertyInfo = componentMetricMap.get(regexKey);
+    if (regExpKey != null) {
+      propertyInfo = componentMetricMap.get(regExpKey);
       if (propertyInfo != null) {
-        propertyInfoMap.put(regexKey, propertyInfo);
+        propertyInfoMap.put(regExpKey, propertyInfo);
         return;
       }
     }
@@ -145,14 +144,14 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
       }
     }
 
-    if (regexEntry != null) {
-      // in the event that a category is being requested, the pattern must
-      // match all child properties; append \S* for this
-      String regexPattern = regexEntry.getValue().pattern();
-      regexPattern += "(\\S*)";
+    if (regExpKey != null) {
+      if (!regExpKey.endsWith("/")){
+        regExpKey += "/";
+      }
 
+      
       for (Map.Entry<String, PropertyInfo> entry : componentMetricMap.entrySet()) {
-        if (entry.getKey().matches(regexPattern)) {
+        if (entry.getKey().startsWith(regExpKey)) {
           propertyInfoMap.put(entry.getKey(), entry.getValue());
         }
       }
@@ -279,18 +278,15 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
   protected void updateComponentMetricMap(
     Map<String, PropertyInfo> componentMetricMap, String propertyId) {
 
-    String regexKey = null;
-    Map.Entry<String, Pattern> regexEntry = getRegexEntry(propertyId);
-    if (null != regexEntry) {
-      regexKey = regexEntry.getKey();
-    }
+    String regExpKey = getRegExpKey(propertyId);
 
-    if (!componentMetricMap.containsKey(propertyId) && regexKey != null
-        && !regexKey.equals(propertyId)) {
 
-      PropertyInfo propertyInfo = componentMetricMap.get(regexKey);
+    if (!componentMetricMap.containsKey(propertyId) && regExpKey != null &&
+      !regExpKey.equals(propertyId)) {
+
+      PropertyInfo propertyInfo = componentMetricMap.get(regExpKey);
       if (propertyInfo != null) {
-        List<String> regexGroups = getRegexGroups(regexKey, propertyId);
+        List<String> regexGroups = getRegexGroups(regExpKey, propertyId);
         String key = propertyInfo.getPropertyId();
         for (String regexGroup : regexGroups) {
           regexGroup = regexGroup.replace("/", ".");
@@ -301,6 +297,18 @@ public abstract class AbstractPropertyProvider extends BaseProvider implements P
       }
 
     }
+  }
+
+  protected PropertyInfo updatePropertyInfo(String propertyKey, String id, PropertyInfo propertyInfo) {
+    List<String> regexGroups = getRegexGroups(propertyKey, id);
+    String propertyId = propertyInfo.getPropertyId();
+    if(propertyId != null) {
+      for (String regexGroup : regexGroups) {
+        regexGroup = regexGroup.replace("/", ".");
+        propertyId = propertyId.replaceFirst(FIND_REGEX_IN_METRIC_REGEX, regexGroup);
+      }
+    }
+    return new PropertyInfo(propertyId, propertyInfo.isTemporal(), propertyInfo.isPointInTime());
   }
 
   /**

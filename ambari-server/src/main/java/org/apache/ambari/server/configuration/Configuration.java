@@ -51,13 +51,6 @@ public class Configuration {
 
   public static final String CONFIG_FILE = "ambari.properties";
   public static final String BOOTSTRAP_DIR = "bootstrap.dir";
-
-  /**
-   *  PREFIX_DIR is shared in ambari-agent.ini and should only be called by unit tests.
-   *  For all server-side processing, it should be retrieved from <code>HostImpl.getPrefix()</code>
-   */
-  public static final String PREFIX_DIR = "/var/lib/ambari-agent/data";
-
   public static final String BOOTSTRAP_DIR_DEFAULT = "/var/run/ambari-server/bootstrap";
   public static final String VIEWS_DIR = "views.dir";
   public static final String VIEWS_DIR_DEFAULT = "/var/lib/ambari-server/resources/views";
@@ -67,10 +60,6 @@ public class Configuration {
   public static final String BOOTSTRAP_SETUP_AGENT_SCRIPT = "bootstrap.setup_agent.script";
   public static final String BOOTSTRAP_SETUP_AGENT_PASSWORD = "bootstrap.setup_agent.password";
   public static final String BOOTSTRAP_MASTER_HOSTNAME = "bootstrap.master_host_name";
-  public static final String RECOMMENDATIONS_DIR = "recommendations.dir";
-  public static final String RECOMMENDATIONS_DIR_DEFAULT = "/var/run/ambari-server/stack-recommendations";
-  public static final String STACK_ADVISOR_SCRIPT = "stackadvisor.script";
-  public static final String STACK_ADVISOR_SCRIPT_DEFAULT = "/var/lib/ambari-server/resources/scripts/stack_advisor.py";
   public static final String API_AUTHENTICATE = "api.authenticate";
   public static final String API_USE_SSL = "api.ssl";
   public static final String API_CSRF_PREVENTION_KEY = "api.csrfPrevention.enabled";
@@ -106,9 +95,9 @@ public class Configuration {
   public static final String CLIENT_API_SSL_CRT_PASS_FILE_NAME_KEY = "client.api.ssl.cert_pass_file";
   public static final String CLIENT_API_SSL_CRT_PASS_KEY = "client.api.ssl.crt_pass";
   public static final String CLIENT_API_SSL_KEY_NAME_KEY = "client.api.ssl.key_name";
-  public static final String SERVER_DB_NAME_KEY = "server.jdbc.database_name";
+  public static final String SERVER_DB_NAME_KEY = "server.jdbc.database";
   public static final String SERVER_DB_NAME_DEFAULT = "ambari";
-  public static final String SERVER_JDBC_POSTGRES_SCHEMA_NAME = "server.jdbc.postgres.schema";
+  public static final String SERVER_JDBC_SCHEMA_NAME = "server.jdbc.schema";
   public static final String POSTGRES_DB_NAME = "postgres";
   public static final String ORACLE_DB_NAME = "oracle";
   public static final String MYSQL_DB_NAME = "mysql";
@@ -117,7 +106,6 @@ public class Configuration {
   public static final String OJDBC_JAR_NAME_DEFAULT = "ojdbc6.jar";
   public static final String MYSQL_JAR_NAME_KEY = "db.mysql.jdbc.name";
   public static final String MYSQL_JAR_NAME_DEFAULT = "mysql-connector-java.jar";
-  public static final String IS_LDAP_CONFIGURED = "ambari.ldap.isConfigured";
   public static final String LDAP_USE_SSL_KEY = "authentication.ldap.useSSL";
   public static final String LDAP_PRIMARY_URL_KEY =
       "authentication.ldap.primaryUrl";
@@ -133,22 +121,22 @@ public class Configuration {
       "authentication.ldap.managerPassword";
   public static final String LDAP_USERNAME_ATTRIBUTE_KEY =
       "authentication.ldap.usernameAttribute";
-  public static final String LDAP_USER_BASE_KEY =
-      "authentication.ldap.userBase";
-  public static final String LDAP_USER_OBJECT_CLASS_KEY =
-      "authentication.ldap.userObjectClass";
   public static final String LDAP_GROUP_BASE_KEY =
-      "authentication.ldap.groupBase";
+      "authorization.ldap.groupBase";
   public static final String LDAP_GROUP_OBJECT_CLASS_KEY =
-      "authentication.ldap.groupObjectClass";
+      "authorization.ldap.groupObjectClass";
   public static final String LDAP_GROUP_NAMING_ATTR_KEY =
-      "authentication.ldap.groupNamingAttr";
+      "authorization.ldap.groupNamingAttr";
   public static final String LDAP_GROUP_MEMEBERSHIP_ATTR_KEY =
-      "authentication.ldap.groupMembershipAttr";
+      "authorization.ldap.groupMembershipAttr";
   public static final String LDAP_ADMIN_GROUP_MAPPING_RULES_KEY =
       "authorization.ldap.adminGroupMappingRules";
   public static final String LDAP_GROUP_SEARCH_FILTER_KEY =
       "authorization.ldap.groupSearchFilter";
+  public static final String USER_ROLE_NAME_KEY =
+      "authorization.userRoleName";
+  public static final String ADMIN_ROLE_NAME_KEY =
+      "authorization.adminRoleName";
   public static final String SERVER_EC_CACHE_SIZE = "server.ecCacheSize";
   public static final String SERVER_STALE_CONFIG_CACHE_ENABLED_KEY =
     "server.cache.isStale.enabled";
@@ -163,6 +151,11 @@ public class Configuration {
   public static final String SERVER_JDBC_RCA_USER_PASSWD_KEY = "server.jdbc.rca.user.passwd";
   public static final String SERVER_JDBC_RCA_DRIVER_KEY = "server.jdbc.rca.driver";
   public static final String SERVER_JDBC_RCA_URL_KEY = "server.jdbc.rca.url";
+  public static final String SCOM_JDBC_SINK_USER_NAME_KEY = "scom.sink.db.username";
+  public static final String SCOM_JDBC_SINK_USER_PASSWD_KEY = "scom.sink.db.password";
+  public static final String SCOM_JDBC_SINK_DRIVER_KEY = "scom.sink.db.driver";
+  public static final String SCOM_JDBC_SINK_URL_KEY = "scom.sink.db.url";
+  public static final String SCOM_JDBC_SINK_INT_AUTH_KEY = "scom.sink.db.use.integrated.auth";
   public static final String SERVER_JDBC_GENERATE_TABLES_KEY = "server.jdbc.generateTables";
   public static final String JDBC_UNIT_NAME = "ambari-server";
   public static final String JDBC_LOCAL_URL = "jdbc:postgresql://localhost/";
@@ -230,8 +223,6 @@ public class Configuration {
   public static final String DEFAULT_SCHEDULER_MAX_CONNECTIONS = "5";
   public static final String DEFAULT_EXECUTION_SCHEDULER_MISFIRE_TOLERATION = "480";
   public static final String DEFAULT_SCHEDULER_START_DELAY_SECONDS = "120";
-  public static final String SERVER_TMP_DIR_KEY = "server.tmp.dir";
-  public static final String SERVER_TMP_DIR_DEFAULT = "/var/lib/ambari-server/tmp";
   /**
    * This key defines whether stages of parallel requests are executed in
    * parallel or sequentally. Only stages from different requests
@@ -252,6 +243,8 @@ public class Configuration {
   private static final String SERVER_JDBC_USER_PASSWD_DEFAULT = "bigdata";
   private static final String SERVER_JDBC_RCA_USER_NAME_DEFAULT = "mapred";
   private static final String SERVER_JDBC_RCA_USER_PASSWD_DEFAULT = "mapred";
+  private static final String SCOM_JDBC_SINK_USER_NAME_DEFAULT = "hadoop";
+  private static final String SCOM_JDBC_SINK_USER_PASSWD_DEFAULT = "hadoop";
   private static final String SRVR_TWO_WAY_SSL_DEFAULT = "false";
   private static final String SRVR_KSTR_DIR_DEFAULT = ".";
   private static final String API_CSRF_PREVENTION_DEFAULT = "true";
@@ -261,18 +254,16 @@ public class Configuration {
   private static final String RESOURCES_DIR_DEFAULT =
       "/var/lib/ambari-server/resources/";
   private static final String ANONYMOUS_AUDIT_NAME_KEY = "anonymous.audit.name";
-
+  private static final String CLIENT_SECURITY_DEFAULT = "local";
   private static final int CLIENT_API_PORT_DEFAULT = 8080;
   private static final int CLIENT_API_SSL_PORT_DEFAULT = 8443;
+  private static final String USER_ROLE_NAME_DEFAULT = "user";
+  private static final String ADMIN_ROLE_NAME_DEFAULT = "admin";
   private static final String LDAP_BIND_ANONYMOUSLY_DEFAULT = "true";
-
   //TODO For embedded server only - should be removed later
   private static final String LDAP_PRIMARY_URL_DEFAULT = "localhost:33389";
   private static final String LDAP_BASE_DN_DEFAULT = "dc=ambari,dc=apache,dc=org";
   private static final String LDAP_USERNAME_ATTRIBUTE_DEFAULT = "uid";
-  private static final String LDAP_USER_BASE_DEFAULT =
-      "ou=people,dc=ambari,dc=apache,dc=org";
-  private static final String LDAP_USER_OBJECT_CLASS_DEFAULT = "person";
   private static final String LDAP_GROUP_BASE_DEFAULT =
       "ou=groups,dc=ambari,dc=apache,dc=org";
   private static final String LDAP_GROUP_OBJECT_CLASS_DEFAULT = "group";
@@ -281,36 +272,27 @@ public class Configuration {
   private static final String LDAP_ADMIN_GROUP_MAPPING_RULES_DEFAULT =
       "Ambari Administrators";
   private static final String LDAP_GROUP_SEARCH_FILTER_DEFAULT = "";
-  private static final String IS_LDAP_CONFIGURED_DEFAULT = "false";
   //TODO for development purposes only, should be changed to 'false'
   private static final String SERVER_PERSISTENCE_TYPE_DEFAULT = "local";
   private static final String SERVER_CONNECTION_MAX_IDLE_TIME =
       "server.connection.max.idle.millis";
-
-  private static final String UBUNTU_OS = "ubuntu12";
-
+  
+  private static final String UBUNTU_OS = "debian12";
+  
   /**
    * Default for repo validation suffixes.
    */
   private static final String REPO_SUFFIX_DEFAULT = "/repodata/repomd.xml";
   private static final String REPO_SUFFIX_UBUNTU = "/dists/%s/Release.gpg,/dists/%s/Release";
-
+  
   private static final String PARALLEL_STAGE_EXECUTION_DEFAULT = "true";
-
+  
   private static final String CLIENT_THREADPOOL_SIZE_KEY = "client.threadpool.size.max";
   private static final int CLIENT_THREADPOOL_SIZE_DEFAULT = 25;
   private static final String AGENT_THREADPOOL_SIZE_KEY = "agent.threadpool.size.max";
   private static final int AGENT_THREADPOOL_SIZE_DEFAULT = 25;
-
-  private static final String VIEW_EXTRACTION_THREADPOOL_MAX_SIZE_KEY = "view.extraction.threadpool.size.max";
-  private static final int VIEW_EXTRACTION_THREADPOOL_MAX_SIZE_DEFAULT = 20;
-  private static final String VIEW_EXTRACTION_THREADPOOL_CORE_SIZE_KEY = "view.extraction.threadpool.size.core";
-  private static final int VIEW_EXTRACTION_THREADPOOL_CORE_SIZE_DEFAULT = 10;
-  private static final String VIEW_EXTRACTION_THREADPOOL_TIMEOUT_KEY = "view.extraction.threadpool.timeout";
-  private static final long VIEW_EXTRACTION_THREADPOOL_TIMEOUT_DEFAULT = 100000L;
-
-  private static final String SERVER_HTTP_SESSION_INACTIVE_TIMEOUT = "server.http.session.inactive_timeout";
-
+  
+  
   private static final Logger LOG = LoggerFactory.getLogger(
       Configuration.class);
   private Properties properties;
@@ -355,6 +337,10 @@ public class Configuration {
         PASSPHRASE_ENV_KEY, PASSPHRASE_ENV_DEFAULT));
     configsMap.put(PASSPHRASE_KEY, System.getenv(configsMap.get(
         PASSPHRASE_ENV_KEY)));
+    configsMap.put(USER_ROLE_NAME_KEY, properties.getProperty(
+        USER_ROLE_NAME_KEY, USER_ROLE_NAME_DEFAULT));
+    configsMap.put(ADMIN_ROLE_NAME_KEY, properties.getProperty(
+        ADMIN_ROLE_NAME_KEY, ADMIN_ROLE_NAME_DEFAULT));
     configsMap.put(RESOURCES_DIR_KEY, properties.getProperty(
         RESOURCES_DIR_KEY, RESOURCES_DIR_DEFAULT));
     configsMap.put(SRVR_CRT_PASS_LEN_KEY, properties.getProperty(
@@ -374,8 +360,6 @@ public class Configuration {
         JAVA_HOME_KEY));
     configsMap.put(PARALLEL_STAGE_EXECUTION_KEY, properties.getProperty(
             PARALLEL_STAGE_EXECUTION_KEY, PARALLEL_STAGE_EXECUTION_DEFAULT));
-    configsMap.put(SERVER_TMP_DIR_KEY, properties.getProperty(
-            SERVER_TMP_DIR_KEY, SERVER_TMP_DIR_DEFAULT));
 
     File passFile = new File(configsMap.get(SRVR_KSTR_DIR_KEY) + File.separator
         + configsMap.get(SRVR_CRT_PASS_FILE_KEY));
@@ -405,7 +389,7 @@ public class Configuration {
     }
     configsMap.put(SRVR_CRT_PASS_KEY, password);
 
-    if (getApiSSLAuthentication()) {
+    if (this.getApiSSLAuthentication()) {
       LOG.info("API SSL Authentication is turned on.");
       File httpsPassFile = new File(configsMap.get(CLIENT_API_SSL_KSTR_DIR_NAME_KEY)
         + File.separator + configsMap.get(CLIENT_API_SSL_CRT_PASS_FILE_NAME_KEY));
@@ -468,14 +452,14 @@ public class Configuration {
   private synchronized void loadCredentialProvider() {
     if (!credentialProviderInitialized) {
       try {
-        credentialProvider = new CredentialProvider(null,
+        this.credentialProvider = new CredentialProvider(null,
           getMasterKeyLocation(), isMasterKeyPersisted());
       } catch (Exception e) {
         LOG.info("Credential provider creation failed. Reason: " + e.getMessage());
         if (LOG.isDebugEnabled()) {
           e.printStackTrace();
         }
-        credentialProvider = null;
+        this.credentialProvider = null;
       }
       credentialProviderInitialized = true;
     }
@@ -491,9 +475,8 @@ public class Configuration {
     //Get property file stream from classpath
     InputStream inputStream = Configuration.class.getClassLoader().getResourceAsStream(CONFIG_FILE);
 
-    if (inputStream == null) {
+    if (inputStream == null)
       throw new RuntimeException(CONFIG_FILE + " not found in classpath");
-    }
 
     // load the properties
     try {
@@ -536,21 +519,11 @@ public class Configuration {
   public String getBootSetupAgentPassword() {
     String pass = configsMap.get(PASSPHRASE_KEY);
 
-    if (null != pass) {
+    if (null != pass)
       return pass;
-    }
 
     // fallback
     return properties.getProperty(BOOTSTRAP_SETUP_AGENT_PASSWORD, "password");
-  }
-
-  public File getRecommendationsDir() {
-    String fileName = properties.getProperty(RECOMMENDATIONS_DIR, RECOMMENDATIONS_DIR_DEFAULT);
-    return new File(fileName);
-  }
-
-  public String getStackAdvisorScript() {
-    return properties.getProperty(STACK_ADVISOR_SCRIPT, STACK_ADVISOR_SCRIPT_DEFAULT);
   }
 
   /**
@@ -580,20 +553,6 @@ public class Configuration {
 
   public void setClientSecurityType(ClientSecurityType type) {
     properties.setProperty(CLIENT_SECURITY_KEY, type.toString());
-  }
-
-  public void setLdap(String host, String userClass, String userNameAttr, String groupClass, String groupName, String groupMember,
-      String baseDN, boolean anon, String managerDN, String managerPass) {
-    properties.setProperty(LDAP_PRIMARY_URL_KEY, host);
-    properties.setProperty(LDAP_USER_OBJECT_CLASS_KEY, userClass);
-    properties.setProperty(LDAP_USERNAME_ATTRIBUTE_KEY, userNameAttr);
-    properties.setProperty(LDAP_GROUP_OBJECT_CLASS_KEY, groupClass);
-    properties.setProperty(LDAP_GROUP_NAMING_ATTR_KEY, groupName);
-    properties.setProperty(LDAP_GROUP_MEMEBERSHIP_ATTR_KEY, groupMember);
-    properties.setProperty(LDAP_BASE_DN_KEY, baseDN);
-    properties.setProperty(LDAP_BIND_ANONYMOUSLY_KEY, String.valueOf(anon));
-    properties.setProperty(LDAP_MANAGER_DN_KEY, managerDN);
-    properties.setProperty(LDAP_MANAGER_PASSWORD_KEY, managerPass);
   }
 
   public String getWebAppDir() {
@@ -691,9 +650,8 @@ public class Configuration {
 
   public String getLocalDatabaseUrl() {
     String dbName = properties.getProperty(SERVER_DB_NAME_KEY);
-    if(dbName == null || dbName.isEmpty()) {
+    if(dbName == null || dbName.isEmpty())
       throw new RuntimeException("Server DB Name is not configured!");
-    }
 
     return JDBC_LOCAL_URL + dbName;
   }
@@ -709,11 +667,10 @@ public class Configuration {
       dbpasswd = readPasswordFromStore(passwdProp);
     }
 
-    if (dbpasswd != null) {
+    if (dbpasswd != null)
       return dbpasswd;
-    } else {
+    else
       return readPasswordFromFile(passwdProp, SERVER_JDBC_USER_PASSWD_DEFAULT);
-    }
   }
 
   public String getRcaDatabaseDriver() {
@@ -732,11 +689,36 @@ public class Configuration {
     String passwdProp = properties.getProperty(SERVER_JDBC_RCA_USER_PASSWD_KEY);
     if (passwdProp != null) {
       String dbpasswd = readPasswordFromStore(passwdProp);
-      if (dbpasswd != null) {
+      if (dbpasswd != null)
         return dbpasswd;
-      }
     }
     return readPasswordFromFile(passwdProp, SERVER_JDBC_RCA_USER_PASSWD_DEFAULT);
+  }
+
+  public String getSinkDatabaseDriver() {
+    return properties.getProperty(SCOM_JDBC_SINK_DRIVER_KEY);
+  }
+
+  public String getSinkDatabaseUrl() {
+    return properties.getProperty(SCOM_JDBC_SINK_URL_KEY);
+  }
+
+  public boolean getSinkUseIntegratedAuth() {
+      return "true".equalsIgnoreCase(properties.getProperty(SCOM_JDBC_SINK_INT_AUTH_KEY));
+  }
+
+  public String getSinkDatabaseUser() {
+    return properties.getProperty(SCOM_JDBC_SINK_USER_NAME_KEY, SCOM_JDBC_SINK_USER_NAME_DEFAULT);
+  }
+
+  public String getSinkDatabasePassword() {
+    String passwdProp = properties.getProperty(SCOM_JDBC_SINK_USER_PASSWD_KEY);
+    if (passwdProp != null) {
+      String dbpasswd = readPasswordFromStore(passwdProp);
+      if (dbpasswd != null)
+        return dbpasswd;
+    }
+    return readPasswordFromFile(passwdProp, SCOM_JDBC_SINK_USER_PASSWD_DEFAULT);
   }
 
   private String readPasswordFromFile(String filePath, String defaultPassword) {
@@ -794,23 +776,18 @@ public class Configuration {
             LDAP_BIND_ANONYMOUSLY_DEFAULT)));
     ldapServerProperties.setManagerDn(properties.getProperty(
         LDAP_MANAGER_DN_KEY));
-    String ldapPasswordProperty = properties.getProperty(LDAP_MANAGER_PASSWORD_KEY);
-    String ldapPassword = null;
-    if (CredentialProvider.isAliasString(ldapPasswordProperty)) {
-      ldapPassword = readPasswordFromStore(ldapPasswordProperty);
-    }
-    if (ldapPassword != null) {
-      ldapServerProperties.setManagerPassword(ldapPassword);
+    String ldapPasswd = readPasswordFromStore(properties
+      .getProperty(LDAP_MANAGER_PASSWORD_KEY));
+    if (ldapPasswd != null) {
+      ldapServerProperties.setManagerPassword(ldapPasswd);
     } else {
-      ldapServerProperties.setManagerPassword(readPasswordFromFile(ldapPasswordProperty, ""));
+      ldapServerProperties.setManagerPassword(properties.getProperty
+        (LDAP_MANAGER_PASSWORD_KEY));
     }
     ldapServerProperties.setBaseDN(properties.getProperty
         (LDAP_BASE_DN_KEY, LDAP_BASE_DN_DEFAULT));
     ldapServerProperties.setUsernameAttribute(properties.
         getProperty(LDAP_USERNAME_ATTRIBUTE_KEY, LDAP_USERNAME_ATTRIBUTE_DEFAULT));
-
-    ldapServerProperties.setUserBase(properties.getProperty(LDAP_USER_BASE_KEY, LDAP_USER_BASE_DEFAULT));
-    ldapServerProperties.setUserObjectClass(properties.getProperty(LDAP_USER_OBJECT_CLASS_KEY, LDAP_USER_OBJECT_CLASS_DEFAULT));
 
     ldapServerProperties.setGroupBase(properties.
         getProperty(LDAP_GROUP_BASE_KEY, LDAP_GROUP_BASE_DEFAULT));
@@ -835,10 +812,6 @@ public class Configuration {
     }
 
     return ldapServerProperties;
-  }
-
-  public boolean isLdapConfigured() {
-    return Boolean.parseBoolean(properties.getProperty(IS_LDAP_CONFIGURED, IS_LDAP_CONFIGURED_DEFAULT));
   }
 
   public String getServerOsType() {
@@ -872,11 +845,11 @@ public class Configuration {
   public String getServerDBName() {
 	return properties.getProperty(SERVER_DB_NAME_KEY, SERVER_DB_NAME_DEFAULT);
   }
-
+  
   public String getMySQLJarName() {
 	return properties.getProperty(MYSQL_JAR_NAME_KEY, MYSQL_JAR_NAME_DEFAULT);
   }
-
+  
   public JPATableGenerationStrategy getJPATableGenerationStrategy() {
     return JPATableGenerationStrategy.fromString(System.getProperty(SERVER_JDBC_GENERATE_TABLES_KEY));
   }
@@ -921,9 +894,9 @@ public class Configuration {
     if (null != customDbProperties) {
       return customDbProperties;
     }
-
+    
     customDbProperties = new HashMap<String, String>();
-
+    
     for (Entry<Object, Object> entry : properties.entrySet()) {
       String key = entry.getKey().toString();
       String val = entry.getValue().toString();
@@ -931,15 +904,15 @@ public class Configuration {
         customDbProperties.put(key.substring(SERVER_JDBC_PROPERTIES_PREFIX.length()), val);
       }
     }
-
+    
     return customDbProperties;
   }
 
   public Map<String, String> getAmbariProperties() {
-
+    
     Properties properties = readConfigFile();
     Map<String, String> ambariPropertiesMap = new HashMap<String, String>();
-
+    
     for(String key : properties.stringPropertyNames()) {
       ambariPropertiesMap.put(key, properties.getProperty(key));
     }
@@ -961,7 +934,7 @@ public class Configuration {
   }
 
   /**
-   * @return whether staleConfig's flag is cached.
+   * @return cache expiration time in seconds
    */
   public boolean isStaleConfigCacheEnabled() {
     String stringValue =
@@ -969,21 +942,21 @@ public class Configuration {
         SERVER_STALE_CONFIG_CACHE_ENABLED_DEFAULT);
     return "true".equalsIgnoreCase(stringValue);
   }
-
+  
   /**
    * @return a string array of suffixes used to validate repo URLs.
    */
   public String[] getRepoValidationSuffixes(String osFamily) {
     String repoSuffixes;
-
+    
     if(osFamily.equals(UBUNTU_OS)) {
-      repoSuffixes = properties.getProperty(REPO_SUFFIX_KEY_UBUNTU,
+      repoSuffixes = properties.getProperty(REPO_SUFFIX_KEY_UBUNTU, 
           REPO_SUFFIX_UBUNTU);
     } else {
-      repoSuffixes = properties.getProperty(REPO_SUFFIX_KEY_DEFAULT,
+      repoSuffixes = properties.getProperty(REPO_SUFFIX_KEY_DEFAULT, 
           REPO_SUFFIX_DEFAULT);
     }
-
+    
     return repoSuffixes.split(",");
   }
 
@@ -1043,8 +1016,8 @@ public class Configuration {
     return properties.getProperty(RESOURCES_DIR_KEY, RESOURCES_DIR_DEFAULT);
   }
 
-  public String getServerJDBCPostgresSchemaName() {
-    return properties.getProperty(SERVER_JDBC_POSTGRES_SCHEMA_NAME, "");
+  public String getServerJDBCSchemaName() {
+    return properties.getProperty(SERVER_JDBC_SCHEMA_NAME, SERVER_DB_NAME_DEFAULT);
   }
 
   /**
@@ -1054,56 +1027,12 @@ public class Configuration {
     return Integer.parseInt(properties.getProperty(
         CLIENT_THREADPOOL_SIZE_KEY, String.valueOf(CLIENT_THREADPOOL_SIZE_DEFAULT)));
   }
-
+  
   /**
    * @return max thread pool size for agents, default 25
    */
   public int getAgentThreadPoolSize() {
     return Integer.parseInt(properties.getProperty(
         AGENT_THREADPOOL_SIZE_KEY, String.valueOf(AGENT_THREADPOOL_SIZE_DEFAULT)));
-  }
-
-  /**
-   * Get the view extraction thread pool max size.
-   *
-   * @return the view extraction thread pool max size
-   */
-  public int getViewExtractionThreadPoolMaxSize() {
-    return Integer.parseInt(properties.getProperty(
-        VIEW_EXTRACTION_THREADPOOL_MAX_SIZE_KEY, String.valueOf(VIEW_EXTRACTION_THREADPOOL_MAX_SIZE_DEFAULT)));
-  }
-
-  /**
-   * Get the view extraction thread pool core size.
-   *
-   * @return the view extraction thread pool core size
-   */
-  public int getViewExtractionThreadPoolCoreSize() {
-    return Integer.parseInt(properties.getProperty(
-        VIEW_EXTRACTION_THREADPOOL_CORE_SIZE_KEY, String.valueOf(VIEW_EXTRACTION_THREADPOOL_CORE_SIZE_DEFAULT)));
-  }
-
-  /**
-   * Get the view extraction thread pool timeout.
-   *
-   * @return the view extraction thread pool timeout
-   */
-  public long getViewExtractionThreadPoolTimeout() {
-    return Long.parseLong(properties.getProperty(
-        VIEW_EXTRACTION_THREADPOOL_TIMEOUT_KEY, String.valueOf(VIEW_EXTRACTION_THREADPOOL_TIMEOUT_DEFAULT)));
-  }
-
-  /**
-   * Gets the inactivity timeout value, in seconds, for sessions created in
-   * Jetty by Spring Security. Without this timeout value, each request to the
-   * REST APIs will create new sessions that are never reaped since their
-   * default time is -1.
-   *
-   * @return the time value or {@code 1800} seconds for default.
-   */
-  public int getHttpSessionInactiveTimeout() {
-    return Integer.parseInt(properties.getProperty(
-        SERVER_HTTP_SESSION_INACTIVE_TIMEOUT,
-        "1800"));
-  }
+  }  
 }

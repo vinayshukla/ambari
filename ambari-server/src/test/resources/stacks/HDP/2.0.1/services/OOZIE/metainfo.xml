@@ -111,7 +111,7 @@
         </osSpecific>
 
         <osSpecific>
-          <osFamily>ubuntu12</osFamily>
+          <osFamily>debian12</osFamily>
           <packages>
             <package>
               <name>extjs</name>

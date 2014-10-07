@@ -52,7 +52,7 @@ limitations under the License.
   <property require-input="true">
     <name>javax.jdo.option.ConnectionPassword</name>
     <value></value>
-    <property-type>PASSWORD</property-type>
+    <type>PASSWORD</type>
     <description>password to use against metastore database</description>
   </property>
 
@@ -134,7 +134,7 @@ limitations under the License.
 
   <property>
     <name>hive.server2.enable.doAs</name>
-    <value>true</value>
+    <value>false</value>
     <description>Impersonate the connected user. By default HiveServer2 performs the query processing as the user who
       submitted the query. But if the parameter is set to false, the query will run as the user that the hiveserver2
       process runs as.
@@ -470,33 +470,6 @@ limitations under the License.
     <name>datanucleus.cache.level2.type</name>
     <value>none</value>
     <description>Determines caching mechanism DataNucleus L2 cache will use. It is strongly recommended to use default value of 'none' as other values may cause consistency errors in Hive.</description>
-  </property>
-
-  <property>
-    <name>hive.server2.thrift.port</name>
-    <value>10000</value>
-    <description>
-      TCP port number to listen on, default 10000.
-    </description>
-  </property>
-
-  <property>
-    <name>hive.server2.support.dynamic.service.discovery</name>
-    <value>false</value>
-    <description>Whether HiveServer2 supports dynamic service discovery for its
-      clients. To support this, each instance of HiveServer2 currently uses
-      ZooKeeper to register itself, when it is brought up. JDBC/ODBC clients
-      should use the ZooKeeper ensemble: hive.zookeeper.quorum in their
-      connection string.
-    </description>
-  </property>
-
-  <property>
-    <name>hive.server2.zookeeper.namespace</name>
-    <value>hiveserver2</value>
-    <description>The parent node in ZooKeeper used by HiveServer2 when
-      supporting dynamic service discovery.
-    </description>
   </property>
 
 </configuration>

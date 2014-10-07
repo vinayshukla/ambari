@@ -99,6 +99,15 @@ describe('App.YARNService', function () {
     modelSetup.deleteRecord(yarnService);
   });
 
+  describe('#appTimelineServerNode', function () {
+    it('should take one component from hostComponents', function () {
+      yarnService.reopen({
+        hostComponents: hostComponentsData
+      });
+      expect(yarnService.get('appTimelineServerNode.id')).to.equal('host');
+    });
+  });
+
   describe('#ahsWebPort', function () {
 
     afterEach(function () {

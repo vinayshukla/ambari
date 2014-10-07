@@ -59,16 +59,6 @@ class TestServiceCheck(RMFTestCase):
                         user = 'ambari-qa',
                         try_sleep = 5,
     )
-    self.assertResourceCalled('File', '/tmp/templetonSmoke.sh',
-                              content = StaticFile('templetonSmoke.sh'),
-                              mode = 0755,
-                              )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa no_keytab false /usr/bin/kinit',
-                              logoutput = True,
-                              path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
-                              tries = 3,
-                              try_sleep = 5,
-                              )
     self.assertNoMoreResources()
 
   @patch("sys.exit")
@@ -96,8 +86,7 @@ class TestServiceCheck(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               keytab='/etc/security/keytabs/hdfs.headless.keytab',
                               kinit_path_local='/usr/bin/kinit',
-                              security_enabled=True,
-                              principal='hdfs'
+                              security_enabled=True
     )
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/smokeuser.headless.keytab ambari-qa; sh /tmp/hcatSmoke.sh hcatsmoke cleanup',
                         logoutput = True,
@@ -106,14 +95,4 @@ class TestServiceCheck(RMFTestCase):
                         user = 'ambari-qa',
                         try_sleep = 5,
     )
-    self.assertResourceCalled('File', '/tmp/templetonSmoke.sh',
-                              content = StaticFile('templetonSmoke.sh'),
-                              mode = 0755,
-                              )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa /etc/security/keytabs/smokeuser.headless.keytab true /usr/bin/kinit',
-                              logoutput = True,
-                              path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
-                              tries = 3,
-                              try_sleep = 5,
-                              )
     self.assertNoMoreResources()

@@ -18,31 +18,24 @@
 package org.apache.ambari.server.security.authorization;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.List;
 import java.util.Properties;
 
-import junit.framework.Assert;
-
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.orm.dao.GroupDAO;
 import org.apache.ambari.server.orm.dao.MemberDAO;
-import org.apache.ambari.server.orm.dao.PermissionDAO;
-import org.apache.ambari.server.orm.dao.PrincipalDAO;
-import org.apache.ambari.server.orm.dao.PrincipalTypeDAO;
-import org.apache.ambari.server.orm.dao.ResourceDAO;
-import org.apache.ambari.server.orm.dao.ResourceTypeDAO;
+import org.apache.ambari.server.orm.dao.RoleDAO;
 import org.apache.ambari.server.orm.dao.UserDAO;
-import org.apache.ambari.server.orm.entities.PermissionEntity;
-import org.apache.ambari.server.orm.entities.PrincipalEntity;
-import org.apache.ambari.server.orm.entities.PrincipalTypeEntity;
-import org.apache.ambari.server.orm.entities.ResourceEntity;
-import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
+import org.apache.ambari.server.orm.entities.RoleEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
 import org.junit.After;
 import org.junit.Before;
@@ -69,15 +62,7 @@ public class TestUsers {
   @Inject
   protected MemberDAO memberDAO;
   @Inject
-  protected PermissionDAO permissionDAO;
-  @Inject
-  protected ResourceDAO resourceDAO;
-  @Inject
-  protected ResourceTypeDAO resourceTypeDAO;
-  @Inject
-  protected PrincipalTypeDAO principalTypeDAO;
-  @Inject
-  protected PrincipalDAO principalDAO;
+  protected RoleDAO roleDAO;
   @Inject
   protected PasswordEncoder passwordEncoder;
   private Properties properties;
@@ -89,6 +74,7 @@ public class TestUsers {
     injector = Guice.createInjector(module);
     injector.getInstance(GuiceJpaInitializer.class);
     injector.injectMembers(this);
+    users.createDefaultRoles();
     Authentication auth = new UsernamePasswordAuthenticationToken("admin", null);
     SecurityContextHolder.getContext().setAuthentication(auth);
   }
@@ -100,9 +86,6 @@ public class TestUsers {
 
   @Test
   public void testGetAllUsers() throws Exception {
-    Authentication auth = new UsernamePasswordAuthenticationToken("user", null);
-    SecurityContextHolder.getContext().setAuthentication(auth);
-
     users.createUser("user", "user");
     users.createUser("admin", "admin");
 
@@ -119,7 +102,7 @@ public class TestUsers {
     UserEntity userEntity = userDAO.findLocalUserByName("user");
     assertNotNull("user", userEntity.getUserPassword());
 
-    users.modifyPassword("user", "user", "resu");
+    users.modifyPassword("user", "admin", "resu");
 
     assertNotSame(userEntity.getUserPassword(), userDAO.findLocalUserByName("user").getUserPassword());
   }
@@ -205,113 +188,116 @@ public class TestUsers {
     assertEquals(users.getGroupMembers("unexisting"), null);
   }
 
- @Test
- public void testModifyPassword_UserByHimselfPasswordOk() throws Exception {
-   Authentication auth = new UsernamePasswordAuthenticationToken("user", null);
-   SecurityContextHolder.getContext().setAuthentication(auth);
+  @Test(expected = AmbariException.class)
+  public void testModifyPassword() throws Exception {
+    users.createUser("user", "user");
 
-   users.createUser("user", "user");
+    UserEntity userEntity = userDAO.findLocalUserByName("user");
 
-   UserEntity userEntity = userDAO.findLocalUserByName("user");
+    assertNotSame("user", userEntity.getUserPassword());
+    assertTrue(passwordEncoder.matches("user", userEntity.getUserPassword()));
 
-   assertNotSame("user", userEntity.getUserPassword());
-   assertTrue(passwordEncoder.matches("user", userEntity.getUserPassword()));
+    users.modifyPassword("user", "admin", "user_new_password");
 
-   users.modifyPassword("user", "user", "user_new_password");
+    assertTrue("user_new_password".equals(userDAO.findLocalUserByName("user").getUserPassword()));
 
-   assertTrue(passwordEncoder.matches("user_new_password", userDAO.findLocalUserByName("user").getUserPassword()));
- }
+    users.modifyPassword("user", "error", "new");
 
- @Test
- public void testModifyPassword_UserByHimselfPasswordNotOk() throws Exception {
-   Authentication auth = new UsernamePasswordAuthenticationToken("user", null);
-   SecurityContextHolder.getContext().setAuthentication(auth);
+    fail("Exception was not thrown");
+  }
 
-   users.createUser("user", "user");
+  @Test(expected = AmbariException.class)
+  public void testPromoteUser() throws Exception {
+    users.createUser("admin", "admin");
+    users.createUser("admin2", "admin2");
+    User user = users.getLocalUser("admin");
+    assertTrue(user.getRoles().contains(users.getUserRole()));
+    assertFalse(user.getRoles().contains(users.getAdminRole()));
+    users.promoteToAdmin(user);
+    user = users.getLocalUser("admin2");
+    users.promoteToAdmin(user);
 
-   UserEntity userEntity = userDAO.findLocalUserByName("user");
+    user = users.getLocalUser("admin");
+    assertTrue(user.getRoles().contains(users.getAdminRole()));
 
-   assertNotSame("user", userEntity.getUserPassword());
-   assertTrue(passwordEncoder.matches("user", userEntity.getUserPassword()));
+    users.demoteAdmin(user);
 
-   try {
-     users.modifyPassword("user", "admin", "user_new_password");
-     Assert.fail("Exception should be thrown here as password is incorrect");
-   } catch (AmbariException ex) {
-   }
- }
+    user = users.getLocalUser("admin");
+    assertFalse(user.getRoles().contains(users.getAdminRole()));
 
- @Test
- public void testModifyPassword_UserByNonAdmin() throws Exception {
-   Authentication auth = new UsernamePasswordAuthenticationToken("user2", null);
-   SecurityContextHolder.getContext().setAuthentication(auth);
+    user = users.getLocalUser("admin2");
+    users.demoteAdmin(user);
 
-   users.createUser("user", "user");
-   users.createUser("user2", "user2");
+  }
 
-   UserEntity userEntity = userDAO.findLocalUserByName("user");
+  @Test(expected = AmbariException.class)
+  public void testRemoveUser() throws Exception {
+    users.createUser("admin", "admin");
+    User user = users.getLocalUser("admin");
+    users.promoteToAdmin(user);
 
-   assertNotSame("user", userEntity.getUserPassword());
-   assertTrue(passwordEncoder.matches("user", userEntity.getUserPassword()));
+    user = users.getLocalUser("admin");
+    assertTrue(user.getRoles().contains(users.getAdminRole()));
 
-   try {
-     users.modifyPassword("user", "user2", "user_new_password");
-     Assert.fail("Exception should be thrown here as user2 can't change password of user");
-   } catch (AmbariException ex) {
-   }
- }
+    users.removeUser(user);
+  }
 
- @Test
- public void testModifyPassword_UserByAdmin() throws Exception {
-   ResourceTypeEntity resourceTypeEntity = new ResourceTypeEntity();
-   resourceTypeEntity.setId(ResourceTypeEntity.AMBARI_RESOURCE_TYPE);
-   resourceTypeEntity.setName(ResourceTypeEntity.AMBARI_RESOURCE_TYPE_NAME);
-   resourceTypeDAO.create(resourceTypeEntity);
 
-   ResourceEntity resourceEntity = new ResourceEntity();
-   resourceEntity.setId(ResourceEntity.AMBARI_RESOURCE_ID);
-   resourceEntity.setResourceType(resourceTypeEntity);
-   resourceDAO.create(resourceEntity);
+  @Test
+  public void testPromoteLdapUser() throws Exception {
+    createLdapUser();
 
-   PermissionEntity adminPermissionEntity = new PermissionEntity();
-   adminPermissionEntity.setId(PermissionEntity.AMBARI_ADMIN_PERMISSION);
-   adminPermissionEntity.setPermissionName(PermissionEntity.AMBARI_ADMIN_PERMISSION_NAME);
-   adminPermissionEntity.setResourceType(resourceTypeEntity);
-   permissionDAO.create(adminPermissionEntity);
+    User ldapUser = users.getLdapUser("ldapUser");
+    users.createUser("localadmin", "admin");
+    User localUser = users.getLocalUser("localadmin");
+    users.promoteToAdmin(localUser);
 
-   users.createUser("admin", "admin", true, true, false);
-   users.createUser("user", "user");
+    users.promoteToAdmin(ldapUser);
 
-   UserEntity userEntity = userDAO.findLocalUserByName("user");
+    ldapUser = users.getLdapUser("ldapUser");
+    assertTrue(ldapUser.getRoles().contains(users.getAdminRole()));
 
-   assertNotSame("user", userEntity.getUserPassword());
-   assertTrue(passwordEncoder.matches("user", userEntity.getUserPassword()));
+    users.demoteAdmin(ldapUser);
 
-   users.modifyPassword("user", "admin", "user_new_password");
-   assertTrue(passwordEncoder.matches("user_new_password", userDAO.findLocalUserByName("user").getUserPassword()));
- }
+    ldapUser = users.getLdapUser("ldapUser");
+    assertFalse(ldapUser.getRoles().contains(users.getAdminRole()));
+
+    users.removeUser(ldapUser);
+
+    //toggle group mapping
+    properties.setProperty(Configuration.LDAP_GROUP_BASE_KEY, "ou=groups,dc=ambari,dc=apache,dc=org");
+    createLdapUser();
+
+    try {
+      users.promoteToAdmin(ldapUser);
+      fail("Not allowed with mapping on");
+    } catch (AmbariException e) {
+    }
+
+    try {
+      users.demoteAdmin(ldapUser);
+      fail("Not allowed with mapping on");
+    } catch (AmbariException e) {
+    }
+
+
+  }
 
   private void createLdapUser() {
-
-    PrincipalTypeEntity principalTypeEntity = new PrincipalTypeEntity();
-    principalTypeEntity.setName(PrincipalTypeEntity.USER_PRINCIPAL_TYPE_NAME);
-    principalTypeDAO.create(principalTypeEntity);
-
-    PrincipalEntity principalEntity = new PrincipalEntity();
-    principalEntity.setPrincipalType(principalTypeEntity);
-    principalDAO.create(principalEntity);
-
+    RoleEntity role = roleDAO.findByName(users.getUserRole());
     UserEntity ldapUser = new UserEntity();
 
     ldapUser.setUserName("ldapUser");
     ldapUser.setLdapUser(true);
-    ldapUser.setPrincipal(principalEntity);
 
     userDAO.create(ldapUser);
 
     UserEntity userEntity = userDAO.findLdapUserByName("ldapUser");
 
-    userDAO.merge(ldapUser);
-  }
+    userEntity.getRoleEntities().add(role);
+    role.getUserEntities().add(ldapUser);
 
+    userDAO.merge(ldapUser);
+    roleDAO.merge(role);
+  }
 }

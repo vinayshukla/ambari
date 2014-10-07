@@ -85,6 +85,11 @@ App.MainHostView = App.TableView.extend(App.TableServerProvider, {
   }.property('filteredCount'),
 
   /**
+   * Stub function
+   */
+  updatePaging: function () {},
+
+  /**
    * flag to toggle displaying selected hosts counter
    */
   showSelectedFilter: function () {
@@ -140,13 +145,9 @@ App.MainHostView = App.TableView.extend(App.TableServerProvider, {
   rowsPerPageSelectView: Em.Select.extend({
     content: ['10', '25', '50', '100'],
     attributeBindings: ['disabled'],
-    disabled: true,
-
-    disableView: function () {
-      Em.run.next(this, function(){
-        this.set('disabled', !this.get('parentView.filteringComplete'));
-      });
-    }.observes('parentView.filteringComplete'),
+    disabled: function () {
+      return !this.get('parentView.filteringComplete');
+    }.property('parentView.filteringComplete'),
 
     change: function () {
       this.get('parentView').saveDisplayLength();
@@ -197,9 +198,6 @@ App.MainHostView = App.TableView.extend(App.TableServerProvider, {
    * Restore filter properties in view
    */
   willInsertElement: function () {
-    if (!this.get('controller.showFilterConditionsFirstLoad')) {
-      this.clearFilterCondition();
-    }
     this._super();
     this.set('startIndex', this.get('controller.startIndex'));
     this.addObserver('pageContent.@each.selected', this, this.selectedHostsObserver);
@@ -860,40 +858,12 @@ App.MainHostView = App.TableView.extend(App.TableServerProvider, {
     filterView: filters.componentFieldView.extend({
       templateName: require('templates/main/host/component_filter'),
 
-
       /**
-       * Components which will be shown in component filter
-       * @returns {Array}
+       * Next three lines bind data to this view
        */
-      componentsForFilter: function () {
-        var installedComponents = App.StackServiceComponent.find().toArray();
-        installedComponents.setEach('checkedForHostFilter', false);
-        return installedComponents;
-      }.property('App.router.clusterController.isLoaded'),
-
-      /**
-       * Master components
-       * @returns {Array}
-       */
-      masterComponents: function () {
-        return this.get('componentsForFilter').filterProperty('isMaster', true);
-      }.property('componentsForFilter'),
-
-      /**
-       * Slave components
-       * @returns {Array}
-       */
-      slaveComponents: function () {
-        return this.get('componentsForFilter').filterProperty('isSlave', true);
-      }.property('componentsForFilter'),
-
-      /**
-       * Client components
-       * @returns {Array}
-       */
-      clientComponents: function () {
-        return this.get('componentsForFilter').filterProperty('isClient', true);
-      }.property('componentsForFilter'),
+      masterComponentsBinding: 'controller.masterComponents',
+      slaveComponentsBinding: 'controller.slaveComponents',
+      clientComponentsBinding: 'controller.clientComponents',
 
       /**
        * Checkbox for quick selecting/deselecting of master components

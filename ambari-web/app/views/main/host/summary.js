@@ -55,9 +55,16 @@ App.MainHostSummaryView = Em.View.extend({
 
   showGangliaCharts: function () {
     var name = this.get('content.hostName');
-    var gangliaMobileUrl = App.router.get('clusterController.gangliaUrl') + "/mobile_helper.php?show_host_metrics=1&h=" + name + "&c=HDPSlaves&r=hour&cs=&ce=";
+    var gangliaMobileUrl = App.router.get('clusterController.gangliaUrl') + "/mobile_helper.php?show_host_metrics=1&h=" + name + "&c=HDPNameNode&r=hour&cs=&ce=";
     window.open(gangliaMobileUrl);
   },
+
+  /**
+   * Host metrics panel not displayed when Metrics service (ex:Ganglia) is not in stack definition.
+   */
+  isNoHostMetricsService: function() {
+    return !App.get('services.hostMetrics').length;
+  }.property(''),
 
   /**
    * Message for "restart" block
@@ -182,22 +189,11 @@ App.MainHostSummaryView = Em.View.extend({
           clients[clients.length - 1].set('isLast', false);
         }
         component.set('isLast', true);
-        if (['INSTALL_FAILED', 'INIT'].contains(component.get('workStatus'))) {
-          component.set('isInstallFailed', true);
-        }
         clients.push(component);
       }
     }, this);
     return clients;
   }.property('content.hostComponents.length'),
-  /**
-   * Check if some clients not installed or started
-   *
-   * @type {bool}
-   **/
-  areClientsInstallFailed: function() {
-    return this.get('clients').someProperty('isInstallFailed', true);
-  }.property('clients.@each.workStatus'),
 
   /**
    * Check if some clients have stale configs

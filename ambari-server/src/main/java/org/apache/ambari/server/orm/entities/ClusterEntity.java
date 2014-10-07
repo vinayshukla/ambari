@@ -38,7 +38,7 @@ import static org.apache.commons.lang.StringUtils.defaultString;
 })
 @Entity
 @TableGenerator(name = "cluster_id_generator",
-    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
+    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "value"
     , pkColumnValue = "cluster_id_seq"
     , initialValue = 1
     , allocationSize = 1
@@ -92,15 +92,6 @@ public class ClusterEntity {
 
   @OneToMany(mappedBy = "clusterEntity", cascade = CascadeType.ALL)
   private Collection<RequestScheduleEntity> requestScheduleEntities;
-
-  @OneToMany(mappedBy = "clusterEntity", cascade = CascadeType.REMOVE)
-  private Collection<ServiceConfigEntity> serviceConfigEntities;
-
-  @OneToOne(cascade = CascadeType.ALL)
-  @JoinColumns({
-      @JoinColumn(name = "resource_id", referencedColumnName = "resource_id", nullable = false)
-  })
-  private ResourceEntity resource;
 
   public Long getClusterId() {
     return clusterId;
@@ -171,16 +162,24 @@ public class ClusterEntity {
 
     ClusterEntity that = (ClusterEntity) o;
 
-    if (!clusterId.equals(that.clusterId)) return false;
-    if (!clusterName.equals(that.clusterName)) return false;
+    if (clusterId != null ? !clusterId.equals(that.clusterId) : that.clusterId != null) return false;
+    if (clusterInfo != null ? !clusterInfo.equals(that.clusterInfo) : that.clusterInfo != null) return false;
+    if (clusterName != null ? !clusterName.equals(that.clusterName) : that.clusterName != null) return false;
+    if (desiredClusterState != null ? !desiredClusterState.equals(that.desiredClusterState) : that.desiredClusterState != null)
+      return false;
+    if (desiredStackVersion != null ? !desiredStackVersion.equals(that.desiredStackVersion) : that.desiredStackVersion != null)
+      return false;
 
     return true;
   }
 
   @Override
   public int hashCode() {
-    int result = clusterId.hashCode();
-    result = 31 * result + clusterName.hashCode();
+    int result = clusterId != null ? clusterId.intValue() : 0;
+    result = 31 * result + (clusterName != null ? clusterName.hashCode() : 0);
+    result = 31 * result + (desiredClusterState != null ? desiredClusterState.hashCode() : 0);
+    result = 31 * result + (clusterInfo != null ? clusterInfo.hashCode() : 0);
+    result = 31 * result + (desiredStackVersion != null ? desiredStackVersion.hashCode() : 0);
     return result;
   }
 
@@ -240,29 +239,4 @@ public class ClusterEntity {
     this.requestScheduleEntities = requestScheduleEntities;
   }
 
-  public Collection<ServiceConfigEntity> getServiceConfigEntities() {
-    return serviceConfigEntities;
-  }
-
-  public void setServiceConfigEntities(Collection<ServiceConfigEntity> serviceConfigEntities) {
-    this.serviceConfigEntities = serviceConfigEntities;
-  }
-
-  /**
-   * Get the admin resource entity.
-   *
-   * @return the resource entity
-   */
-  public ResourceEntity getResource() {
-    return resource;
-  }
-
-  /**
-   * Set the admin resource entity.
-   *
-   * @param resource  the resource entity
-   */
-  public void setResource(ResourceEntity resource) {
-    this.resource = resource;
-  }
 }

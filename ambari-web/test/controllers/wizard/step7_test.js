@@ -27,18 +27,7 @@ var installerStep7Controller;
 describe('App.InstallerStep7Controller', function () {
 
   beforeEach(function () {
-    sinon.stub(App.config, 'setPreDefinedServiceConfigs', Em.K);
-    installerStep7Controller = App.WizardStep7Controller.create({
-      content: {
-        advancedServiceConfig: [],
-        serviceConfigProperties: []
-      },
-      applyServicesConfigs: Em.K
-    });
-  });
-
-  afterEach(function() {
-    App.config.setPreDefinedServiceConfigs.restore();
+    installerStep7Controller = App.WizardStep7Controller.create();
   });
 
   describe('#installedServiceNames', function () {
@@ -94,6 +83,27 @@ describe('App.InstallerStep7Controller', function () {
         }),
         e: ['HIVE', 'HDFS'],
         m: 'addServiceController without SQOOP'
+      },
+      {
+        content: Em.Object.create({
+          controllerName: 'addServiceController',
+          services: Em.A([
+            Em.Object.create({
+              isInstalled: true,
+              serviceName: 'SQOOP'
+            }),
+            Em.Object.create({
+              isInstalled: true,
+              serviceName: 'HIVE'
+            }),
+            Em.Object.create({
+              isInstalled: true,
+              serviceName: 'HDFS'
+            })
+          ])
+        }),
+        e: ['HIVE', 'HDFS'],
+        m: 'addServiceController with SQOOP'
       }
     ]);
 
@@ -161,14 +171,14 @@ describe('App.InstallerStep7Controller', function () {
     it('should use content.services as source of data', function () {
       installerStep7Controller.set('content', {
         services: [
-          Em.Object.create({isSelected: true, isInstalled: false, serviceName: 's1'}),
-          Em.Object.create({isSelected: false, isInstalled: false, serviceName: 's2'}),
-          Em.Object.create({isSelected: true, isInstalled: true, serviceName: 's3'}),
-          Em.Object.create({isSelected: false, isInstalled: false, serviceName: 's4'}),
-          Em.Object.create({isSelected: true, isInstalled: false, serviceName: 's5'}),
-          Em.Object.create({isSelected: false, isInstalled: false, serviceName: 's6'}),
-          Em.Object.create({isSelected: true, isInstalled: true, serviceName: 's7'}),
-          Em.Object.create({isSelected: false, isInstalled: false, serviceName: 's8'})
+          {isSelected: true, isInstalled: false, serviceName: 's1'},
+          {isSelected: false, isInstalled: false, serviceName: 's2'},
+          {isSelected: true, isInstalled: true, serviceName: 's3'},
+          {isSelected: false, isInstalled: false, serviceName: 's4'},
+          {isSelected: true, isInstalled: false, serviceName: 's5'},
+          {isSelected: false, isInstalled: false, serviceName: 's6'},
+          {isSelected: true, isInstalled: true, serviceName: 's7'},
+          {isSelected: false, isInstalled: false, serviceName: 's8'}
         ]
       });
       var expected = ['s1', 's3', 's5', 's7'];
@@ -201,6 +211,14 @@ describe('App.InstallerStep7Controller', function () {
   });
 
   describe('#clearStep', function () {
+    it('should clear serviceConfigTags', function () {
+      installerStep7Controller.set('serviceConfigTags', [
+        {},
+        {}
+      ]);
+      installerStep7Controller.clearStep();
+      expect(installerStep7Controller.get('serviceConfigTags.length')).to.equal(0);
+    });
     it('should clear stepConfigs', function () {
       installerStep7Controller.set('stepConfigs', [
         {},
@@ -294,6 +312,25 @@ describe('App.InstallerStep7Controller', function () {
     });
   });
 
+  describe('#submit', function () {
+    beforeEach(function () {
+      sinon.stub(App.router, 'send', Em.K);
+    });
+    afterEach(function () {
+      App.router.send.restore();
+    });
+    it('should proceed if submit is not disabled', function () {
+      installerStep7Controller.reopen({isSubmitDisabled: false});
+      installerStep7Controller.submit();
+      expect(App.router.send.calledOnce).to.equal(true);
+    });
+    it('should not proceed if submit is disabled', function () {
+      installerStep7Controller.reopen({isSubmitDisabled: true});
+      installerStep7Controller.submit();
+      expect(App.router.send.called).to.equal(false);
+    });
+  });
+
   describe('#addOverrideProperty', function () {
     it('should add override property', function () {
       var groupName = 'groupName',
@@ -317,51 +354,96 @@ describe('App.InstallerStep7Controller', function () {
     });
   });
 
-  describe('#resolveStormConfigs', function () {
+  describe('#getConfigTagsSuccess', function () {
+    it('should update serviceConfigTags', function () {
+      var installedServiceNames = ['s1', 's2'],
+        serviceConfigsData = [
+          {serviceName: 's1', sites: ['s1-site', 's1-log']},
+          {serviceName: 's2', sites: ['s2-site', 'core-site']},
+          {serviceName: 's3', sites: ['s3-site']}
+        ],
+        data = {
+          Clusters: {
+            desired_configs: {
+              "core-site": {
+                "user": "admin",
+                "tag": "version1398780546992"
+              },
+              "global": {
+                "user": "admin",
+                "tag": "version1398780546992"
+              },
+              "s1-site": {
+                "user": "admin",
+                "tag": "version1"
+              },
+              "s1-log": {
+                "user": "admin",
+                "tag": "version1"
+              },
+              "s2-site": {
+                "user": "admin",
+                "tag": "version1"
+              },
+              "s3-site": {
+                "user": "admin",
+                "tag": "version1"
+              }
+            }
+          }
+        },
+        serviceConfigTags = [
+          {siteName: 'core-site', tagName: 'version1398780546992', newTagName: null},
+          {siteName: 's1-site', tagName: 'version1', newTagName: null},
+          {siteName: 's1-log', tagName: 'version1', newTagName: null},
+          {siteName: 's2-site', tagName: 'version1', newTagName: null}
+        ];
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData, installedServiceNames: installedServiceNames});
+      installerStep7Controller.getConfigTagsSuccess(data);
+      expect(installerStep7Controller.get('serviceConfigTags')).to.eql(serviceConfigTags);
+    });
+  });
 
+  describe('#resolveStormConfigs', function () {
     beforeEach(function () {
       installerStep7Controller.reopen({
         content: {services: []},
         wizardController: Em.Object.create({
-
-          hosts: {'h1': {name: 'host1', id: 'h1'}},
-          masterComponentHosts: [{component: 'GANGLIA_SERVER', host_id: 'h1'}],
-
-          getDBProperty: function (k) {
-            return this.get(k);
+          getDBProperty: function () {
+            return [
+              {component: 'GANGLIA_SERVER', hostName: 'h1'}
+            ];
           }
         })
       });
     });
-
     it('shouldn\'t do nothing if Ganglia and Storm are installed', function () {
       var installedServiceNames = ['GANGLIA', 'STORM'],
         configs = [
-          {name: 'nimbus.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'supervisor.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'worker.childopts', value: '.jar=host=host2', defaultValue: ''}
+          {name: 'nimbus.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'supervisor.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'worker.childopts', value: '.jar=host=', defaultValue: ''}
         ],
         expected = [
-          {name: 'nimbus.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'supervisor.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'worker.childopts', value: '.jar=host=host2', defaultValue: ''}
+          {name: 'nimbus.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'supervisor.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'worker.childopts', value: '.jar=host=', defaultValue: ''}
         ];
       installerStep7Controller.reopen({installedServiceNames: installedServiceNames});
       installerStep7Controller.resolveStormConfigs(configs);
       expect(configs).to.eql(expected);
     });
-
     it('shouldn\'t do nothing if Ganglia is in allSelectedServiceNames', function () {
       var allSelectedServiceNames = ['GANGLIA'],
         configs = [
-          {name: 'nimbus.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'supervisor.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'worker.childopts', value: '.jar=host=host2', defaultValue: ''}
+          {name: 'nimbus.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'supervisor.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'worker.childopts', value: '.jar=host=', defaultValue: ''}
         ],
         expected = [
-          {name: 'nimbus.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true},
-          {name: 'supervisor.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true},
-          {name: 'worker.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true}
+          {name: 'nimbus.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true},
+          {name: 'supervisor.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true},
+          {name: 'worker.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true}
         ];
       installerStep7Controller.reopen({allSelectedServiceNames: allSelectedServiceNames});
       installerStep7Controller.resolveStormConfigs(configs);
@@ -369,18 +451,17 @@ describe('App.InstallerStep7Controller', function () {
         expect(configs.mapProperty(k)).to.eql(expected.mapProperty(k));
       });
     });
-
-    it('shouldn\'t do nothing if Ganglia is in installedServiceNames (2)', function () {
+    it('shouldn\'t do nothing if Ganglia is in installedServiceNames', function () {
       var installedServiceNames = ['GANGLIA'],
         configs = [
-          {name: 'nimbus.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'supervisor.childopts', value: '.jar=host=host2', defaultValue: ''},
-          {name: 'worker.childopts', value: '.jar=host=host2', defaultValue: ''}
+          {name: 'nimbus.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'supervisor.childopts', value: '.jar=host=', defaultValue: ''},
+          {name: 'worker.childopts', value: '.jar=host=', defaultValue: ''}
         ],
         expected = [
-          {name: 'nimbus.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true},
-          {name: 'supervisor.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true},
-          {name: 'worker.childopts', value: '.jar=host=host1', defaultValue: '.jar=host=host1', forceUpdate: true}
+          {name: 'nimbus.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true},
+          {name: 'supervisor.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true},
+          {name: 'worker.childopts', value: '.jar=host=h1', defaultValue: '.jar=host=h1', forceUpdate: true}
         ];
       installerStep7Controller.reopen({installedServiceNames: installedServiceNames});
       installerStep7Controller.resolveStormConfigs(configs);
@@ -388,7 +469,6 @@ describe('App.InstallerStep7Controller', function () {
         expect(configs.mapProperty(k)).to.eql(expected.mapProperty(k));
       });
     });
-
   });
 
   describe('#resolveServiceDependencyConfigs', function () {
@@ -498,10 +578,8 @@ describe('App.InstallerStep7Controller', function () {
           {service: {id: 's1'}}
         ];
       installerStep7Controller.reopen({
-        stepConfigs: [Em.Object.create({serviceName: serviceName, displayName: serviceName, configGroups: configGroups})]
+        stepConfigs: [Em.Object.create({serviceName: serviceName, configGroups: configGroups})]
       });
-      var manageCGController = App.router.get('manageConfigGroupsController');
-      sinon.stub(manageCGController, 'hostsToPublic', function(data){return ['c6401','c6402','c6403']});
       installerStep7Controller.loadConfigGroups(serviceConfigGroups);
       expect(installerStep7Controller.get('stepConfigs.firstObject.configGroups.length')).to.equal(1);
       var group = installerStep7Controller.get('stepConfigs.firstObject.configGroups.firstObject');
@@ -511,7 +589,6 @@ describe('App.InstallerStep7Controller', function () {
       expect(group.get('hosts')).to.eql(['h1', 'h2', 'h3']);
       expect(group.get('service.id')).to.equal(serviceName);
       expect(group.get('serviceName')).to.equal(serviceName);
-      manageCGController.hostsToPublic.restore();
     });
     it('should update configGroups for service (only default group)', function () {
       var configGroups = [],
@@ -520,7 +597,7 @@ describe('App.InstallerStep7Controller', function () {
           {service: {id: 'HDFS'}, isDefault: true, n: 'n1'}
         ];
       installerStep7Controller.reopen({
-        stepConfigs: [Em.Object.create({serviceName: serviceName, displayName: serviceName, configGroups: configGroups})]
+        stepConfigs: [Em.Object.create({serviceName: serviceName, configGroups: configGroups})]
       });
       installerStep7Controller.loadConfigGroups(serviceConfigGroups);
       expect(installerStep7Controller.get('stepConfigs.firstObject.configGroups').findProperty('isDefault').get('n')).to.equal('n1');
@@ -528,16 +605,18 @@ describe('App.InstallerStep7Controller', function () {
     it('should update configGroups for service', function () {
       var configGroups = [],
         serviceName = 'HDFS',
-        properties = [
-          { name: "p1", filename: "file.xml" },
-          { name: "p2", filename: "file.xml" }
-        ],
         serviceConfigGroups = [
-          {service: {id: 'HDFS'}, properties: properties.slice(), isDefault: true, n: 'n1'},
-          {service: {id: 'HDFS'}, properties: properties.slice(), isDefault: false, n: 'n2'}
+          {service: {id: 'HDFS'}, properties: [
+            {},
+            {}
+          ], isDefault: true, n: 'n1'},
+          {service: {id: 'HDFS'}, properties: [
+            {},
+            {}
+          ], isDefault: false, n: 'n2'}
         ];
       installerStep7Controller.reopen({
-        stepConfigs: [Em.Object.create({serviceName: serviceName, configGroups: configGroups, configs: properties})]
+        stepConfigs: [Em.Object.create({serviceName: serviceName, configGroups: configGroups})]
       });
       installerStep7Controller.loadConfigGroups(serviceConfigGroups);
       expect(installerStep7Controller.get('stepConfigs.firstObject.configGroups.length')).to.equal(2);
@@ -828,11 +907,11 @@ describe('App.InstallerStep7Controller', function () {
         Em.Object.create({
           serviceName: 'HDFS',
           configs: [
-            {category: 'SECONDARY_NAMENODE'},
-            {category: 'SECONDARY_NAMENODE'},
+            {category: 'SNameNode'},
+            {category: 'SNameNode'},
             {category: 'NameNode'},
             {category: 'NameNode'},
-            {category: 'SECONDARY_NAMENODE'}
+            {category: 'SNameNode'}
           ]
         }),
         Em.Object.create({serviceName: 's2'})]
@@ -1013,11 +1092,91 @@ describe('App.InstallerStep7Controller', function () {
           App.get.restore();
         });
       });
-    it('should call setInstalledServiceConfigs for addServiceController', function () {
+    it('should call getConfigTags, setInstalledServiceConfigs for addServiceController', function () {
       installerStep7Controller.set('wizardController.name', 'addServiceController');
       installerStep7Controller.loadStep();
+      expect(installerStep7Controller.getConfigTags.calledOnce).to.equal(true);
       expect(installerStep7Controller.setInstalledServiceConfigs.calledOnce).to.equal(true);
     });
+    Em.A([
+        {
+          allSelectedServiceNames: ['STORM'],
+          installedServiceNames: ['STORM'],
+          m: 'allSelectedServiceNames contains STORM, installedServiceNames contains STORM',
+          e: true
+        },
+        {
+          allSelectedServiceNames: [],
+          installedServiceNames: ['STORM'],
+          m: 'allSelectedServiceNames doesn\'t contain STORM, installedServiceNames contains STORM',
+          e: true
+        },
+        {
+          allSelectedServiceNames: ['STORM'],
+          installedServiceNames: [],
+          m: 'allSelectedServiceNames contains STORM, installedServiceNames doesn\'t contain STORM',
+          e: true
+        },
+        {
+          allSelectedServiceNames: [],
+          installedServiceNames: [],
+          m: 'allSelectedServiceNames doesn\'t contain STORM, installedServiceNames doesn\'t contain STORM',
+          e: false
+        }
+      ]).forEach(function (test) {
+        it(test.m, function () {
+          installerStep7Controller.reopen({
+            allSelectedServiceNames: test.allSelectedServiceNames,
+            installedServiceNames: test.installedServiceNames
+          });
+          installerStep7Controller.loadStep();
+          if (test.e) {
+            expect(installerStep7Controller.resolveServiceDependencyConfigs.calledOnce).to.equal(true);
+          }
+          else {
+            expect(installerStep7Controller.resolveServiceDependencyConfigs.called).to.equal(false);
+          }
+        });
+      });
+    it('should call setStepConfigs', function () {
+      installerStep7Controller.loadStep();
+      expect(installerStep7Controller.setStepConfigs.calledOnce).to.equal(true);
+    });
+    it('should call checkHostOverrideInstaller', function () {
+      installerStep7Controller.loadStep();
+      expect(installerStep7Controller.checkHostOverrideInstaller.calledOnce).to.equal(true);
+    });
+    it('should call activateSpecialConfigs', function () {
+      installerStep7Controller.loadStep();
+      expect(installerStep7Controller.activateSpecialConfigs.calledOnce).to.equal(true);
+    });
+    it('should call selectProperService', function () {
+      installerStep7Controller.loadStep();
+      expect(installerStep7Controller.selectProperService.calledOnce).to.equal(true);
+    });
+    Em.A([
+        {
+          m: 'should skip config step',
+          skipConfigStep: true,
+          e: true
+        },
+        {
+          m: 'shouldn\'t skip config step',
+          skipConfigStep: false,
+          e: false
+        }
+      ]).forEach(function (test) {
+        it(test.m, function () {
+          installerStep7Controller.set('content.skipConfigStep', test.skipConfigStep);
+          installerStep7Controller.loadStep();
+          if (test.e) {
+            expect(App.router.send.calledWith('next')).to.equal(true);
+          }
+          else {
+            expect(App.router.send.called).to.equal(false);
+          }
+        });
+      });
   });
 
   describe('#_updateValueForCheckBoxConfig', function () {
@@ -1149,6 +1308,164 @@ describe('App.InstallerStep7Controller', function () {
       expect(component.get('configGroups.firstObject.properties.firstObject.group')).to.be.object;
     });
 
+  });
+
+  describe('#_updateValidatorsForConfig', function () {
+
+    it('should set isVisible to false', function () {
+      var serviceConfigProperty = Em.Object.create({serviceName: 's1', isVisible: true}),
+        component = Em.Object.create({serviceName: 's2'}),
+        serviceConfigsData = {};
+      installerStep7Controller._updateValidatorsForConfig(serviceConfigProperty, component, serviceConfigsData);
+      expect(serviceConfigProperty.get('isVisible')).to.equal(false);
+    });
+
+    it('should set serviceValidator', function () {
+      var serviceConfigProperty = Em.Object.create({serviceName: 's1', name: 'n1', serviceValidator: null}),
+        component = Em.Object.create({serviceName: 's1'}),
+        serviceConfigsData = {
+          configsValidator: Em.Object.create({
+            configValidators: {
+              n1: {},
+              n2: {}
+            }
+          })
+        };
+      installerStep7Controller._updateValidatorsForConfig(serviceConfigProperty, component, serviceConfigsData);
+      expect(serviceConfigProperty.get('serviceValidator')).to.be.object;
+      expect(Em.keys(serviceConfigProperty.get('serviceValidator.configValidators'))).to.eql(['n1', 'n2']);
+    });
+
+  });
+
+  describe('#getRecommendedDefaultsForComponent', function () {
+    beforeEach(function () {
+      sinon.stub(App.router, 'get', function (k) {
+        if (k === 'mainServiceInfoConfigsController') return Em.Object.create({
+          getInfoForDefaults: Em.K
+        });
+        return Em.get(App.router, k);
+      });
+    });
+    afterEach(function () {
+      App.router.get.restore();
+    });
+    it('should return empty object', function () {
+      var serviceConfigsData = [
+          {serviceName: 's1'}
+        ],
+        serviceName = 's1';
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      var r = installerStep7Controller._getRecommendedDefaultsForComponent(serviceName);
+      expect(r).to.eql({});
+    });
+
+    it('should return recommendedDefaults', function () {
+      var serviceConfigsData = [
+          {serviceName: 's1', defaultsProviders: [
+            {getDefaults: function () {
+              return {c1: 'v1', c2: 'v2'};
+            }},
+            {getDefaults: function () {
+              return {c3: 'v3', c4: 'v4'};
+            }}
+          ]}
+        ],
+        serviceName = 's1';
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      var r = installerStep7Controller._getRecommendedDefaultsForComponent(serviceName);
+      expect(r).to.eql({c1: 'v1', c2: 'v2', c3: 'v3', c4: 'v4'});
+    });
+
+  });
+
+  describe('#loadComponentConfigs', function () {
+
+    beforeEach(function () {
+      sinon.stub(installerStep7Controller, '_updateValidatorsForConfig', Em.K);
+      sinon.stub(installerStep7Controller, '_updateOverridesForConfig', Em.K);
+      sinon.stub(installerStep7Controller, '_updateIsEditableFlagForConfig', Em.K);
+    });
+
+    afterEach(function () {
+      installerStep7Controller._updateIsEditableFlagForConfig.restore();
+      installerStep7Controller._updateOverridesForConfig.restore();
+      installerStep7Controller._updateValidatorsForConfig.restore();
+    });
+
+    it('should set recommended defaults', function () {
+      var configs = [],
+        serviceConfigsData = [
+          {serviceName: 's1', configsValidator: Em.Object.create({recommendedDefaults: {}})}
+        ],
+        component = Em.Object.create({serviceName: 's1'}),
+        componentConfig = {},
+        recommendedDefaults = {c1: 'v1', c2: 'v2'};
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      sinon.stub(installerStep7Controller, '_getRecommendedDefaultsForComponent', function () {
+        return recommendedDefaults;
+      });
+      installerStep7Controller.loadComponentConfigs(configs, componentConfig, component);
+      installerStep7Controller._getRecommendedDefaultsForComponent.restore();
+      expect(installerStep7Controller.get('serviceConfigsData.firstObject.configsValidator.recommendedDefaults')).to.eql(recommendedDefaults);
+    });
+
+    it('should skip null configs', function () {
+      var configs = [null, null, null],
+        serviceConfigsData = [
+          {serviceName: 's1'}
+        ],
+        component = Em.Object.create({serviceName: 's1'}),
+        componentConfig = Em.Object.create({configs: []});
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      installerStep7Controller.loadComponentConfigs(configs, componentConfig, component);
+      expect(componentConfig.get('configs.length')).to.equal(0);
+    });
+
+    it('should update isOverridable flag', function () {
+      var configs = [Em.Object.create({validate: Em.K}), Em.Object.create({validate: Em.K})],
+        componentConfig = Em.Object.create({configs: []}),
+        serviceConfigsData = [
+          {serviceName: 's1'}
+        ],
+        component = Em.Object.create({serviceName: 's1'});
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      installerStep7Controller.loadComponentConfigs(configs, componentConfig, component);
+      expect(componentConfig.get('configs').getEach('isOverridable')).to.eql([true, true]);
+    });
+
+    it('should update value for checkboxes', function () {
+      var configs = [
+          Em.Object.create({displayType: 'checkbox', value: 'true', validate: Em.K}),
+          Em.Object.create({displayType: 'checkbox', value: 'false', validate: Em.K})
+        ],
+        componentConfig = Em.Object.create({configs: []}),
+        serviceConfigsData = [
+          {serviceName: 's1'}
+        ],
+        component = Em.Object.create({serviceName: 's1'});
+      installerStep7Controller.reopen({serviceConfigsData: serviceConfigsData});
+      installerStep7Controller.loadComponentConfigs(configs, componentConfig, component);
+      expect(componentConfig.get('configs').getEach('value')).to.eql([true, false]);
+      expect(componentConfig.get('configs').getEach('defaultValue')).to.eql([true, false]);
+    });
+
+  });
+
+  describe('#_createSiteToTagMap', function () {
+    it('should map sites', function () {
+      var desired_configs = {
+          s1: {tag: 't1'},
+          s2: {tag: 't1'},
+          s3: {tag: 't3'},
+          s4: {tag: 't1'},
+          s5: {tag: 't2'}
+        },
+        sites = ['s1', 's2', 's3'],
+        expected = {s1: 't1', s2: 't1', s3: 't3'};
+      var r = installerStep7Controller._createSiteToTagMap(desired_configs, sites);
+      expect(r).to.eql(expected);
+    });
   });
 
 });

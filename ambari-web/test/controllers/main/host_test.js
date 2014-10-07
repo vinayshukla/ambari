@@ -18,6 +18,7 @@
 
 var App = require('app');
 var validator = require('utils/validator');
+require('utils/component');
 require('utils/batch_scheduled_requests');
 require('controllers/main/host');
 require('mappers/server_data_mapper');
@@ -27,16 +28,23 @@ describe('MainHostController', function () {
   var hostController;
 
   // @todo add unit tests after bulk ops reimplementing
-  describe('#bulkOperation', function() {
+  describe.skip('#bulkOperation', function() {
 
     beforeEach(function() {
-      hostController = App.MainHostController.create({});
-      sinon.stub(hostController, 'bulkOperationForHostsRestart', Em.K);
-      sinon.stub(hostController, 'bulkOperationForHosts', Em.K);
-      sinon.stub(hostController, 'bulkOperationForHostComponentsRestart', Em.K);
-      sinon.stub(hostController, 'bulkOperationForHostComponentsDecommission', Em.K);
-      sinon.stub(hostController, 'bulkOperationForHostComponents', Em.K);
-      sinon.stub(hostController, 'bulkOperationForHostsPassiveState', Em.K);
+      hostController = App.MainHostController.create({
+        bulkOperationForHostsRestart: function(){},
+        bulkOperationForHosts: function(){},
+        bulkOperationForHostComponentsRestart: function(){},
+        bulkOperationForHostComponentsDecommission: function(){},
+        bulkOperationForHostComponents: function(){},
+        bulkOperationForHostsPassiveState: function(){}
+      });
+      sinon.spy(hostController, 'bulkOperationForHostsRestart');
+      sinon.spy(hostController, 'bulkOperationForHosts');
+      sinon.spy(hostController, 'bulkOperationForHostComponentsRestart');
+      sinon.spy(hostController, 'bulkOperationForHostComponentsDecommission');
+      sinon.spy(hostController, 'bulkOperationForHostComponents');
+      sinon.spy(hostController, 'bulkOperationForHostsPassiveState');
     });
 
     afterEach(function() {
@@ -128,26 +136,193 @@ describe('MainHostController', function () {
 
   });
 
+  // @todo add unit tests after bulk ops reimplementing
+  describe.skip('#bulkOperationForHosts', function() {
+
+    beforeEach(function(){
+      hostController = App.MainHostController.create({});
+      sinon.spy($, 'ajax');
+    });
+
+    afterEach(function() {
+      $.ajax.restore();
+    });
+
+    var tests = [
+      {
+        operationData: {},
+        hosts: [],
+        m: 'no hosts',
+        e: false
+      },
+      {
+        operationData: {
+          actionToCheck: 'STARTED'
+        },
+        hosts: [
+          Em.Object.create({
+            hostComponents: Em.A([
+              Em.Object.create({isMaster: true, isSlave: false, host: {hostName:'host1'}, workStatus: 'STARTED', componentName: 'NAMENODE', passiveState: 'OFF'}),
+              Em.Object.create({isMaster: false, isSlave: true, host: {hostName:'host1'}, workStatus: 'STARTED', componentName: 'DATANODE', passiveState: 'OFF'})
+            ])
+          })
+        ],
+        m: '1 host. components are in proper state',
+        e: true
+      },
+      {
+        operationData: {
+          actionToCheck: 'INSTALLED'
+        },
+        hosts: [
+          Em.Object.create({
+            hostComponents: Em.A([
+              Em.Object.create({isMaster: true, isSlave: false, host: {hostName:'host1'}, workStatus: 'STARTED', componentName: 'NAMENODE', passiveState: 'OFF'}),
+              Em.Object.create({isMaster: false, isSlave: true, host: {hostName:'host1'}, workStatus: 'STARTED', componentName: 'DATANODE', passiveState: 'OFF'})
+            ])
+          })
+        ],
+        m: '1 host. components are not in proper state',
+        e: false
+      },
+      {
+        operationData: {
+          actionToCheck: 'INSTALLED'
+        },
+        hosts: [
+          Em.Object.create({
+            hostComponents: Em.A([
+              Em.Object.create({isMaster: true, isSlave: false, host: {hostName:'host1'}, workStatus: 'INSTALLED', componentName: 'NAMENODE', passiveState: 'OFF'}),
+              Em.Object.create({isMaster: false, isSlave: true, host: {hostName:'host1'}, workStatus: 'STARTED', componentName: 'DATANODE', passiveState: 'OFF'})
+            ])
+          })
+        ],
+        m: '1 host. some components are in proper state',
+        e: true
+      }
+    ];
+
+    tests.forEach(function(test) {
+      it(test.m, function() {
+        hostController.bulkOperationForHosts(test.operationData, test.hosts);
+        expect($.ajax.called).to.equal(test.e);
+      });
+    });
+
+  });
+
+  // @todo add unit tests after bulk ops reimplementing
+  describe.skip('#bulkOperationForHostsRestart', function() {
+
+    beforeEach(function(){
+      hostController = App.MainHostController.create({});
+      sinon.spy($, 'ajax');
+    });
+
+    afterEach(function() {
+      $.ajax.restore();
+    });
+
+    var tests = Em.A([
+      {
+        hosts: Em.A([]),
+        m: 'No hosts',
+        e: false
+      },
+      {
+        hosts: Em.A([
+          Em.Object.create({
+            hostComponents: Em.A([Em.Object.create({passiveState: 'OFF'}), Em.Object.create({passiveState: 'OFF'})])
+          })
+        ]),
+        m: 'One host',
+        e: true
+      }
+    ]);
+
+    tests.forEach(function(test) {
+      it(test.m, function() {
+        hostController.bulkOperationForHostsRestart({}, test.hosts);
+        expect($.ajax.calledOnce).to.equal(test.e)
+      });
+    });
+
+  });
+
+  // @todo add unit tests after bulk ops reimplementing
+  describe.skip('#bulkOperationForHostsPassiveState', function() {
+
+    beforeEach(function(){
+      hostController = App.MainHostController.create({});
+      sinon.spy($, 'ajax');
+    });
+
+    afterEach(function() {
+      $.ajax.restore();
+    });
+
+    var tests = [
+      {
+        hosts: Em.A([]),
+        operationData: {},
+        m: 'No hosts',
+        e: false
+      },
+      {
+        hosts: Em.A([
+          Em.Object.create({
+            passiveState: 'OFF'
+          })
+        ]),
+        operationData: {
+          state: 'OFF'
+        },
+        m: 'One host, but in state that should get',
+        e: false
+      },
+      {
+        hosts: Em.A([
+          Em.Object.create({
+            passiveState: 'OFF'
+          })
+        ]),
+        operationData: {
+          state: 'ON'
+        },
+        m: 'One host with proper state',
+        e: true
+      }
+    ];
+
+    tests.forEach(function(test) {
+      it(test.m, function() {
+        hostController.bulkOperationForHostsPassiveState(test.operationData, test.hosts);
+        expect($.ajax.calledOnce).to.equal(test.e)
+      });
+    });
+
+  });
+
   describe('#getRegExp()', function() {
     before(function() {
       hostController = App.MainHostController.create({});
     });
 
     var message = '`{0}` should convert to `{1}`',
-      tests = [
-        { value: '.*', expected: '.*' },
-        { value: '.', expected: '.*' },
-        { value: '.*.*', expected: '.*' },
-        { value: '*', expected: '^$' },
-        { value: '........', expected: '.*' },
-        { value: '........*', expected: '.*' },
-        { value: 'a1', expected: '.*a1.*' },
-        { value: 'a1.', expected: '.*a1.*' },
-        { value: 'a1...', expected: '.*a1.*' },
-        { value: 'a1.*', expected: '.*a1.*' },
-        { value: 'a1.*.a2.a3', expected: '.*a1.*.a2.a3.*' },
-        { value: 'a1.*.a2...a3', expected: '.*a1.*.a2...a3.*' }
-      ]
+        tests = [
+      { value: '.*', expected: '.*' },
+      { value: '.', expected: '.*' },
+      { value: '.*.*', expected: '.*' },
+      { value: '*', expected: '^$' },
+      { value: '........', expected: '.*' },
+      { value: '........*', expected: '.*' },
+      { value: 'a1', expected: '.*a1.*' },
+      { value: 'a1.', expected: '.*a1.*' },
+      { value: 'a1...', expected: '.*a1.*' },
+      { value: 'a1.*', expected: '.*a1.*' },
+      { value: 'a1.*.a2.a3', expected: '.*a1.*.a2.a3.*' },
+      { value: 'a1.*.a2...a3', expected: '.*a1.*.a2...a3.*' }
+    ]
 
     tests.forEach(function(test){
       it(message.format(test.value, test.expected), function() {

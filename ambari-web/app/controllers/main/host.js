@@ -47,6 +47,30 @@ App.MainHostController = Em.ArrayController.extend({
     return installedComponents;
   }.property('App.router.clusterController.isLoaded'),
 
+  /**
+   * Master components
+   * @returns {Array}
+   */
+  masterComponents: function () {
+    return this.get('componentsForFilter').filterProperty('isMaster', true);
+  }.property('componentsForFilter'),
+
+  /**
+   * Slave components
+   * @returns {Array}
+   */
+  slaveComponents: function () {
+    return this.get('componentsForFilter').filterProperty('isSlave', true);
+  }.property('componentsForFilter'),
+
+  /**
+   * Client components
+   * @returns {Array}
+   */
+  clientComponents: function () {
+    return this.get('componentsForFilter').filterProperty('isClient', true);
+  }.property('componentsForFilter'),
+
   content: function () {
     return this.get('dataSource').filterProperty('isRequested');
   }.property('dataSource.@each.isRequested'),
@@ -55,15 +79,13 @@ App.MainHostController = Em.ArrayController.extend({
    * filterProperties support follow types of filter:
    * MATCH - match of RegExp
    * EQUAL - equality "="
-   * LESS - "<"
-   * MORE - ">"
    * MULTIPLE - multiple values to compare
    * CUSTOM - substitute values with keys "{#}" in alias
    */
   filterProperties: [
     {
       key: 'publicHostName',
-      alias: 'Hosts/public_host_name',
+      alias: 'Hosts/host_name',
       type: 'MATCH'
     },
     {
@@ -156,7 +178,7 @@ App.MainHostController = Em.ArrayController.extend({
   sortProps: [
     {
       key: 'publicHostName',
-      alias: 'Hosts/public_host_name'
+      alias: 'Hosts/host_name'
     },
     {
       key: 'ip',
@@ -822,7 +844,7 @@ App.MainHostController = Em.ArrayController.extend({
         //For decommession
         if (svcName == "HBASE") {
           // HBASE service, decommission RegionServer in batch requests
-          this.warnBeforeDecommission(hostNames);
+          App.router.get('mainHostDetailsController').doDecommissionRegionServer(hostNames, svcName, masterName, slaveName);
         } else {
           var parameters = {
             "slave_type": slaveName
@@ -858,39 +880,6 @@ App.MainHostController = Em.ArrayController.extend({
     }
   },
 
-
-  /**
-   * get info about regionserver passive_state
-   * @method warnBeforeDecommission
-   * @param {String} hostNames
-   * @return {$.ajax}
-   */
-  warnBeforeDecommission: function (hostNames) {
-    return App.ajax.send({
-      'name': 'host_components.hbase_regionserver.active',
-      'sender': this,
-      'data': {
-        hostNames: hostNames
-      },
-      success: 'warnBeforeDecommissionSuccess'
-    });
-  },
-
-  /**
-   * check is hbase regionserver in mm. If so - run decommission
-   * otherwise shows warning
-   * @method warnBeforeDecommission
-   * @param {Object} data
-   * @param {Object} opt
-   * @param {Object} params
-   */
-  warnBeforeDecommissionSuccess: function(data, opt, params) {
-    if (Em.get(data, 'items.length')) {
-      App.router.get('mainHostDetailsController').showHbaseActiveWarning();
-    } else {
-      App.router.get('mainHostDetailsController').doDecommissionRegionServer(params.hostNames, "HBASE", "HBASE_MASTER", "HBASE_REGIONSERVER");
-    }
-  },
   /**
    * Bulk restart for selected hostComponents
    * @param {Object} operationData

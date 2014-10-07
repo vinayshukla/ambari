@@ -47,7 +47,6 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
   XmlConfig( "hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hbase-site'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-site'],
             owner = params.hbase_user,
             group = params.user_group
   )
@@ -55,7 +54,6 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
   XmlConfig( "hdfs-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hdfs-site'],
-            configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
             owner = params.hbase_user,
             group = params.user_group
   )
@@ -63,7 +61,6 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
   XmlConfig("hdfs-site.xml",
             conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['hdfs-site'],
-            configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
             owner=params.hdfs_user,
             group=params.user_group
   )
@@ -72,7 +69,6 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
     XmlConfig( "hbase-policy.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['hbase-policy'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-policy'],
             owner = params.hbase_user,
             group = params.user_group
     )

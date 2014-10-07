@@ -40,8 +40,7 @@ class TestHookBeforeStart(RMFTestCase):
                               )
     self.assertResourceCalled('Directory', '/var/log/hadoop',
                               owner = 'root',
-                              group = 'hadoop',
-                              mode = 0775,
+                              group = 'root',
                               recursive = True,
                               )
     self.assertResourceCalled('Directory', '/var/run/hadoop',
@@ -101,8 +100,7 @@ class TestHookBeforeStart(RMFTestCase):
                               )
     self.assertResourceCalled('Directory', '/var/log/hadoop',
                               owner = 'root',
-                              group = 'hadoop',
-                              mode = 0775,
+                              group = 'root',
                               recursive = True,
                               )
     self.assertResourceCalled('Directory', '/var/run/hadoop',

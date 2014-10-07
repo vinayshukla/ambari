@@ -92,6 +92,7 @@ public class StacksService extends BaseService {
         createStackVersionResource(stackName, stackVersion));
   }
 
+
   @GET
   @Path("{stackName}/versions/{stackVersion}/operating_systems/{osType}/repositories")
   @Produces("text/plain")
@@ -130,30 +131,6 @@ public class StacksService extends BaseService {
 
     return handleRequest(headers, body, new StackUriInfo(ui), Request.Type.PUT,
         createRepositoryResource(stackName, stackVersion, osType, repoId));
-  }
-  
-  @GET
-  @Path("{stackName}/versions/{stackVersion}/configurations")
-  @Produces("text/plain")
-  public Response getStackLevelConfigurations(String body, @Context HttpHeaders headers,
-                                   @Context UriInfo ui, @PathParam("stackName") String stackName,
-                                   @PathParam("stackVersion") String stackVersion) {
-
-    return handleRequest(headers, body, new StackUriInfo(ui), Request.Type.GET,
-        createStackLevelConfigurationsResource(stackName, stackVersion, null));
-  }
-  
-  @GET
-  @Path("{stackName}/versions/{stackVersion}/configurations/{propertyName}")
-  @Produces("text/plain")
-  public Response getStackLevelConfiguration(String body, @Context HttpHeaders headers,
-                                        @Context UriInfo ui, @PathParam("stackName") String stackName,
-                                        @PathParam("stackVersion") String stackVersion,
-                                        @PathParam("serviceName") String serviceName,
-                                        @PathParam("propertyName") String propertyName) {
-
-    return handleRequest(headers, body, new StackUriInfo(ui), Request.Type.GET,
-        createStackLevelConfigurationsResource(stackName, stackVersion, propertyName));
   }
 
 
@@ -366,16 +343,6 @@ public class StacksService extends BaseService {
 
     return createResource(Resource.Type.StackVersion, mapIds);
   }
-  
-  ResourceInstance createStackLevelConfigurationsResource(String stackName,
-      String stackVersion, String propertyName) {
-    Map<Resource.Type, String> mapIds = new HashMap<Resource.Type, String>();
-    mapIds.put(Resource.Type.Stack, stackName);
-    mapIds.put(Resource.Type.StackVersion, stackVersion);
-    mapIds.put(Resource.Type.StackLevelConfiguration, propertyName);
-
-    return createResource(Resource.Type.StackLevelConfiguration, mapIds);
-  }
 
   ResourceInstance createStackResource(String stackName) {
 
@@ -391,10 +358,10 @@ public class StacksService extends BaseService {
    * This should be removed when /stacks2 is removed and we can change the property names
    * in the resource definitions to the new form.
    */
-  public static class StackUriInfo implements UriInfo {
+  private static class StackUriInfo implements UriInfo {
     private UriInfo m_delegate;
 
-    public StackUriInfo(UriInfo delegate) {
+    private StackUriInfo(UriInfo delegate) {
       m_delegate = delegate;
     }
     @Override

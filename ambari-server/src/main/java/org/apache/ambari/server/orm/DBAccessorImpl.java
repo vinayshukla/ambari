@@ -30,8 +30,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.helpers.ScriptRunner;
@@ -65,8 +63,6 @@ public class DBAccessorImpl implements DBAccessor {
   private final DbmsHelper dbmsHelper;
   private Configuration configuration;
   private DatabaseMetaData databaseMetaData;
-  private static final String dbURLPatternString = "jdbc:(.*?):.*";
-  private Pattern dbURLPattern = Pattern.compile(dbURLPatternString, Pattern.CASE_INSENSITIVE);
 
   @Inject
   public DBAccessorImpl(Configuration configuration) {
@@ -115,17 +111,6 @@ public class DBAccessorImpl implements DBAccessor {
 
   protected Connection getConnection() {
     return connection;
-  }
-
-  @Override
-  public Connection getNewConnection() {
-    try {
-      return DriverManager.getConnection(configuration.getDatabaseUrl(),
-        configuration.getDatabaseUser(),
-        configuration.getDatabasePassword());
-    } catch (SQLException e) {
-      throw new RuntimeException("Unable to connect to database", e);
-    }
   }
 
   @Override
@@ -191,30 +176,21 @@ public class DBAccessorImpl implements DBAccessor {
 
   protected String getDbType() {
     String dbUrl = configuration.getDatabaseUrl();
+    String dbType;
 
-    // dbUrl will have the following format
-    // jdbc:{0}://{1}:{2}/{3},  type, host, port, name
-    // Most importantly, type is one of: postgresql, oracle:thin, mysql
-
-    if (null != dbUrl && !dbUrl.equals("")) {
-      Matcher m = dbURLPattern.matcher(dbUrl.toLowerCase());
-
-      if (m.find() && m.groupCount() == 1) {
-        String type = m.group(1);
-
-        if (type.contains(Configuration.POSTGRES_DB_NAME)) {
-          return Configuration.POSTGRES_DB_NAME;
-        } else if (type.contains(Configuration.ORACLE_DB_NAME)) {
-          return Configuration.ORACLE_DB_NAME;
-        } else if (type.contains(Configuration.MYSQL_DB_NAME)) {
-          return Configuration.MYSQL_DB_NAME;
-        } else if (type.contains(Configuration.DERBY_DB_NAME)) {
-          return Configuration.DERBY_DB_NAME;
-        }
-      }
+    if (dbUrl.contains(Configuration.POSTGRES_DB_NAME)) {
+      dbType = Configuration.POSTGRES_DB_NAME;
+    } else if (dbUrl.contains(Configuration.ORACLE_DB_NAME)) {
+      dbType = Configuration.ORACLE_DB_NAME;
+    } else if (dbUrl.contains(Configuration.MYSQL_DB_NAME)) {
+      dbType = Configuration.MYSQL_DB_NAME;
+    } else if (dbUrl.contains(Configuration.DERBY_DB_NAME)) {
+      dbType = Configuration.DERBY_DB_NAME;
+    } else {
+      throw new RuntimeException("Unable to determine database type.");
     }
 
-    throw new RuntimeException("Unable to determine database type.");
+    return dbType;
   }
 
   @Override
@@ -587,9 +563,10 @@ public class DBAccessorImpl implements DBAccessor {
   }
 
   @Override
-  public void setNullable(String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable)
+  public void setNullable(String tableName, String columnName, boolean nullable)
       throws SQLException {
-    String statement = dbmsHelper.getSetNullableStatement(tableName, columnInfo, nullable);
+    String statement = dbmsHelper.getSetNullableStatement(tableName,
+        columnName, nullable);
 
     executeQuery(statement);
   }

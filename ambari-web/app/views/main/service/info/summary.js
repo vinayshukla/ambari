@@ -16,7 +16,6 @@
  */
 
 var App = require('app');
-var batchUtils = require('utils/batch_scheduled_requests');
 require('views/main/service/service');
 
 App.AlertItemView = Em.View.extend({
@@ -88,7 +87,7 @@ App.MainServiceInfoSummaryView = Em.View.extend({
   noTemplateService: function () {
     var serviceName = this.get("service.serviceName");
     //services with only master components
-    return serviceName == "NAGIOS";
+    return serviceName == "WEBHCAT" || serviceName == "NAGIOS";
   }.property('controller.content'),
 
   hasManyServers: function () {
@@ -253,67 +252,6 @@ App.MainServiceInfoSummaryView = Em.View.extend({
 
   oldServiceName:'',
 
-  /*
-   * 'Restart Required bar' start
-   */
-  componentsCount: null,
-  hostsCount: null,
-
-  restartRequiredHostsAndComponents:function () {
-    return this.get('controller.content.restartRequiredHostsAndComponents');
-  }.property('controller.content.restartRequiredHostsAndComponents'),
-
-  updateComponentInformation: function() {
-    var hc = this.get('restartRequiredHostsAndComponents');
-    var hostsCount = 0;
-    var componentsCount = 0;
-    for (var host in hc) {
-      hostsCount++;
-      componentsCount += hc[host].length;
-    }
-    this.set('componentsCount', componentsCount);
-    this.set('hostsCount', hostsCount);
-  }.observes('restartRequiredHostsAndComponents'),
-
-  rollingRestartSlaveComponentName : function() {
-    return batchUtils.getRollingRestartComponentName(this.get('serviceName'));
-  }.property('serviceName'),
-  rollingRestartActionName : function() {
-    var label = null;
-    var componentName = this.get('rollingRestartSlaveComponentName');
-    if (componentName) {
-      label = Em.I18n.t('rollingrestart.dialog.title').format(App.format.role(componentName));
-    }
-    return label;
-  }.property('rollingRestartSlaveComponentName'),
-  showComponentsShouldBeRestarted: function () {
-    var rhc = this.get('restartRequiredHostsAndComponents');
-    App.router.get('mainServiceInfoConfigsController').showComponentsShouldBeRestarted(rhc);
-  },
-  showHostsShouldBeRestarted: function () {
-    var rhc = this.get('restartRequiredHostsAndComponents');
-    App.router.get('mainServiceInfoConfigsController').showHostsShouldBeRestarted(rhc);
-  },
-  restartAllStaleConfigComponents: function () {
-    var self = this;
-    var serviceDisplayName = this.get('service.displayName');
-    var bodyMessage = Em.Object.create({
-      confirmMsg: Em.I18n.t('services.service.restartAll.confirmMsg').format(serviceDisplayName),
-      confirmButton: Em.I18n.t('services.service.restartAll.confirmButton'),
-      additionalWarningMsg: this.get('service.passiveState') === 'OFF' ? Em.I18n.t('services.service.restartAll.warningMsg.turnOnMM').format(serviceDisplayName) : null
-    });
-    return App.showConfirmationFeedBackPopup(function (query) {
-      var selectedService = self.get('service.id');
-      batchUtils.restartAllServiceHostComponents(selectedService, true, query);
-    }, bodyMessage);
-  },
-  rollingRestartStaleConfigSlaveComponents: function (componentName) {
-    batchUtils.launchHostComponentRollingRestart(componentName.context, this.get('service.displayName'), this.get('service.passiveState') === "ON", true);
-  },
-  /*
-   * 'Restart Required bar' ended
-   */
-
   /**
    * Contains graphs for this particular service
    */
@@ -364,13 +302,12 @@ App.MainServiceInfoSummaryView = Em.View.extend({
             App.ChartServiceMetricsHBASE_HlogSplitSize.extend()]];
           break;
         case 'flume':
-          graphs = [[App.ChartServiceMetricsFlume_ChannelSizeMMA.extend(),
-             App.ChartServiceMetricsFlume_ChannelSizeSum.extend(),
-             App.ChartServiceMetricsFlume_IncommingMMA.extend(),
-             App.ChartServiceMetricsFlume_IncommingSum],
-             [App.ChartServiceMetricsFlume_OutgoingMMA,
-               App.ChartServiceMetricsFlume_OutgoingSum,
-             //App.ChartServiceMetricsFlume_GarbageCollection.extend(),
+          graphs = [[App.ChartServiceMetricsFlume_ChannelFillPercent.extend(),
+             App.ChartServiceMetricsFlume_ChannelSize.extend(),
+             App.ChartServiceMetricsFlume_SourceAcceptedCount.extend(),
+             App.ChartServiceMetricsFlume_SinkDrainSuccessCount.extend()],
+             [App.ChartServiceMetricsFlume_SinkConnectionFailedCount.extend(),
+              //App.ChartServiceMetricsFlume_GarbageCollection.extend(),
               //App.ChartServiceMetricsFlume_JVMHeapUsed.extend(),
               //App.ChartServiceMetricsFlume_JVMThreadsRunnable.extend(),
               App.ChartServiceMetricsFlume_CPUUser.extend()]];
@@ -392,7 +329,7 @@ App.MainServiceInfoSummaryView = Em.View.extend({
     return graphs;
   }.property(''),
 
-  loadServiceSummary: function () {
+  loadServiceSummary: function (serviceName) {
     var serviceName = this.get('serviceName');
     var serviceSummaryView = null;
 
@@ -420,11 +357,20 @@ App.MainServiceInfoSummaryView = Em.View.extend({
     this.set('oldServiceName', serviceName);
   }.observes('serviceName'),
 
-  /*
-   * Alerts panel not display for PIG, SQOOP and TEZ Service
+  /**
+   * Alerts panel not displayed when alerting service (ex:Nagios)is not in stack definition.
+   * Alerts panel never displayed for PIG, SQOOP and TEZ Services
    */
   isNoAlertsService: function () {
-    return !!this.get('service.serviceName') && App.get('services.clientOnly').contains(this.get('service.serviceName'));
+    return  !App.get('services.alerting').length ||
+    (!!this.get('service.serviceName') && App.get('services.clientOnly').contains(this.get('service.serviceName')));
+  }.property('service.serviceName'),
+
+  /**
+   * Service metrics panel not displayed when metrics service (ex:Ganglia) is not in stack definition.
+   */
+  isNoServiceMetricsService: function() {
+    return !App.get('services.serviceMetrics').length;
   }.property(''),
 
   gangliaUrl:function () {
@@ -434,7 +380,7 @@ App.MainServiceInfoSummaryView = Em.View.extend({
     if (svcName) {
       switch (svcName.toLowerCase()) {
         case 'hdfs':
-          gangliaUrl += "/?r=hour&cs=&ce=&m=&s=by+name&c=HDPSlaves&tab=m&vn=";
+          gangliaUrl += "/?r=hour&cs=&ce=&m=&s=by+name&c=HDPNameNode&tab=m&vn=";
           break;
         case 'mapreduce':
           gangliaUrl += "/?r=hour&cs=&ce=&m=&s=by+name&c=HDPJobTracker&tab=m&vn=";

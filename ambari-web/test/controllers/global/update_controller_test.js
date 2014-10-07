@@ -18,8 +18,8 @@
 
 
 var App = require('app');
-require('utils/updater');
 require('controllers/global/update_controller');
+
 
 describe('App.UpdateController', function () {
   var controller = App.UpdateController.create({
@@ -71,6 +71,52 @@ describe('App.UpdateController', function () {
       App.supports.hostOverrides = true;
       controller.set('isWorking', true);
       expect(App.updater.run.callCount).to.equal(6);
+    });
+  });
+
+  describe('#updateHostConditionally()', function () {
+    var context = {
+      callback: function(){}
+    };
+
+    beforeEach(function () {
+      sinon.stub(controller, 'updateHost', Em.K);
+      sinon.spy(context, 'callback');
+    });
+    afterEach(function () {
+      controller.updateHost.restore();
+      context.callback.restore();
+    });
+
+    it('location is empty', function () {
+      controller.set('location', '');
+      controller.updateHostConditionally(context.callback);
+      expect(controller.updateHost.called).to.equal(false);
+      expect(context.callback.called).to.equal(true);
+    });
+    it('location is "/main/dashboard"', function () {
+      controller.set('location', '/main/dashboard');
+      controller.updateHostConditionally(context.callback);
+      expect(controller.updateHost.called).to.equal(false);
+      expect(context.callback.called).to.equal(true);
+    });
+    it('location is "/main/hosts"', function () {
+      controller.set('location', '/main/hosts');
+      controller.updateHostConditionally(context.callback);
+      expect(controller.updateHost.called).to.equal(true);
+      expect(context.callback.called).to.equal(false);
+    });
+    it('location is "/main/charts/heatmap"', function () {
+      controller.set('location', '/main/charts/heatmap');
+      controller.updateHostConditionally(context.callback);
+      expect(controller.updateHost.called).to.equal(true);
+      expect(context.callback.called).to.equal(false);
+    });
+    it('location is "/main/hosts/host1"', function () {
+      controller.set('location', '/main/hosts/host1');
+      controller.updateHostConditionally(context.callback);
+      expect(controller.updateHost.called).to.equal(true);
+      expect(context.callback.called).to.equal(false);
     });
   });
 

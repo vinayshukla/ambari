@@ -110,12 +110,12 @@ class GangliaMonitor(Script):
 
     for gmond_app in params.gmond_apps:
       generate_daemon("gmond",
-                      name=gmond_app[0],
+                      name=gmond_app,
                       role="server",
                       owner="root",
                       group=params.user_group)
       generate_daemon("gmond",
-                      name = gmond_app[0],
+                      name = gmond_app,
                       role = "monitor",
                       owner = "root",
                       group = params.user_group)

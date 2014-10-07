@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Singleton
-public class DaoUtils {
+class DaoUtils {
 
   public <T> List<T> selectAll(EntityManager entityManager, Class<T> entityClass) {
     CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();

@@ -21,15 +21,12 @@ package org.apache.ambari.server.api.handlers;
 import org.apache.ambari.server.api.query.Query;
 import org.apache.ambari.server.api.query.render.DefaultRenderer;
 import org.apache.ambari.server.api.query.render.Renderer;
-import org.apache.ambari.server.api.resources.ResourceDefinition;
 import org.apache.ambari.server.api.resources.ResourceInstance;
 import org.apache.ambari.server.api.services.*;
 import org.apache.ambari.server.api.services.persistence.PersistenceManager;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.RequestStatus;
 import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.view.ViewRegistry;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.*;
@@ -42,17 +39,11 @@ import static org.junit.Assert.*;
  */
 public class CreateHandlerTest {
 
-  @Before
-  public void before() {
-    ViewRegistry.initInstance(new ViewRegistry());
-  }
-
   @Test
   public void testHandleRequest__Synchronous_NoPropsInBody() throws Exception {
     Request request = createNiceMock(Request.class);
     RequestBody body = createNiceMock(RequestBody.class);
     ResourceInstance resource = createNiceMock(ResourceInstance.class);
-    ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
     Query query = createStrictMock(Query.class);
     PersistenceManager pm = createStrictMock(PersistenceManager.class);
     RequestStatus status = createNiceMock(RequestStatus.class);
@@ -72,8 +63,6 @@ public class CreateHandlerTest {
 
     expect(resource.getQuery()).andReturn(query);
     query.setRenderer(renderer);
-    expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.isCreatable()).andReturn(true).anyTimes();
 
     expect(pm.create(resource, body)).andReturn(status);
     expect(status.getStatus()).andReturn(RequestStatus.Status.Complete);
@@ -81,7 +70,7 @@ public class CreateHandlerTest {
     expect(resource1.getType()).andReturn(Resource.Type.Cluster).anyTimes();
     expect(resource2.getType()).andReturn(Resource.Type.Cluster).anyTimes();
 
-    replay(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2);
+    replay(request, body, resource, query, pm, status, resource1, resource2);
 
     Result result = new TestCreateHandler(pm).handleRequest(request);
 
@@ -104,7 +93,7 @@ public class CreateHandlerTest {
     }
 
     assertEquals(ResultStatus.STATUS.CREATED, result.getStatus().getStatus());
-    verify(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2);
+    verify(request, body, resource, query, pm, status, resource1, resource2);
   }
 
   @Test
@@ -112,7 +101,6 @@ public class CreateHandlerTest {
     Request request = createNiceMock(Request.class);
     RequestBody body = createNiceMock(RequestBody.class);
     ResourceInstance resource = createNiceMock(ResourceInstance.class);
-    ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
     Query query = createStrictMock(Query.class);
     PersistenceManager pm = createStrictMock(PersistenceManager.class);
     RequestStatus status = createNiceMock(RequestStatus.class);
@@ -132,8 +120,6 @@ public class CreateHandlerTest {
 
     expect(resource.getQuery()).andReturn(query);
     query.setRenderer(renderer);
-    expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.isCreatable()).andReturn(true).anyTimes();
 
     expect(pm.create(resource, body)).andReturn(status);
     expect(status.getStatus()).andReturn(RequestStatus.Status.Complete);
@@ -141,7 +127,7 @@ public class CreateHandlerTest {
     expect(resource1.getType()).andReturn(Resource.Type.Cluster).anyTimes();
     expect(resource2.getType()).andReturn(Resource.Type.Cluster).anyTimes();
 
-    replay(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2);
+    replay(request, body, resource, query, pm, status, resource1, resource2);
 
     Result result = new TestCreateHandler(pm).handleRequest(request);
 
@@ -163,7 +149,7 @@ public class CreateHandlerTest {
       }
     }
     assertEquals(ResultStatus.STATUS.CREATED, result.getStatus().getStatus());
-    verify(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2);
+    verify(request, body, resource, query, pm, status, resource1, resource2);
   }
 
   @Test
@@ -171,7 +157,6 @@ public class CreateHandlerTest {
     Request request = createNiceMock(Request.class);
     RequestBody body = createNiceMock(RequestBody.class);
     ResourceInstance resource = createNiceMock(ResourceInstance.class);
-    ResourceDefinition resourceDefinition = createNiceMock(ResourceDefinition.class);
     Query query = createStrictMock(Query.class);
     PersistenceManager pm = createStrictMock(PersistenceManager.class);
     RequestStatus status = createNiceMock(RequestStatus.class);
@@ -192,8 +177,6 @@ public class CreateHandlerTest {
 
     expect(resource.getQuery()).andReturn(query);
     query.setRenderer(renderer);
-    expect(resource.getResourceDefinition()).andReturn(resourceDefinition).anyTimes();
-    expect(resourceDefinition.isCreatable()).andReturn(true).anyTimes();
 
     expect(pm.create(resource, body)).andReturn(status);
     expect(status.getStatus()).andReturn(RequestStatus.Status.Accepted);
@@ -202,8 +185,7 @@ public class CreateHandlerTest {
     expect(resource2.getType()).andReturn(Resource.Type.Cluster).anyTimes();
     expect(status.getRequestResource()).andReturn(requestResource).anyTimes();
 
-    replay(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2,
-        requestResource);
+    replay(request, body, resource, query, pm, status, resource1, resource2, requestResource);
 
     Result result = new TestCreateHandler(pm).handleRequest(request);
 
@@ -231,8 +213,7 @@ public class CreateHandlerTest {
     assertSame(requestResource, statusNode.getObject());
 
     assertEquals(ResultStatus.STATUS.ACCEPTED, result.getStatus().getStatus());
-    verify(request, body, resource, resourceDefinition, query, pm, status, resource1, resource2,
-        requestResource);
+    verify(request, body, resource, query, pm, status, resource1, resource2, requestResource);
   }
 
   private class TestCreateHandler extends CreateHandler {

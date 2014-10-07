@@ -27,7 +27,9 @@ describe('date', function () {
   var correct_tests = Em.A([
     {t: 1349752195000, e: 'Tue, Oct 09, 2012 03:09', e2: 'Tue Oct 09 2012'},
     {t: 1367752195000, e: 'Sun, May 05, 2013 11:09', e2: 'Sun May 05 2013'},
-    {t: 1369952195000, e: 'Thu, May 30, 2013 22:16', e2: 'Thu May 30 2013'}
+    {t: 1369952195000, e: 'Thu, May 30, 2013 22:16', e2: 'Thu May 30 2013'},
+    {t: 1369952195000, e: 'Thu, May 30, 2013 22:16:35', e2: 'Thu May 30 2013', showSeconds: true },
+    {t: 1369952195000, e: 'Thu, May 30, 2013 22:16:35:000', e2: 'Thu May 30 2013', showSeconds: true, showMilliseconds: true }
   ]);
 
   var incorrect_tests = Em.A([
@@ -60,17 +62,56 @@ describe('date', function () {
     });
   });
 
+  describe('#dateFormat', function() {
+    describe('Correct timestamps', function(){
+      correct_tests.forEach(function(test) {
+        var testMessage = test.t + ' `showSeconds` ' + !!test.showSeconds + '`showMilliseconds` ' + !!test.showMilliseconds;
+        it(testMessage, function() {
+          expect(date.dateFormat(test.t, test.showSeconds, test.showMilliseconds)).to.equal(test.e);
+        });
+      });
+    });
+    describe('Incorrect timestamps', function() {
+      incorrect_tests.forEach(function(test) {
+        it(test.t, function() {
+          expect(date.dateFormat(test.t)).to.equal(test.t);
+        });
+      });
+    });
+  });
+
+  describe('#dateFormatShort', function() {
+    describe('Correct timestamps', function() {
+      correct_tests.forEach(function(test) {
+        it(test.t, function() {
+          expect(date.dateFormatShort(test.t)).to.equal(test.e2);
+        });
+      });
+    });
+    it('Today timestamp', function() {
+      var now = new Date();
+      var then = new Date(now.getFullYear(),now.getUTCMonth(),now.getUTCDate(),0,0,0);
+      expect(date.dateFormatShort(then.getTime() + 10*3600*1000)).to.equal('Today 10:00:00');
+    });
+    describe('Incorrect timestamps', function() {
+      incorrect_tests.forEach(function(test) {
+        it(test.t, function() {
+          expect(date.dateFormatShort(test.t)).to.equal(test.t);
+        });
+      });
+    });
+  });
+
   describe('#startTime()', function() {
     var today = new Date();
-    var testDate = new Date(1349752195000);
     var tests = [
-      { t: 1349752195000, e: testDate.toDateString() + ' {0}:{1}'.format(date.dateFormatZeroFirst(testDate.getHours()), date.dateFormatZeroFirst(testDate.getMinutes())) },
+      { t: 1349752195000, e: 'Tue Oct 09 2012 06:09' },
       { t: -10000000, e: 'Not started' },
       { t: today.getTime(), e: 'Today {0}:{1}'.format(date.dateFormatZeroFirst(today.getHours()), date.dateFormatZeroFirst(today.getMinutes())) },
       { t: today, e: ''}
     ];
     tests.forEach(function(test) {
-      var testMessage = 'should convert {0} to {1}'.format(test.t, test.e);
+      var testMessage = 'should conver {0} to {1}'.format(test.t, test.e);
       it(testMessage, function() {
         expect(date.startTime(test.t)).to.be.eql(test.e);
       });
@@ -159,7 +200,7 @@ describe('date', function () {
         e: '0 secs'
       },
       {
-        startTimestamp: 100000000,
+        startTimestamp: 1000,
         endTimestamp: -1,
         stubbed: true,
         e: '19.00 secs'
@@ -167,7 +208,7 @@ describe('date', function () {
     ];
 
     beforeEach(function() {
-      sinon.stub(App, 'dateTime', function () { return 100019000; });
+      sinon.stub(App, 'dateTime', function () { return 20000; });
     });
 
     tests.forEach(function(test) {

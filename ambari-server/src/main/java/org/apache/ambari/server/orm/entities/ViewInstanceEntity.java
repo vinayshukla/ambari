@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import javax.persistence.Basic;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -31,24 +32,23 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.JoinColumns;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
-import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 import javax.persistence.Transient;
 import javax.persistence.UniqueConstraint;
 
 import org.apache.ambari.server.controller.spi.Resource;
-import org.apache.ambari.server.security.SecurityHelper;
-import org.apache.ambari.server.security.SecurityHelperImpl;
-import org.apache.ambari.server.security.authorization.AmbariAuthorizationFilter;
 import org.apache.ambari.server.view.configuration.InstanceConfig;
 import org.apache.ambari.view.ResourceProvider;
 import org.apache.ambari.view.ViewDefinition;
 import org.apache.ambari.view.ViewInstanceDefinition;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Represents an instance of a View.
@@ -61,13 +61,17 @@ import org.apache.ambari.view.ViewInstanceDefinition;
 @NamedQuery(name = "allViewInstances",
   query = "SELECT viewInstance FROM ViewInstanceEntity viewInstance")
 @TableGenerator(name = "view_instance_id_generator",
-  table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
+  table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "value"
   , pkColumnValue = "view_instance_id_seq"
   , initialValue = 1
   , allocationSize = 1
 )
 @Entity
 public class ViewInstanceEntity implements ViewInstanceDefinition {
+  /**
+   * The prefix for every view instance context path.
+   */
+  public static final String VIEWS_CONTEXT_PATH_PREFIX = "/views/";
 
   @Id
   @Column(name = "view_instance_id", nullable = false)
@@ -119,13 +123,6 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
   private String icon64;
 
   /**
-   * The XML driven instance flag.
-   */
-  @Column(name="xml_driven")
-  @Basic
-  private char xmlDriven = 'N';
-
-  /**
    * The instance properties.
    */
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "viewInstance")
@@ -146,12 +143,6 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
   @ManyToOne
   @JoinColumn(name = "view_name", referencedColumnName = "view_name", nullable = false)
   private ViewEntity view;
-
-  @OneToOne(cascade = CascadeType.ALL)
-  @JoinColumns({
-      @JoinColumn(name = "resource_id", referencedColumnName = "resource_id", nullable = false),
-  })
-  private ResourceEntity resource;
 
 
   // ----- transient data ----------------------------------------------------
@@ -180,9 +171,8 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
   /**
    * Helper class.
    */
-  // TODO : we should @Inject this.
   @Transient
-  private SecurityHelper securityHelper = SecurityHelperImpl.getInstance();
+  private UserNameProvider userNameProvider = new UserNameProvider();
 
 
   // ----- Constructors ------------------------------------------------------
@@ -222,24 +212,13 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
    * @param name the instance name
    */
   public ViewInstanceEntity(ViewEntity view, String name) {
-    this(view, name, view.getLabel());
-  }
-
-  /**
-   * Construct a view instance definition.
-   *
-   * @param view the parent view definition
-   * @param name the instance name
-   * @param label the instance label
-   */
-  public ViewInstanceEntity(ViewEntity view, String name, String label) {
     this.name = name;
     this.instanceConfig = null;
     this.view = view;
     this.viewName = view.getName();
     this.description = null;
     this.visible = 'Y';
-    this.label = label;
+    this.label = view.getLabel();
   }
 
 
@@ -408,24 +387,6 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
    */
   public void setIcon64(String icon64) {
     this.icon64 = icon64;
-  }
-
-  /**
-   * Get the xml driven flag.
-   *
-   * @return the xml driven flag
-   */
-  public boolean isXmlDriven() {
-    return xmlDriven == 'y' || xmlDriven == 'Y';
-  }
-
-  /**
-   * Set the xml driven flag.
-   *
-   * @param xmlDriven the xml driven flag
-   */
-  public void setXmlDriven(boolean xmlDriven) {
-    this.xmlDriven = (xmlDriven) ? 'Y' : 'N';
   }
 
   /**
@@ -669,7 +630,7 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
    * @return the context path
    */
   public static String getContextPath(String viewName, String version, String viewInstanceName) {
-    return AmbariAuthorizationFilter.VIEWS_CONTEXT_PATH_PREFIX + viewName + "/" + version + "/" + viewInstanceName;
+    return VIEWS_CONTEXT_PATH_PREFIX + viewName + "/" + version + "/" + viewInstanceName;
   }
 
   /**
@@ -678,25 +639,7 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
    * @return the current user name; empty String if user is not known
    */
   public String getUsername() {
-    return securityHelper.getCurrentUserName();
-  }
-
-  /**
-   * Get the admin resource entity.
-   *
-   * @return the resource entity
-   */
-  public ResourceEntity getResource() {
-    return resource;
-  }
-
-  /**
-   * Set the admin resource entity.
-   *
-   * @param resource  the resource entity
-   */
-  public void setResource(ResourceEntity resource) {
-    this.resource = resource;
+    return userNameProvider.getUsername();
   }
 
   /**
@@ -729,7 +672,7 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
   // ----- helper methods ----------------------------------------------------
 
   // get the current user name
-  public String getCurrentUserName() {
+  private String getCurrentUserName() {
     String currentUserName = getUsername();
 
     return currentUserName == null || currentUserName.length() == 0 ?
@@ -737,94 +680,33 @@ public class ViewInstanceEntity implements ViewInstanceDefinition {
   }
 
   /**
-   * Set the security helper.
+   * Set the user name provider helper.
    *
-   * @param securityHelper the helper
+   * @param userNameProvider the helper
    */
-  protected void setSecurityHelper(SecurityHelper securityHelper) {
-    this.securityHelper = securityHelper;
+  protected void setUserNameProvider(UserNameProvider userNameProvider) {
+    this.userNameProvider = userNameProvider;
   }
 
 
-  // ----- Object overrides --------------------------------------------------
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    ViewInstanceEntity that = (ViewInstanceEntity) o;
-
-    return name.equals(that.name) && viewName.equals(that.viewName);
-  }
-
-  @Override
-  public int hashCode() {
-    int result = viewName.hashCode();
-    result = 31 * result + name.hashCode();
-    return result;
-  }
-
-  //----- ViewInstanceVersionDTO inner class --------------------------------------------------
+  // ----- inner class : UserNameProvider ----------------------------------
 
   /**
-   * Keeps information about view name, version and instance name.
+   * User name provider helper class.
    */
-  public static class ViewInstanceVersionDTO {
+  protected static class UserNameProvider {
+    public String getUsername() {
+      SecurityContext ctx = SecurityContextHolder.getContext();
+      Authentication authentication = ctx == null ? null : ctx.getAuthentication();
+      Object principal = authentication == null ? null : authentication.getPrincipal();
 
-    /**
-     * View name.
-     */
-    private final String viewName;
-
-    /**
-     * View version.
-     */
-    private final String version;
-
-    /**
-     * View instance name.
-     */
-    private final String instanceName;
-
-    /**
-     * Constructor.
-     *
-     * @param viewName view name
-     * @param version view version
-     * @param instanceName view instance name
-     */
-    public ViewInstanceVersionDTO(String viewName, String version, String instanceName) {
-      this.viewName = viewName;
-      this.version = version;
-      this.instanceName = instanceName;
-    }
-
-    /**
-     * Get the view name.
-     *
-     * @return the view name
-     */
-    public String getViewName() {
-      return viewName;
-    }
-
-    /**
-     * Get the view version.
-     *
-     * @return the view version
-     */
-    public String getVersion() {
-      return version;
-    }
-
-    /**
-     * Get the view instance name.
-     *
-     * @return the view instance name
-     */
-    public String getInstanceName() {
-      return instanceName;
+      String username;
+      if (principal instanceof UserDetails) {
+        username = ((UserDetails) principal).getUsername();
+      } else {
+        username = principal == null ? "" : principal.toString();
+      }
+      return username;
     }
   }
 }

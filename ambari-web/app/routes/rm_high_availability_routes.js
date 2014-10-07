@@ -21,13 +21,9 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: '/highAvailability/ResourceManager/enable',
 
-  enter: function (router,transition) {
-    var rMHighAvailabilityWizardController = router.get('rMHighAvailabilityWizardController');
-    rMHighAvailabilityWizardController.dataLoading().done(function () {
-      //Set YARN as current service
-      App.router.set('mainServiceItemController.content', App.Service.find().findProperty('serviceName', 'YARN'));
-    });
+  enter: function (router) {
     Em.run.next(function () {
+      var rMHighAvailabilityWizardController = router.get('rMHighAvailabilityWizardController');
       App.router.get('updateController').set('isWorking', false);
       var popup = App.ModalPopup.show({
         classNames: ['full-width-modal'],
@@ -40,30 +36,18 @@ module.exports = App.WizardRoute.extend({
         secondary: null,
 
         onClose: function () {
-          var rMHighAvailabilityWizardController = router.get('rMHighAvailabilityWizardController');
-          var currStep = rMHighAvailabilityWizardController.get('currentStep');
-
-          if (parseInt(currStep) === 4) {
-            var self = this;
-            App.showConfirmationPopup(function () {
-              router.get('updateController').set('isWorking', true);
-              rMHighAvailabilityWizardController.finish();
-              App.clusterStatus.setClusterStatus({
-                clusterName: App.router.getClusterName(),
-                clusterState: 'DEFAULT',
-                localdb: App.db.data
-              }, {alwaysCallback: function () {
-                self.hide();
-                router.transitionTo('main.services.index');
-                location.reload();
-              }});
-            }, Em.I18n.t('admin.rm_highAvailability.closePopup'));
-          } else {
-            this.hide();
-            rMHighAvailabilityWizardController.setCurrentStep('1');
-            router.get('updateController').set('isWorking', true);
-            router.transitionTo('main.services.index');
-          }
+          var controller = App.router.get('rMHighAvailabilityWizardController');
+          controller.clearStorageData();
+          controller.setCurrentStep('1');
+          App.router.get('updateController').set('isWorking', true);
+          App.clusterStatus.setClusterStatus({
+            clusterName: App.router.get('content.cluster.name'),
+            clusterState: 'DEFAULT',
+            wizardControllerName: App.router.get('rMHighAvailabilityWizardController.name'),
+            localdb: App.db.data
+          });
+          this.hide();
+          App.router.transitionTo('main.admin.adminHighAvailability');
         },
         didInsertElement: function () {
           this.fitHeight();
@@ -99,7 +83,6 @@ module.exports = App.WizardRoute.extend({
       return false;
     },
     next: function (router) {
-      router.get('rMHighAvailabilityWizardController').setDBProperty('rmHosts', undefined);
       router.transitionTo('step2');
     }
   }),
@@ -110,7 +93,6 @@ module.exports = App.WizardRoute.extend({
       var controller = router.get('rMHighAvailabilityWizardController');
       controller.setCurrentStep('2');
       controller.dataLoading().done(function () {
-        controller.loadAllPriorSteps();
         controller.connectOutlet('rMHighAvailabilityWizardStep2', controller.get('content'));
       })
     },
@@ -118,15 +100,6 @@ module.exports = App.WizardRoute.extend({
       return false;
     },
     next: function (router) {
-      var wizardController = router.get('rMHighAvailabilityWizardController');
-      var stepController = router.get('rMHighAvailabilityWizardStep2Controller');
-      var currentRM = stepController.get('servicesMasters').findProperty('isAdditional', false);
-      var additionalRM = stepController.get('servicesMasters').findProperty('isAdditional', true);
-      var rmHost = {
-        currentRM: currentRM.get('selectedHost'),
-        additionalRM: additionalRM.get('selectedHost')
-      };
-      wizardController.saveRmHosts(rmHost);
       router.transitionTo('step3');
     },
     back: function (router) {
@@ -140,54 +113,42 @@ module.exports = App.WizardRoute.extend({
       var controller = router.get('rMHighAvailabilityWizardController');
       controller.setCurrentStep('3');
       controller.dataLoading().done(function () {
-        controller.loadAllPriorSteps();
-        controller.connectOutlet('rMHighAvailabilityWizardStep3', controller.get('content'));
+        controller.connectOutlet('rMHighAvailabilityWizardStep3',  controller.get('content'));
       })
     },
     unroutePath: function () {
       return false;
     },
     next: function (router) {
-      var wizardController = router.get('rMHighAvailabilityWizardController');
-      var stepController = router.get('rMHighAvailabilityWizardStep3Controller');
-      var configs = stepController.get('selectedService.configs');
-      wizardController.saveConfigs(configs);
       router.transitionTo('step4');
     },
     back: Em.Router.transitionTo('step2')
   }),
 
   step4: Em.Route.extend({
-    route: '/step4',
+    route: '/step9',
     connectOutlets: function (router) {
       var controller = router.get('rMHighAvailabilityWizardController');
       controller.setCurrentStep('4');
       controller.setLowerStepsDisable(4);
       controller.dataLoading().done(function () {
-        controller.loadAllPriorSteps();
-        controller.connectOutlet('rMHighAvailabilityWizardStep4', controller.get('content'));
+        controller.connectOutlet('rMHighAvailabilityWizardStep4',  controller.get('content'));
       })
     },
-    unroutePath: function (router, path) {
-      // allow user to leave route if wizard has finished
-      if (router.get('rMHighAvailabilityWizardController').get('isFinished')) {
-        this._super(router, path);
-      } else {
-        return false;
-      }
+    unroutePath: function () {
+      return false;
     },
     next: function (router) {
       var controller = router.get('rMHighAvailabilityWizardController');
       controller.finish();
+      controller.get('popup').hide();
       App.clusterStatus.setClusterStatus({
         clusterName: controller.get('content.cluster.name'),
         clusterState: 'DEFAULT',
+        wizardControllerName: 'rMHighAvailabilityWizardController',
         localdb: App.db.data
-      }, {alwaysCallback: function () {
-        controller.get('popup').hide();
-        router.transitionTo('main.services.index');
-        location.reload();
-      }});
+      });
+      router.transitionTo('main.index');
     }
   }),
 

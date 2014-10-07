@@ -21,30 +21,19 @@ from resource_management import *
 
 config = Script.get_config()
 
-#RPM versioning support
-rpm_version = default("/configurations/cluster-env/rpm_version", None)
-
-#hadoop params
-if rpm_version:
-  sqoop_conf_dir = '/usr/hdp/current/etc/sqoop/conf'
-  sqoop_lib = '/usr/hdp/current/sqoop/lib'
-  hbase_home = '/usr/hdp/current/hbase'
-  hive_home = '/usr/hdp/current/hive'
-  sqoop_bin_dir = '/usr/hdp/current/sqoop/bin/'
-else:
-  sqoop_conf_dir = "/usr/lib/sqoop/conf"
-  sqoop_lib = "/usr/lib/sqoop/lib"
-  hbase_home = "/usr"
-  hive_home = "/usr"
-  sqoop_bin_dir = "/usr/bin"
-
-zoo_conf_dir = "/etc/zookeeper"
-security_enabled = config['configurations']['cluster-env']['security_enabled']
-smokeuser = config['configurations']['cluster-env']['smokeuser']
-user_group = config['configurations']['cluster-env']['user_group']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+smokeuser = config['configurations']['hadoop-env']['smokeuser']
+user_group = config['configurations']['hadoop-env']['user_group']
 sqoop_env_sh_template = config['configurations']['sqoop-env']['content']
 
-sqoop_user = config['configurations']['sqoop-env']['sqoop_user']
+sqoop_conf_dir = "/usr/lib/sqoop/conf"
+hbase_home = "/usr"
+hive_home = "/usr"
+zoo_conf_dir = "/etc/zookeeper"
+sqoop_lib = "/usr/lib/sqoop/lib"
+sqoop_user = "sqoop"
 
-smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+keytab_path = config['configurations']['hadoop-env']['keytab_path']
+smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])

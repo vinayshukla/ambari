@@ -51,25 +51,32 @@ def main():
     with open(options.alert_file, 'r') as f:
       data = json.load(f)
 
-      buf_list = []
-      exit_code = 0
+      found = False
+      buf = ''
 
       for_hosts = data[options.alert_name]
       if for_hosts.has_key(options.host):
         for host_entry in for_hosts[options.host]:
-          buf_list.append(host_entry['text'])
           alert_state = host_entry['state']
-          if alert_state == 'CRITICAL' and exit_code < 2:
-            exit_code = 2
-          elif alert_state == 'WARNING' and exit_code < 1:
-            exit_code = 1
+          alert_text = host_entry['text']
+          if alert_state == 'CRITICAL':
+            print str(alert_text)
+            exit(2)
+          elif alert_state == 'WARNING':
+            print str(alert_text)
+            exit(1)
+          else:
+            if found:
+              buf = buf + ', '
+            buf = buf + alert_text
+            found = True
 
-      if 0 == len(buf_list):
+      if not found:
         print "Status is not reported"
         exit(3)
       else:
-        print ", ".join(buf_list)
-        exit(exit_code)
+        print buf
+        exit(0)
       
   except Exception:
     traceback.print_exc()

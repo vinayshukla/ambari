@@ -20,6 +20,9 @@ package org.apache.ambari.view.slider.clients;
 
 import java.util.Map;
 
+import com.google.inject.ImplementedBy;
+
+@ImplementedBy(AmbariInternalClient.class)
 public interface AmbariClient {
 	/**
 	 * Provides the first cluster defined on this Ambari server.

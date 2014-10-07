@@ -21,14 +21,12 @@
   <services>
     <service>
       <name>YARN</name>
-      <displayName>YARN</displayName>
       <comment>Apache Hadoop NextGen MapReduce (YARN)</comment>
       <version>2.1.0.2.0</version>
       <components>
 
         <component>
           <name>RESOURCEMANAGER</name>
-          <displayName>ResourceManager</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -54,14 +52,10 @@
               </commandScript>
             </customCommand>
           </customCommands>
-          <configuration-dependencies>
-            <config-type>capacity-scheduler</config-type>
-          </configuration-dependencies>
         </component>
 
         <component>
           <name>NODEMANAGER</name>
-          <displayName>NodeManager</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -73,41 +67,13 @@
 
         <component>
           <name>YARN_CLIENT</name>
-          <displayName>Yarn Client</displayName>
           <category>CLIENT</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality>
           <commandScript>
             <script>scripts/yarn_client.py</script>
             <scriptType>PYTHON</scriptType>
             <timeout>600</timeout>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>yarn-site.xml</fileName>
-              <dictionaryName>yarn-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>xml</type>
-              <fileName>core-site.xml</fileName>
-              <dictionaryName>core-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>yarn-env.sh</fileName>
-              <dictionaryName>yarn-env</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>log4j.properties</fileName>
-              <dictionaryName>hdfs-log4j,yarn-log4j</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>xml</type>
-              <fileName>capacity-scheduler.xml</fileName>
-              <dictionaryName>capacity-scheduler</dictionaryName>
-            </configFile>                        
-          </configFiles>
         </component>
       </components>
 
@@ -130,29 +96,25 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>HDFS</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>yarn-site</config-type>
         <config-type>yarn-env</config-type>
+        <config-type>capacity-scheduler</config-type>
         <config-type>core-site</config-type>
         <config-type>mapred-site</config-type>
+        <config-type>mapred-queue-acls</config-type>
         <config-type>yarn-log4j</config-type>
       </configuration-dependencies>
     </service>
 
     <service>
       <name>MAPREDUCE2</name>
-      <displayName>MapReduce2</displayName>
       <comment>Apache Hadoop NextGen MapReduce (YARN)</comment>
       <version>2.1.0.2.0.6.0</version>
       <components>
         <component>
           <name>HISTORYSERVER</name>
-          <displayName>History Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <auto-deploy>
@@ -177,7 +139,6 @@
 
         <component>
           <name>MAPREDUCE2_CLIENT</name>
-          <displayName>MapReduce2 Client</displayName>
           <category>CLIENT</category>
           <cardinality>0+</cardinality>
           <commandScript>
@@ -185,23 +146,6 @@
             <scriptType>PYTHON</scriptType>
             <timeout>600</timeout>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>mapred-site.xml</fileName>
-              <dictionaryName>mapred-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>xml</type>
-              <fileName>core-site.xml</fileName>
-              <dictionaryName>core-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>mapred-env.sh</fileName>
-              <dictionaryName>mapred-env</dictionaryName>
-            </configFile>
-          </configFiles>
         </component>
       </components>
 
@@ -221,10 +165,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>YARN</service>
-      </requiredServices>
 
       <configuration-dir>configuration-mapred</configuration-dir>
 
@@ -232,6 +172,7 @@
         <config-type>core-site</config-type>
         <config-type>mapred-site</config-type>
         <config-type>mapred-env</config-type>
+        <config-type>mapred-queue-acls</config-type>
       </configuration-dependencies>
     </service>
 

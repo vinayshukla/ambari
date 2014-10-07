@@ -32,35 +32,26 @@
       </a>
       <ul class="dropdown-menu">
         {{#each option in controller.availableActions}}
-          <li {{bind-attr class="option.submenu.length:dropdown-submenu"}}>
-            <a {{action 'openModal' option target='controller'}}>{{humanize option.title}}</a>
-            <ul class="dropdown-menu">
-              {{#each subitem in option.submenu}}
-                <li>
-                  <a {{action 'openModal' subitem target='controller'}}>{{humanize subitem.title}}</a>
-                </li>
-              {{/each}}
-            </ul>
+          <li>
+            <a {{action 'openModal' option target='controller'}}>{{option.title}}</a>
           </li>
         {{/each}}
       </ul>
     </div>
   </div>
 
-  {{#if weHaveQuicklinks}}
-    <div class="col-md-3 quick-links-wrapper pull-right">
-      <ul class="nav nav-pills move">
-        <li class="dropdown">
-          <a class="dropdown-toggle" data-toggle="dropdown" href="#">{{t common.quickLinks}}<b class="caret"></b></a>
-          <ul class="dropdown-menu">
-            {{#each quickLink in model.quickLinks}}
-              <li><a {{bind-attr href="quickLink.url"}} target="_blank">{{quickLink.label}}</a></li>
-            {{/each}}
-          </ul>
-        </li>
-      </ul>
-    </div>
-  {{/if}}
+  <div class="col-md-3 quick-links-wrapper pull-right">
+    <ul class="nav nav-pills move">
+      <li class="dropdown">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">{{t common.quickLinks}}<b class="caret"></b></a>
+        <ul class="dropdown-menu">
+          {{#each quickLink in model.quickLinks}}
+            <li><a {{bind-attr href="quickLink.url"}} target="_blank">{{quickLink.label}}</a></li>
+          {{/each}}
+        </ul>
+      </li>
+    </ul>
+  </div>
 
   {{bs-tabs contentBinding="sliderAppTabs" default="summary"}}
   <div style="margin-top: 20px;">

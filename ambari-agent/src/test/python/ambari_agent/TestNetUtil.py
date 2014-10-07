@@ -38,16 +38,16 @@ class TestNetUtil(unittest.TestCase):
 
     # test 200
     netutil = NetUtil.NetUtil()
-    self.assertTrue(netutil.checkURL("url")[0])
+    self.assertTrue(netutil.checkURL("url"))
 
     # test fail
     response.status = 404
-    self.assertFalse(netutil.checkURL("url")[0])
+    self.assertFalse(netutil.checkURL("url"))
 
     # test Exception
     response.status = 200
     httpsConMock.side_effect = Exception("test")
-    self.assertFalse(netutil.checkURL("url")[0])
+    self.assertFalse(netutil.checkURL("url"))
 
 
   @patch("time.sleep")
@@ -55,15 +55,15 @@ class TestNetUtil(unittest.TestCase):
 
     netutil = NetUtil.NetUtil()
     checkURL = MagicMock(name="checkURL")
-    checkURL.return_value = True, "test"
+    checkURL.return_value = True
     netutil.checkURL = checkURL
+    l = MagicMock()
 
     # one successful get
     self.assertEqual(0, netutil.try_to_connect("url", 10))
 
     # got successful after N retries
-    gets = [[True, ""], [False, ""], [False, ""]]
-
+    gets = [True, False, False]
     def side_effect(*args):
       return gets.pop()
     checkURL.side_effect = side_effect
@@ -71,5 +71,7 @@ class TestNetUtil(unittest.TestCase):
 
     # max retries
     checkURL.side_effect = None
-    checkURL.return_value = False, "test"
+    checkURL.return_value = False
     self.assertEqual(5, netutil.try_to_connect("url", 5))
+
+

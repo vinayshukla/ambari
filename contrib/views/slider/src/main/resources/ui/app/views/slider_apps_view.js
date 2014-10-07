@@ -84,19 +84,8 @@ App.SliderAppsView = App.TableView.extend({
   }),
 
   SliderView: Em.View.extend({
-    content: null,
-    tagName: 'tr',
-    popover: function(){
-      var template = this.createChildView(App.SliderTooltip, {
-        content: this.get('content')
-      });
-      return Ember.Object.create({
-        trigger: 'hover',
-        title: this.get('content.data.name'),
-        template: template.renderToBuffer().string(),
-        placement: "right"
-      });
-    }.property('content')
+    content:null,
+    tagName: 'tr'
   }),
 
   /**
@@ -175,8 +164,4 @@ App.SliderAppsView = App.TableView.extend({
     return associations;
   }.property()
 
-});
-
-App.SliderTooltip = Em.View.extend({
-  templateName: "common/app_tooltip"
 });

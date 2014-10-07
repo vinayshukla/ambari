@@ -29,84 +29,89 @@ class TestNodeManager(RMFTestCase):
 
   def test_configure_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="configure",
-                       config_file="default.json")
+                       classname = "Nodemanager",
+                       command = "configure",
+                       config_file="default.json"
+    )
     self.assert_configure_default()
     self.assertNoMoreResources()
 
   def test_start_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="start",
-                       config_file="default.json")
+                       classname = "Nodemanager",
+                       command = "start",
+                       config_file="default.json"
+    )
+
     self.assert_configure_default()
-
-    pid_check_cmd = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1'
-
-    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
-                              not_if=pid_check_cmd,
-                              action=['delete'])
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited; export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start nodemanager',
-                              not_if=pid_check_cmd,
-                              user='yarn')
-    self.assertResourceCalled('Execute', pid_check_cmd,
-                              user='yarn',
-                              not_if=pid_check_cmd,
-                              initial_wait=5)
+    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start nodemanager',
+                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
+                              user = 'yarn'
+    )
+    self.assertResourceCalled('Execute', 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
+                              user = 'yarn',
+                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
+                              initial_wait=5
+    )
     self.assertNoMoreResources()
 
   def test_stop_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="stop",
-                       config_file="default.json")
+                       classname = "Nodemanager",
+                       command = "stop",
+                       config_file="default.json"
+    )
+
     self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop nodemanager',
-                              user='yarn')
-    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
-                              action=['delete'])
+                              user = 'yarn'
+    )
+    self.assertResourceCalled('Execute', 'rm -f /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
+                              user = 'yarn'
+    )
     self.assertNoMoreResources()
 
   def test_configure_secured(self):
 
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="configure",
-                       config_file="secured.json")
+                       classname = "Nodemanager",
+                       command = "configure",
+                       config_file="secured.json"
+    )
     self.assert_configure_secured()
     self.assertNoMoreResources()
 
   def test_start_secured(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="start",
-                       config_file="secured.json")
+                       classname = "Nodemanager",
+                       command = "start",
+                       config_file="secured.json"
+    )
 
     self.assert_configure_secured()
-
-    pid_check_cmd = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1'
-
-    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
-                              not_if=pid_check_cmd,
-                              action=['delete'])
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited; export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start nodemanager',
-                              not_if=pid_check_cmd,
-                              user='yarn')
+    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start nodemanager',
+                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
+                              user = 'yarn'
+    )
     self.assertResourceCalled('Execute', 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
-                              user='yarn',
-                              not_if=pid_check_cmd,
-                              initial_wait=5)
+                              user = 'yarn',
+                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid` >/dev/null 2>&1',
+                              initial_wait=5
+    )
     self.assertNoMoreResources()
 
   def test_stop_secured(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/nodemanager.py",
-                       classname="Nodemanager",
-                       command="stop",
-                       config_file="secured.json")
+                       classname = "Nodemanager",
+                       command = "stop",
+                       config_file="secured.json"
+    )
+
     self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop nodemanager',
-                              user='yarn')
-    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
-                              action=['delete'])
+                              user = 'yarn'
+    )
+    self.assertResourceCalled('Execute', 'rm -f /var/run/hadoop-yarn/yarn/yarn-yarn-nodemanager.pid',
+                              user = 'yarn'
+    )
     self.assertNoMoreResources()
 
   def assert_configure_default(self):
@@ -120,7 +125,6 @@ class TestNodeManager(RMFTestCase):
                               owner = 'yarn',
                               group = 'hadoop',
                               action = ['create_delayed'],
-                              bin_dir = '/usr/bin',
                               mode = 0777,
                               )
     self.assertResourceCalled('HdfsDirectory', '/mapred',
@@ -130,7 +134,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = "/usr/bin/kinit",
                               owner = 'mapred',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/mapred/system',
@@ -140,7 +143,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = "/usr/bin/kinit",
                               owner = 'hdfs',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/mr-history/tmp',
@@ -152,7 +154,6 @@ class TestNodeManager(RMFTestCase):
                               mode = 0777,
                               owner = 'mapred',
                               group = 'hadoop',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/mr-history/done',
@@ -164,7 +165,6 @@ class TestNodeManager(RMFTestCase):
                               mode = 01777,
                               owner = 'mapred',
                               group = 'hadoop',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', None,
@@ -173,7 +173,6 @@ class TestNodeManager(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               hdfs_user = 'hdfs',
                               kinit_path_local = "/usr/bin/kinit",
-                              bin_dir = '/usr/bin',
                               action = ['create'],
                               )
     self.assertResourceCalled('Directory', '/var/run/hadoop-yarn/yarn',
@@ -227,7 +226,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
     )
     self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
       owner = 'yarn',
@@ -235,7 +233,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['mapred-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
     )
     self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
       owner = 'yarn',
@@ -243,7 +240,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['yarn-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
     )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
       owner = 'yarn',
@@ -251,7 +247,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['capacity-scheduler'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
     )
     self.assertResourceCalled('File', '/etc/hadoop/conf/yarn.exclude',
       owner = 'yarn',
@@ -284,14 +279,16 @@ class TestNodeManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
+                              )
+    self.assertResourceCalled('File', '/etc/hadoop/conf/mapred-queue-acls.xml',
+                              owner = 'mapred',
+                              group = 'hadoop',
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',
@@ -317,7 +314,6 @@ class TestNodeManager(RMFTestCase):
                               owner = 'yarn',
                               group = 'hadoop',
                               action = ['create_delayed'],
-                              bin_dir = '/usr/bin',
                               mode = 0777,
                               )
     self.assertResourceCalled('HdfsDirectory', '/mapred',
@@ -327,7 +323,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               owner = 'mapred',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/mapred/system',
@@ -337,7 +332,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               owner = 'hdfs',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/mr-history/tmp',
@@ -347,7 +341,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0777,
-                              bin_dir = '/usr/bin',
                               owner = 'mapred',
                               group = 'hadoop',
                               action = ['create_delayed'],
@@ -359,7 +352,6 @@ class TestNodeManager(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 01777,
-                              bin_dir = '/usr/bin',
                               owner = 'mapred',
                               group = 'hadoop',
                               action = ['create_delayed'],
@@ -368,7 +360,6 @@ class TestNodeManager(RMFTestCase):
                               security_enabled = True,
                               keytab = '/etc/security/keytabs/hdfs.headless.keytab',
                               conf_dir = '/etc/hadoop/conf',
-                              bin_dir = '/usr/bin',
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               action = ['create'],
@@ -414,7 +405,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['core-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
     )
     self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
       owner = 'yarn',
@@ -422,7 +412,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['mapred-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
     )
     self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
       owner = 'yarn',
@@ -430,7 +419,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['yarn-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
     )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
       owner = 'yarn',
@@ -438,7 +426,6 @@ class TestNodeManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['capacity-scheduler'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
     )
     self.assertResourceCalled('File', '/etc/hadoop/conf/yarn.exclude',
       owner = 'yarn',
@@ -487,14 +474,16 @@ class TestNodeManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
+                              )
+    self.assertResourceCalled('File', '/etc/hadoop/conf/mapred-queue-acls.xml',
+                              owner = 'mapred',
+                              group = 'hadoop',
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',

@@ -17,26 +17,13 @@
  */
 var App = require('app');
 require('models/service_config');
-require('models/service');
-
 App.SecureConfigProperties = Ember.ArrayProxy.extend({
   content: require('data/HDP2/secure_properties').configProperties
 });
 
 var configProperties = App.SecureConfigProperties.create();
 
-// Dynamically create YARN properties
-var yarnConfigProperties = [
-  App.ServiceConfigCategory.create({ name: 'ResourceManager', displayName : 'ResourceManager'}),
-  App.ServiceConfigCategory.create({ name: 'NodeManager', displayName : 'NodeManager'})
-];
-var isATSInstalled = App.Service.find('YARN').get('hostComponents').someProperty('componentName', 'APP_TIMELINE_SERVER');
-var doesATSSupportKerberos = App.get("doesATSSupportKerberos");
-if (isATSInstalled && doesATSSupportKerberos) {
-  yarnConfigProperties.push(App.ServiceConfigCategory.create({ name: 'AppTimelineServer', displayName : 'ApplicationTimelineService'}));
-}
-
-var configs = [
+module.exports = [
   {
     serviceName: 'GENERAL',
     displayName: 'General',
@@ -44,7 +31,7 @@ var configs = [
       App.ServiceConfigCategory.create({ name: 'KERBEROS', displayName: 'Kerberos'}),
       App.ServiceConfigCategory.create({ name: 'AMBARI', displayName: 'Ambari'})
     ],
-    sites: ['cluster-env'],
+    sites: ['global'],
     configs: configProperties.filterProperty('serviceName', 'GENERAL')
   },
   {
@@ -58,7 +45,7 @@ var configs = [
       App.ServiceConfigCategory.create({ name: 'JournalNode', displayName: 'JournalNode',exclude:'non-HA'}),
       App.ServiceConfigCategory.create({ name: 'DataNode', displayName: 'DataNode'})
     ],
-    sites: ['hadoop-env','core-site', 'hdfs-site'],
+    sites: ['core-site', 'hdfs-site'],
     configs: configProperties.filterProperty('serviceName', 'HDFS')
   },
   {
@@ -75,7 +62,10 @@ var configs = [
     serviceName: 'YARN',
     displayName: 'YARN',
     filename: 'yarn-site',
-    configCategories: yarnConfigProperties, // these properties can be dynamic
+    configCategories: [
+      App.ServiceConfigCategory.create({ name: 'ResourceManager', displayName : 'ResourceManager'}),
+      App.ServiceConfigCategory.create({ name: 'NodeManager', displayName : 'NodeManager'})
+      ],
     sites: ['yarn-site'],
     configs: configProperties.filterProperty('serviceName', 'YARN')
   },
@@ -84,11 +74,20 @@ var configs = [
     displayName: 'Hive',
     filename: 'hive-site',
     configCategories: [
-      App.ServiceConfigCategory.create({ name: 'Hive Metastore', displayName: 'Hive Metastore and Hive Server 2'}),
+      App.ServiceConfigCategory.create({ name: 'Hive Metastore', displayName: 'Hive Metastore and Hive Server 2'})
+    ],
+    sites: ['hive-site'],
+    configs: configProperties.filterProperty('serviceName', 'HIVE')
+  },
+  {
+    serviceName: 'WEBHCAT',
+    displayName: 'WebHCat',
+    filename: 'webhcat-site',
+    configCategories: [
       App.ServiceConfigCategory.create({ name: 'WebHCat Server', displayName : 'WebHCat Server'})
     ],
-    sites: ['hive-site','webhcat-site'],
-    configs: configProperties.filterProperty('serviceName', 'HIVE')
+    sites: ['webhcat-site'],
+    configs: configProperties.filterProperty('serviceName', 'WEBHCAT')
   },
   {
     serviceName: 'HBASE',
@@ -98,7 +97,7 @@ var configs = [
       App.ServiceConfigCategory.create({ name: 'HBase Master', displayName: 'HBase Master'}),
       App.ServiceConfigCategory.create({ name: 'RegionServer', displayName: 'RegionServer'})
     ],
-    sites: ['hbase-env','hbase-site'],
+    sites: ['hbase-site'],
     configs: configProperties.filterProperty('serviceName', 'HBASE')
   },
   {
@@ -107,7 +106,6 @@ var configs = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'ZooKeeper Server', displayName: 'ZooKeeper Server'})
     ],
-    sites: ['zookeeper-env'],
     configs: configProperties.filterProperty('serviceName', 'ZOOKEEPER')
 
   },
@@ -118,7 +116,7 @@ var configs = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'Oozie Server', displayName:  'Oozie Server'})
     ],
-    sites: ['oozie-env','oozie-site'],
+    sites: ['oozie-site'],
     configs: configProperties.filterProperty('serviceName', 'OOZIE')
   },
   {
@@ -127,7 +125,6 @@ var configs = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'Nagios Server', displayName:  'Nagios Server'})
     ],
-    sites: ['nagios-env'],
     configs: configProperties.filterProperty('serviceName', 'NAGIOS')
   },
   {
@@ -135,9 +132,9 @@ var configs = [
     displayName: 'Storm',
     filename: 'storm-site',
     configCategories: [
-      App.ServiceConfigCategory.create({ name: 'Storm Topology', displayName:  'Storm Client'})
+      App.ServiceConfigCategory.create({ name: 'Storm Topology', displayName:  'Storm Topology'})
     ],
-    sites: ['storm-env','storm-site'],
+    sites: ['storm-site'],
     configs: configProperties.filterProperty('serviceName', 'STORM')
   },
   {
@@ -150,18 +147,6 @@ var configs = [
     sites: ['falcon-startup.properties'],
     configs: configProperties.filterProperty('serviceName', 'FALCON')
   }
+
+
 ];
-
-if(App.get('isHadoop22Stack')){
-  for(var i = 0; i < configs.length; i++){
-    var config = configs[i];
-    if( config.serviceName === 'STORM' ){
-      config.configCategories.unshift(App.ServiceConfigCategory.create({ name: 'Nimbus', displayName:  'Nimbus'}));
-    }
-  }
-}
-
-
-module.exports = configs;
-
-

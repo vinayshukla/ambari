@@ -40,59 +40,43 @@ import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.api.services.KeyService;
 import org.apache.ambari.server.api.services.PersistKeyValueImpl;
 import org.apache.ambari.server.api.services.PersistKeyValueService;
-import org.apache.ambari.server.api.services.stackadvisor.StackAdvisorHelper;
 import org.apache.ambari.server.bootstrap.BootStrapImpl;
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.internal.AbstractControllerResourceProvider;
-import org.apache.ambari.server.controller.internal.AlertDefinitionResourceProvider;
-import org.apache.ambari.server.controller.internal.AmbariPrivilegeResourceProvider;
 import org.apache.ambari.server.controller.internal.BlueprintResourceProvider;
-import org.apache.ambari.server.controller.internal.ClusterPrivilegeResourceProvider;
 import org.apache.ambari.server.controller.internal.ClusterResourceProvider;
-import org.apache.ambari.server.controller.internal.PermissionResourceProvider;
-import org.apache.ambari.server.controller.internal.PrivilegeResourceProvider;
-import org.apache.ambari.server.controller.internal.StackAdvisorResourceProvider;
 import org.apache.ambari.server.controller.internal.StackDefinedPropertyProvider;
 import org.apache.ambari.server.controller.internal.StackDependencyResourceProvider;
-import org.apache.ambari.server.controller.internal.ViewPermissionResourceProvider;
 import org.apache.ambari.server.controller.nagios.NagiosPropertyProvider;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.PersistenceType;
-import org.apache.ambari.server.orm.dao.AlertDefinitionDAO;
 import org.apache.ambari.server.orm.dao.BlueprintDAO;
-import org.apache.ambari.server.orm.dao.ClusterDAO;
-import org.apache.ambari.server.orm.dao.GroupDAO;
 import org.apache.ambari.server.orm.dao.MetainfoDAO;
-import org.apache.ambari.server.orm.dao.PermissionDAO;
-import org.apache.ambari.server.orm.dao.PrincipalDAO;
-import org.apache.ambari.server.orm.dao.PrivilegeDAO;
-import org.apache.ambari.server.orm.dao.ResourceDAO;
-import org.apache.ambari.server.orm.dao.UserDAO;
+import org.apache.ambari.server.orm.dao.ViewDAO;
+import org.apache.ambari.server.orm.dao.ViewInstanceDAO;
 import org.apache.ambari.server.orm.entities.MetainfoEntity;
+import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
 import org.apache.ambari.server.resources.ResourceManager;
 import org.apache.ambari.server.resources.api.rest.GetResource;
 import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
 import org.apache.ambari.server.security.CertificateManager;
 import org.apache.ambari.server.security.SecurityFilter;
-import org.apache.ambari.server.security.authorization.AmbariAuthorizationFilter;
 import org.apache.ambari.server.security.authorization.AmbariLdapAuthenticationProvider;
 import org.apache.ambari.server.security.authorization.AmbariLocalUserDetailsService;
 import org.apache.ambari.server.security.authorization.Users;
 import org.apache.ambari.server.security.authorization.internal.AmbariInternalAuthenticationProvider;
-import org.apache.ambari.server.security.ldap.AmbariLdapDataPopulator;
+import org.apache.ambari.server.security.authorization.internal.InternalTokenAuthenticationFilter;
 import org.apache.ambari.server.security.unsecured.rest.CertificateDownload;
 import org.apache.ambari.server.security.unsecured.rest.CertificateSign;
-import org.apache.ambari.server.security.unsecured.rest.ConnectionInfo;
 import org.apache.ambari.server.state.Clusters;
-import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.utils.StageUtils;
 import org.apache.ambari.server.utils.VersionUtils;
 import org.apache.ambari.server.view.ViewRegistry;
+import org.apache.ambari.view.SystemException;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.SessionIdManager;
-import org.eclipse.jetty.server.SessionManager;
+import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.ssl.SslSelectChannelConnector;
 import org.eclipse.jetty.servlet.DefaultServlet;
@@ -124,6 +108,7 @@ public class AmbariServer {
   private static Logger LOG = LoggerFactory.getLogger(AmbariServer.class);
 
   private Server server = null;
+  private Server serverForAgent = null;
 
   public volatile boolean running = true; // true while controller runs
 
@@ -144,32 +129,6 @@ public class AmbariServer {
   @Inject
   @Named("dbInitNeeded")
   boolean dbInitNeeded;
-  /**
-   * The singleton view registry.
-   */
-  @Inject
-  ViewRegistry viewRegistry;
-
-  /**
-   * The handler list for deployed web apps.
-   */
-  @Inject
-  AmbariHandlerList handlerList;
-
-  /**
-   * Session manager.
-   */
-  @Inject
-  SessionManager sessionManager;
-
-  /**
-   * Session ID manager.
-   */
-  @Inject
-  SessionIdManager sessionIdManager;
-
-  @Inject
-  DelegatingFilterProxy springSecurityFilter;
 
   public String getServerOsType() {
     return configs.getServerOsType();
@@ -190,8 +149,7 @@ public class AmbariServer {
     performStaticInjection();
     initDB();
     server = new Server();
-    server.setSessionIdManager(sessionIdManager);
-    Server serverForAgent = new Server();
+    serverForAgent = new Server();
 
     checkDBVersion();
 
@@ -209,10 +167,8 @@ public class AmbariServer {
           injector.getInstance(AmbariLocalUserDetailsService.class));
       factory.registerSingleton("ambariLdapAuthenticationProvider",
           injector.getInstance(AmbariLdapAuthenticationProvider.class));
-      factory.registerSingleton("ambariLdapDataPopulator",
-          injector.getInstance(AmbariLdapDataPopulator.class));
-      factory.registerSingleton("ambariAuthorizationFilter",
-          injector.getInstance(AmbariAuthorizationFilter.class));
+      factory.registerSingleton("internalTokenAuthenticationFilter",
+          injector.getInstance(InternalTokenAuthenticationFilter.class));
       factory.registerSingleton("ambariInternalAuthenticationProvider",
           injector.getInstance(AmbariInternalAuthenticationProvider.class));
 
@@ -228,20 +184,9 @@ public class AmbariServer {
 
       root.setContextPath(CONTEXT_PATH);
       root.setErrorHandler(injector.getInstance(AmbariErrorHandler.class));
-      root.getSessionHandler().setSessionManager(sessionManager);
 
-      SessionManager jettySessionManager = root.getSessionHandler().getSessionManager();
-
-      // use AMBARISESSIONID instead of JSESSIONID to avoid conflicts with
-      // other services (like HDFS) that run on the same context but a different
-      // port
-      jettySessionManager.setSessionCookie("AMBARISESSIONID");
-
-      // each request that does not use AMBARISESSIONID will create a new
-      // HashedSession in Jetty; these MUST be reaped after inactivity in order
-      // to prevent a memory leak
-      int sessionInactivityTimeout = configs.getHttpSessionInactiveTimeout();
-      jettySessionManager.setMaxInactiveInterval(sessionInactivityTimeout);
+      //Changing session cookie name to avoid conflicts
+      root.getSessionHandler().getSessionManager().setSessionCookie("AMBARISESSIONID");
 
       GenericWebApplicationContext springWebAppContext = new GenericWebApplicationContext();
       springWebAppContext.setServletContext(root.getServletContext());
@@ -252,30 +197,30 @@ public class AmbariServer {
       root.getServletContext().setAttribute(
           WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE,
           springWebAppContext);
-      handlerList.setSpringWebAppContext(springWebAppContext);
 
       certMan.initRootCert();
 
-      // the agent communication (heartbeats, registration, etc) is stateless
-      // and does not use sessions.
-      ServletContextHandler agentroot = new ServletContextHandler(
-          serverForAgent, "/", ServletContextHandler.NO_SESSIONS);
+      ServletContextHandler agentroot = new ServletContextHandler(serverForAgent,
+          "/", ServletContextHandler.SESSIONS );
 
       ServletHolder rootServlet = root.addServlet(DefaultServlet.class, "/");
-      rootServlet.setInitParameter("dirAllowed", "false");
       rootServlet.setInitOrder(1);
 
       /* Configure default servlet for agent server */
       rootServlet = agentroot.addServlet(DefaultServlet.class, "/");
       rootServlet.setInitOrder(1);
 
+      //Spring Security Filter initialization
+      DelegatingFilterProxy springSecurityFilter = new DelegatingFilterProxy();
+      springSecurityFilter.setTargetBeanName("springSecurityFilterChain");
+
       //session-per-request strategy for api and agents
       root.addFilter(new FilterHolder(injector.getInstance(AmbariPersistFilter.class)), "/api/*", 1);
       root.addFilter(new FilterHolder(injector.getInstance(AmbariPersistFilter.class)), "/proxy/*", 1);
       root.addFilter(new FilterHolder(new MethodOverrideFilter()), "/api/*", 1);
       root.addFilter(new FilterHolder(new MethodOverrideFilter()), "/proxy/*", 1);
-
       agentroot.addFilter(new FilterHolder(injector.getInstance(AmbariPersistFilter.class)), "/agent/*", 1);
+
       agentroot.addFilter(SecurityFilter.class, "/*", 1);
 
       if (configs.getApiAuthentication()) {
@@ -302,23 +247,37 @@ public class AmbariServer {
       sslConnectorTwoWay.setTruststoreType("PKCS12");
       sslConnectorTwoWay.setNeedClientAuth(configs.getTwoWaySsl());
 
-      //SSL Context Factory
-      SslContextFactory contextFactory = new SslContextFactory(true);
-      contextFactory.setKeyStorePath(keystore);
-      contextFactory.setTrustStore(keystore);
-      contextFactory.setKeyStorePassword(srvrCrtPass);
-      contextFactory.setKeyManagerPassword(srvrCrtPass);
-      contextFactory.setTrustStorePassword(srvrCrtPass);
-      contextFactory.setKeyStoreType("PKCS12");
-      contextFactory.setTrustStoreType("PKCS12");
-      contextFactory.setNeedClientAuth(false);
-
       //Secured connector for 1-way auth
+      //SslSelectChannelConnector sslConnectorOneWay = new SslSelectChannelConnector();
+      SslContextFactory contextFactory = new SslContextFactory(true);
+      //sslConnectorOneWay.setPort(AGENT_ONE_WAY_AUTH);
+      contextFactory.setKeyStorePath(keystore);
+      // sslConnectorOneWay.setKeystore(keystore);
+      contextFactory.setTrustStore(keystore);
+      // sslConnectorOneWay.setTruststore(keystore);
+      contextFactory.setKeyStorePassword(srvrCrtPass);
+      // sslConnectorOneWay.setPassword(srvrCrtPass);
+
+      contextFactory.setKeyManagerPassword(srvrCrtPass);
+
+      // sslConnectorOneWay.setKeyPassword(srvrCrtPass);
+
+      contextFactory.setTrustStorePassword(srvrCrtPass);
+      //sslConnectorOneWay.setTrustPassword(srvrCrtPass);
+
+      contextFactory.setKeyStoreType("PKCS12");
+      //sslConnectorOneWay.setKeystoreType("PKCS12");
+      contextFactory.setTrustStoreType("PKCS12");
+
+      //sslConnectorOneWay.setTruststoreType("PKCS12");
+      contextFactory.setNeedClientAuth(false);
+      // sslConnectorOneWay.setWantClientAuth(false);
+      // sslConnectorOneWay.setNeedClientAuth(false);
       SslSelectChannelConnector sslConnectorOneWay = new SslSelectChannelConnector(contextFactory);
       sslConnectorOneWay.setPort(configs.getOneWayAuthPort());
       sslConnectorOneWay.setAcceptors(2);
       sslConnectorTwoWay.setAcceptors(2);
-      serverForAgent.setConnectors(new Connector[]{sslConnectorOneWay, sslConnectorTwoWay});
+      serverForAgent.setConnectors(new Connector[]{ sslConnectorOneWay, sslConnectorTwoWay});
 
       ServletHolder sh = new ServletHolder(ServletContainer.class);
       sh.setInitParameter("com.sun.jersey.config.property.resourceConfigClass",
@@ -333,7 +292,16 @@ public class AmbariServer {
       root.addServlet(sh, "/api/v1/*");
       sh.setInitOrder(2);
 
-      viewRegistry.readViewArchives();
+      HandlerList handlerList = new HandlerList();
+
+      try {
+        ViewRegistry viewRegistry = ViewRegistry.getInstance();
+        for (ViewInstanceEntity entity : viewRegistry.readViewArchives(configs)){
+          handlerList.addHandler(viewRegistry.getWebAppContext(entity));
+        }
+      } catch (SystemException e) {
+        LOG.error("Caught exception deploying views.", e);
+      }
 
       handlerList.addHandler(root);
 
@@ -380,7 +348,7 @@ public class AmbariServer {
         sh.setInitParameter("com.sun.jersey.spi.container.ContainerRequestFilters",
                     "org.apache.ambari.server.api.AmbariCsrfProtectionFilter");
         proxy.setInitParameter("com.sun.jersey.spi.container.ContainerRequestFilters",
-                    "org.apache.ambari.server.api.AmbariCsrfProtectionFilter");
+                    "com.sun.jersey.api.container.filter.AmbariCsrfProtectionFilter");
       }
 
       //Set jetty thread pool
@@ -481,7 +449,7 @@ public class AmbariServer {
   }
 
   /**
-   * Creates default users if in-memory database is used
+   * Creates default users and roles if in-memory database is used
    */
   @Transactional
   protected void initDB() {
@@ -489,8 +457,13 @@ public class AmbariServer {
       LOG.info("Database init needed - creating default data");
       Users users = injector.getInstance(Users.class);
 
+      users.createDefaultRoles();
       users.createUser("admin", "admin");
       users.createUser("user", "user");
+      try {
+        users.promoteToAdmin(users.getLocalUser("admin"));
+      } catch (AmbariException ignored) {
+      }
 
       MetainfoEntity schemaVersion = new MetainfoEntity();
       schemaVersion.setMetainfoName(Configuration.SERVER_VERSION_KEY);
@@ -522,7 +495,7 @@ public class AmbariServer {
 
     LOG.info("DB store version is compatible");
   }
-
+  
   public void stop() throws Exception {
     try {
       server.stop();
@@ -537,13 +510,11 @@ public class AmbariServer {
   public void performStaticInjection() {
     AgentResource.init(injector.getInstance(HeartBeatHandler.class));
     CertificateDownload.init(injector.getInstance(CertificateManager.class));
-    ConnectionInfo.init(injector.getInstance(Configuration.class));
     CertificateSign.init(injector.getInstance(CertificateManager.class));
     GetResource.init(injector.getInstance(ResourceManager.class));
     PersistKeyValueService.init(injector.getInstance(PersistKeyValueImpl.class));
     KeyService.init(injector.getInstance(PersistKeyValueImpl.class));
     BootStrapResource.init(injector.getInstance(BootStrapImpl.class));
-    StackAdvisorResourceProvider.init(injector.getInstance(StackAdvisorHelper.class));
     StageUtils.setGson(injector.getInstance(Gson.class));
     WorkflowJsonService.setDBProperties(
         injector.getInstance(Configuration.class));
@@ -554,17 +525,10 @@ public class AmbariServer {
     BlueprintResourceProvider.init(injector.getInstance(BlueprintDAO.class),
         injector.getInstance(Gson.class), ambariMetaInfo);
     StackDependencyResourceProvider.init(ambariMetaInfo);
-    ClusterResourceProvider.init(injector.getInstance(BlueprintDAO.class), ambariMetaInfo, injector.getInstance(ConfigHelper.class));
-    AlertDefinitionResourceProvider.init(injector.getInstance(AlertDefinitionDAO.class));
-    PermissionResourceProvider.init(injector.getInstance(PermissionDAO.class));
-    ViewPermissionResourceProvider.init(injector.getInstance(PermissionDAO.class));
-    PrivilegeResourceProvider.init(injector.getInstance(PrivilegeDAO.class), injector.getInstance(UserDAO.class),
-        injector.getInstance(GroupDAO.class), injector.getInstance(PrincipalDAO.class),
-        injector.getInstance(PermissionDAO.class), injector.getInstance(ResourceDAO.class));
-    ClusterPrivilegeResourceProvider.init(injector.getInstance(ClusterDAO.class));
-    AmbariPrivilegeResourceProvider.init(injector.getInstance(ClusterDAO.class));
+    ClusterResourceProvider.init(injector.getInstance(BlueprintDAO.class), ambariMetaInfo);
+    ViewRegistry.init(injector.getInstance(ViewDAO.class), injector.getInstance(ViewInstanceDAO.class));
   }
-
+  
   /**
    * Sets up proxy authentication.  This must be done before the server is
    * initialized since <code>AmbariMetaInfo</code> requires potential URL
@@ -573,13 +537,13 @@ public class AmbariServer {
   static void setupProxyAuth() {
     final String proxyUser = System.getProperty("http.proxyUser");
     final String proxyPass = System.getProperty("http.proxyPassword");
-
+    
     // to skip some hosts from proxy, pipe-separate names using, i.e.:
     // -Dhttp.nonProxyHosts=*.domain.com|host.internal.net
-
+    
     if (null != proxyUser && null != proxyPass) {
       LOG.info("Proxy authentication enabled");
-
+      
       Authenticator.setDefault(new Authenticator() {
         @Override
         protected PasswordAuthentication getPasswordAuthentication() {
@@ -589,24 +553,25 @@ public class AmbariServer {
     } else {
       LOG.debug("Proxy authentication not specified");
     }
-  }
+  }  
 
   public static void main(String[] args) throws Exception {
     Injector injector = Guice.createInjector(new ControllerModule());
-
+    
     AmbariServer server = null;
     try {
       LOG.info("Getting the controller");
 
       setupProxyAuth();
-
+      
       injector.getInstance(GuiceJpaInitializer.class);
       server = injector.getInstance(AmbariServer.class);
       CertificateManager certMan = injector.getInstance(CertificateManager.class);
       certMan.initRootCert();
-      ViewRegistry.initInstance(server.viewRegistry);
       ComponentSSLConfiguration.instance().init(server.configs);
-      server.run();
+      if (server != null) {
+        server.run();
+      }
     } catch (Throwable t) {
       LOG.error("Failed to run the Ambari Server", t);
       if (server != null) {

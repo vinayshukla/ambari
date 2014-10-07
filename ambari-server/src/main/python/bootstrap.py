@@ -39,8 +39,7 @@ MAX_PARALLEL_BOOTSTRAPS = 20
 # How many seconds to wait between polling parallel bootstraps
 POLL_INTERVAL_SEC = 1
 DEBUG = False
-DEFAULT_AGENT_TEMP_FOLDER = "/var/lib/ambari-agent/data/tmp"
-PYTHON_ENV="env PYTHONPATH=$PYTHONPATH:{0} ".format(DEFAULT_AGENT_TEMP_FOLDER)
+PYTHON_ENV="env PYTHONPATH=$PYTHONPATH:/tmp "
 
 
 class HostLog:
@@ -143,7 +142,7 @@ class SSH:
 
 class Bootstrap(threading.Thread):
   """ Bootstrap the agent on a separate host"""
-  TEMP_FOLDER = DEFAULT_AGENT_TEMP_FOLDER
+  TEMP_FOLDER = "/tmp"
   OS_CHECK_SCRIPT_FILENAME = "os_check_type.py"
   AMBARI_REPO_FILENAME = "ambari"
   SETUP_SCRIPT_FILENAME = "setupAgent.py"
@@ -162,7 +161,7 @@ class Bootstrap(threading.Thread):
     self.host_log = HostLog(log_file)
     self.daemon = True
 
-    if self.is_ubuntu():
+    if self.is_debian():
       self.AMBARI_REPO_FILENAME = self.AMBARI_REPO_FILENAME + ".list"
     else:
       self.AMBARI_REPO_FILENAME = self.AMBARI_REPO_FILENAME + ".repo"
@@ -197,8 +196,8 @@ class Bootstrap(threading.Thread):
         return True
     return False
 
-  def is_ubuntu(self):
-    if self.getServerFamily()[0] == "ubuntu":
+  def is_debian(self):
+    if self.getServerFamily()[0] == "debian":
       return True
     return False
 
@@ -206,7 +205,7 @@ class Bootstrap(threading.Thread):
     """ Ambari repo file for Ambari."""
     if self.is_suse():
       return "/etc/zypp/repos.d"
-    elif self.is_ubuntu():
+    elif self.is_debian():
       return "/etc/apt/sources.list.d"
     else:
       return "/etc/yum.repos.d"
@@ -234,22 +233,6 @@ class Bootstrap(threading.Thread):
   def hasPassword(self):
     password_file = self.shared_state.password_file
     return password_file is not None and password_file != 'null'
-
-
-  def createTargetDir(self):
-    # Creating target dir
-    self.host_log.write("==========================\n")
-    self.host_log.write("Creating target directory...")
-    params = self.shared_state
-    user = params.user
-
-    command = "[ -d {0} ] || sudo mkdir -p {0} ; sudo chown {1} {0}".format(self.TEMP_FOLDER,params.user)
-
-    ssh = SSH(params.user, params.sshkey_file, self.host, command,
-              params.bootdir, self.host_log)
-    retcode = ssh.run()
-    self.host_log.write("\n")
-    return retcode
 
 
   def copyOsCheckScript(self):
@@ -322,8 +305,8 @@ class Bootstrap(threading.Thread):
     retcode2 = ssh.run()
     self.host_log.write("\n")
 
-    # Update repo cache for ubuntu OS
-    if self.is_ubuntu():
+    # Update repo cache for debian OS
+    if self.is_debian():
       self.host_log.write("==========================\n")
       self.host_log.write("Update apt cache of repository...")
       command = self.getAptUpdateCommand()
@@ -436,7 +419,7 @@ class Bootstrap(threading.Thread):
     self.host_log.write("==========================\n")
     self.host_log.write("Checking 'sudo' package on remote host...")
     params = self.shared_state
-    if self.getServerFamily()[0] == "ubuntu":
+    if self.getServerFamily()[0] == "debian":
       command = "dpkg --get-selections|grep -e '^sudo\s*install'"
     else:
       command = "rpm -qa | grep -e '^sudo\-'"
@@ -506,8 +489,7 @@ class Bootstrap(threading.Thread):
     """ Copy files and run commands on remote host """
     self.status["start_time"] = time.time()
     # Population of action queue
-    action_queue = [self.createTargetDir,
-                    self.copyCommonFunctions,
+    action_queue = [self.copyCommonFunctions,
                     self.copyOsCheckScript,
                     self.runOsCheckScript,
                     self.checkSudoPackage

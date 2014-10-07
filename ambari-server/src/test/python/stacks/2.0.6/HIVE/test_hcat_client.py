@@ -28,15 +28,10 @@ class TestHcatClient(RMFTestCase):
                        command = "configure",
                        config_file="default.json"
     )
-    self.assertResourceCalled('Directory', '/etc/hive/conf',
-                              owner = 'hcat',
-                              group = 'hadoop',
-                              recursive = True,
-    )
+
     self.assertResourceCalled('Directory', '/etc/hcatalog/conf',
       owner = 'hcat',
       group = 'hadoop',
-      recursive = True,
     )
     self.assertResourceCalled('Directory', '/var/run/webhcat',
       owner = 'hcat',
@@ -48,13 +43,11 @@ class TestHcatClient(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hive/conf',
       configurations = self.getConfig()['configurations']['hive-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
     )
-    self.assertResourceCalled('File', '/etc/hcatalog/conf/hcat-env.sh',
-                              content = InlineTemplate(self.getConfig()['configurations']['hcat-env']['content']),
-                              owner = 'hcat',
-                              group = 'hadoop',
-                              )
+    self.assertResourceCalled('TemplateConfig', '/etc/hcatalog/conf/hcat-env.sh',
+      owner = 'hcat',
+      group = 'hadoop',
+    )
     self.assertNoMoreResources()
 
 
@@ -65,13 +58,8 @@ class TestHcatClient(RMFTestCase):
                          command = "configure",
                          config_file="secured.json"
     )
-    self.assertResourceCalled('Directory', '/etc/hive/conf',
-                              recursive = True,
-                              owner = 'hcat',
-                              group = 'hadoop',
-    )
+
     self.assertResourceCalled('Directory', '/etc/hcatalog/conf',
-      recursive = True,
       owner = 'hcat',
       group = 'hadoop',
     )
@@ -85,12 +73,10 @@ class TestHcatClient(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hive/conf',
       configurations = self.getConfig()['configurations']['hive-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
     )
-    self.assertResourceCalled('File', '/etc/hcatalog/conf/hcat-env.sh',
-                              content = InlineTemplate(self.getConfig()['configurations']['hcat-env']['content']),
-                              owner = 'hcat',
-                              group = 'hadoop',
-                              )
+    self.assertResourceCalled('TemplateConfig', '/etc/hcatalog/conf/hcat-env.sh',
+      owner = 'hcat',
+      group = 'hadoop',
+    )
 
     self.assertNoMoreResources()

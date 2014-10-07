@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.api.query.QueryImpl;
-import org.apache.ambari.server.controller.internal.ControllerType;
 import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.utilities.ClusterControllerHelper;
 import org.apache.ambari.server.view.ViewRegistry;
@@ -110,10 +109,6 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
         resourceDefinition = new ConfigurationResourceDefinition();
         break;
 
-      case ServiceConfigVersion:
-        resourceDefinition = new ServiceConfigVersionResourceDefinition();
-        break;
-
       case Task:
         resourceDefinition = new TaskResourceDefinition();
         break;
@@ -140,10 +135,6 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
 
       case StackVersion:
         resourceDefinition = new StackVersionResourceDefinition();
-        break;
-        
-      case StackLevelConfiguration:
-        resourceDefinition = new StackLevelConfigurationResourceDefinition();
         break;
 
       case StackService:
@@ -235,53 +226,12 @@ public class ResourceInstanceFactoryImpl implements ResourceInstanceFactory {
         resourceDefinition = new BlueprintResourceDefinition();
         break;
 
-      case Recommendation:
-        resourceDefinition = new RecommendationResourceDefinition();
-        break;
-
-      case Validation:
-        resourceDefinition = new ValidationResourceDefinition();
-        break;
-
       case HostComponentProcess:
         resourceDefinition = new HostComponentProcessResourceDefinition();
         break;
 
       case Permission:
         resourceDefinition = new PermissionResourceDefinition();
-        break;
-
-      case AlertDefinition:
-        resourceDefinition = new AlertDefResourceDefinition();
-        break;
-
-      case AmbariPrivilege:
-        resourceDefinition = new PrivilegeResourceDefinition(Resource.Type.AmbariPrivilege);
-        break;
-
-      case ClusterPrivilege:
-        resourceDefinition = new PrivilegeResourceDefinition(Resource.Type.ClusterPrivilege);
-        break;
-
-      case ViewPrivilege:
-        resourceDefinition = new PrivilegeResourceDefinition(Resource.Type.ViewPrivilege);
-        break;
-
-      case ViewPermission:
-        resourceDefinition = new ViewPermissionResourceDefinition();
-        break;
-
-      case Controller:
-        resourceDefinition = new ControllerResourceDefinition(
-            ControllerType.getByName(mapIds.get(Resource.Type.Controller)));
-        break;
-
-      case ClientConfig:
-        resourceDefinition = new ClientConfigResourceDefinition();
-        break;
-
-      case LdapSyncEvent:
-        resourceDefinition = new LdapSyncEventResourceDefinition();
         break;
 
       default:

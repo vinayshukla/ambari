@@ -147,87 +147,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -3634,7 +3634,7 @@
         "temporal": true
       },
       "metrics/jvm/maxMemoryM": {
-        "metric": "jvm.metrics.maxMemoryM",
+        "metric": "jvm.JvmMetrics.maxMemoryM",
         "pointInTime": true,
         "temporal": true
       },
@@ -3997,82 +3997,82 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":false,
         "temporal":true
       },
@@ -4725,87 +4725,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -6307,87 +6307,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -7405,87 +7405,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -9347,87 +9347,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -10844,87 +10844,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -11950,7 +11950,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsCompleted": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsCompleted",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsCompleted",
         "pointInTime": false,
         "temporal": true
       },
@@ -11980,7 +11980,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsSubmitted": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsSubmitted",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsSubmitted",
         "pointInTime": false,
         "temporal": true
       },
@@ -12000,7 +12000,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AllocatedContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedContainers",
         "pointInTime": false,
         "temporal": true
       },
@@ -12010,7 +12010,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsKilled": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsKilled",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsKilled",
         "pointInTime": false,
         "temporal": true
       },
@@ -12035,7 +12035,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsFailed": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsFailed",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsFailed",
         "pointInTime": false,
         "temporal": true
       },
@@ -12080,7 +12080,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsRunning": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsRunning",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsRunning",
         "pointInTime": false,
         "temporal": true
       },
@@ -12155,7 +12155,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).PendingContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.PendingContainers",
         "pointInTime": false,
         "temporal": true
       },
@@ -12260,12 +12260,12 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AvailableMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AvailableMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AvailableMB",
         "pointInTime": false,
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).PendingMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.PendingMB",
         "pointInTime": false,
         "temporal": true
       },
@@ -12305,7 +12305,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsPending": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsPending",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsPending",
         "pointInTime": false,
         "temporal": true
       },
@@ -12355,7 +12355,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AllocatedMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedMB",
         "pointInTime": false,
         "temporal": true
       },
@@ -12395,7 +12395,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/ReservedContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).ReservedContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.ReservedContainers",
         "pointInTime": false,
         "temporal": true
       }
@@ -14669,7 +14669,7 @@
         "temporal": true
       },
       "metrics/jvm/maxMemoryM": {
-        "metric": "jvm.metrics.maxMemoryM",
+        "metric": "jvm.JvmMetrics.maxMemoryM",
         "pointInTime": true,
         "temporal": true
       },
@@ -15016,82 +15016,82 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":false,
         "temporal":true
       },
@@ -15743,87 +15743,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":false,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":false,
         "temporal":true
       },
@@ -17220,87 +17220,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -18317,87 +18317,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -20174,87 +20174,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -21581,87 +21581,87 @@
         "temporal":true
       },
       "metrics/jvm/gcCount":{
-        "metric":"jvm.metrics.gcCount",
+        "metric":"jvm.JvmMetrics.gcCount",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/gcTimeMillis":{
-        "metric":"jvm.metrics.gcTimeMillis",
+        "metric":"jvm.JvmMetrics.gcTimeMillis",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logError":{
-        "metric":"jvm.metrics.logError",
+        "metric":"jvm.JvmMetrics.logError",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logFatal":{
-        "metric":"jvm.metrics.logFatal",
+        "metric":"jvm.JvmMetrics.logFatal",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logInfo":{
-        "metric":"jvm.metrics.logInfo",
+        "metric":"jvm.JvmMetrics.logInfo",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/logWarn":{
-        "metric":"jvm.metrics.logWarn",
+        "metric":"jvm.JvmMetrics.logWarn",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/maxMemoryM":{
-        "metric":"jvm.metrics.maxMemoryM",
+        "metric":"jvm.JvmMetrics.maxMemoryM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapCommittedM":{
-        "metric":"jvm.metrics.memHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memHeapUsedM":{
-        "metric":"jvm.metrics.memHeapUsedM",
+        "metric":"jvm.JvmMetrics.memHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapCommittedM":{
-        "metric":"jvm.metrics.memNonHeapCommittedM",
+        "metric":"jvm.JvmMetrics.memNonHeapCommittedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/memNonHeapUsedM":{
-        "metric":"jvm.metrics.memNonHeapUsedM",
+        "metric":"jvm.JvmMetrics.memNonHeapUsedM",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsBlocked":{
-        "metric":"jvm.metrics.threadsBlocked",
+        "metric":"jvm.JvmMetrics.threadsBlocked",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsNew":{
-        "metric":"jvm.metrics.threadsNew",
+        "metric":"jvm.JvmMetrics.threadsNew",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsRunnable":{
-        "metric":"jvm.metrics.threadsRunnable",
+        "metric":"jvm.JvmMetrics.threadsRunnable",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTerminated":{
-        "metric":"jvm.metrics.threadsTerminated",
+        "metric":"jvm.JvmMetrics.threadsTerminated",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsTimedWaiting":{
-        "metric":"jvm.metrics.threadsTimedWaiting",
+        "metric":"jvm.JvmMetrics.threadsTimedWaiting",
         "pointInTime":true,
         "temporal":true
       },
       "metrics/jvm/threadsWaiting":{
-        "metric":"jvm.metrics.threadsWaiting",
+        "metric":"jvm.JvmMetrics.threadsWaiting",
         "pointInTime":true,
         "temporal":true
       },
@@ -22687,7 +22687,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsCompleted": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsCompleted",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsCompleted",
         "pointInTime": false,
         "temporal": true
       },
@@ -22717,7 +22717,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsSubmitted": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsSubmitted",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsSubmitted",
         "pointInTime": false,
         "temporal": true
       },
@@ -22737,7 +22737,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AllocatedContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedContainers",
         "pointInTime": false,
         "temporal": true
       },
@@ -22747,7 +22747,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsKilled": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsKilled",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsKilled",
         "pointInTime": false,
         "temporal": true
       },
@@ -22772,7 +22772,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsFailed": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsFailed",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsFailed",
         "pointInTime": false,
         "temporal": true
       },
@@ -22817,7 +22817,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsRunning": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsRunning",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsRunning",
         "pointInTime": false,
         "temporal": true
       },
@@ -22892,7 +22892,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).PendingContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.PendingContainers",
         "pointInTime": false,
         "temporal": true
       },
@@ -22997,12 +22997,12 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AvailableMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AvailableMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AvailableMB",
         "pointInTime": false,
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).PendingMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.PendingMB",
         "pointInTime": false,
         "temporal": true
       },
@@ -23042,7 +23042,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsPending": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AppsPending",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AppsPending",
         "pointInTime": false,
         "temporal": true
       },
@@ -23092,7 +23092,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedMB": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).AllocatedMB",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedMB",
         "pointInTime": false,
         "temporal": true
       },
@@ -23132,7 +23132,7 @@
         "temporal": true
       },
       "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/ReservedContainers": {
-        "metric": "yarn.QueueMetrics.Queue=(.+).ReservedContainers",
+        "metric": "yarn.QueueMetrics.Queue:(.+),.ReservedContainers",
         "pointInTime": false,
         "temporal": true
       }

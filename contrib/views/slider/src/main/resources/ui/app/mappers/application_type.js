@@ -34,7 +34,7 @@
  * </ul>
  * @type {App.Mapper}
  */
-App.ApplicationTypeMapper = App.Mapper.create({
+App.ApplicationTypeMapper = App.Mapper.createWithMixins(App.RunPeriodically, {
 
   /**
    * Map for parsing JSON received from server

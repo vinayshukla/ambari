@@ -26,10 +26,9 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
-import javax.persistence.TableGenerator;
 
 import org.apache.ambari.server.state.AlertState;
 
@@ -42,20 +41,12 @@ import org.apache.ambari.server.state.AlertState;
  */
 @Entity
 @Table(name = "alert_history")
-@TableGenerator(name = "alert_history_id_generator", table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value", pkColumnValue = "alert_history_id_seq", initialValue = 0, allocationSize = 1)
-@NamedQueries({
-    @NamedQuery(name = "AlertHistoryEntity.findAll", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory"),
-    @NamedQuery(name = "AlertHistoryEntity.findAllInCluster", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory WHERE alertHistory.clusterId = :clusterId"),
-    @NamedQuery(name = "AlertHistoryEntity.findAllInClusterWithState", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory WHERE alertHistory.clusterId = :clusterId AND alertHistory.alertState IN :alertStates"),
-    @NamedQuery(name = "AlertHistoryEntity.findAllInClusterBetweenDates", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory WHERE alertHistory.clusterId = :clusterId AND alertHistory.alertTimestamp BETWEEN :startDate AND :endDate"),
-    @NamedQuery(name = "AlertHistoryEntity.findAllInClusterBeforeDate", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory WHERE alertHistory.clusterId = :clusterId AND alertHistory.alertTimestamp <= :beforeDate"),
-    @NamedQuery(name = "AlertHistoryEntity.findAllInClusterAfterDate", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory WHERE alertHistory.clusterId = :clusterId AND alertHistory.alertTimestamp >= :afterDate"),
-    @NamedQuery(name = "AlertHistoryEntity.removeByDefinitionId", query = "DELETE FROM AlertHistoryEntity alertHistory WHERE alertHistory.alertDefinition.definitionId = :definitionId") })
+@NamedQuery(name = "AlertHistoryEntity.findAll", query = "SELECT alertHistory FROM AlertHistoryEntity alertHistory")
 public class AlertHistoryEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.TABLE, generator = "alert_history_id_generator")
-  @Column(name = "alert_id", nullable = false, updatable = false)
+  @GeneratedValue(strategy = GenerationType.TABLE)
+  @Column(name = "alert_id", unique = true, nullable = false, updatable = false)
   private Long alertId;
 
   @Column(name = "alert_instance", length = 255)
@@ -68,7 +59,7 @@ public class AlertHistoryEntity {
   @Column(name = "alert_state", nullable = false, length = 255)
   private AlertState alertState;
 
-  @Column(name = "alert_text", length = 32672)
+  @Column(name = "alert_text", length = 2147483647)
   private String alertText;
 
   @Column(name = "alert_timestamp", nullable = false)
@@ -87,10 +78,16 @@ public class AlertHistoryEntity {
   private String serviceName;
 
   /**
-   * Unidirectional many-to-one association to {@link AlertDefinitionEntity}
+   * Bi-directional one-to-one association to {@link AlertCurrentEntity}.
+   */
+  @OneToOne(mappedBy = "alertHistory")
+  private AlertCurrentEntity alertCurrent;
+
+  /**
+   * Bi-directional many-to-one association to {@link AlertDefinitionEntity}
    */
   @ManyToOne
-  @JoinColumn(name = "definition_id", nullable = false)
+  @JoinColumn(name = "alert_definition_id", nullable = false)
   private AlertDefinitionEntity alertDefinition;
 
   /**
@@ -197,8 +194,7 @@ public class AlertHistoryEntity {
   }
 
   /**
-   * Gets the time that the alert instace was received. This will be the value,
-   * in milliseconds, since the UNIX/Java epoch, represented in UTC time.
+   * Gets the time that the alert instace was received.
    * 
    * @return the time of the alert instance (never {@code null}).
    */
@@ -207,8 +203,7 @@ public class AlertHistoryEntity {
   }
 
   /**
-   * Sets the time that the alert instace was received. This should be the
-   * value, in milliseconds, since the UNIX/Java epoch, represented in UTC time.
+   * Sets the time that the alert instace was received.
    * 
    * @param alertTimestamp
    *          the time of the alert instance (not {@code null}).
@@ -304,6 +299,29 @@ public class AlertHistoryEntity {
   }
 
   /**
+   * Gets the current, active alert that is associated with this historical
+   * instance, if any. Once an alert state changes, the association between
+   * current and historical will be removed in favor of the newly received alert
+   * instance.
+   * 
+   * @return the associated current alert or {@code null} if this historical
+   *         item is not the most recent.
+   */
+  public AlertCurrentEntity getAlertCurrent() {
+    return alertCurrent;
+  }
+
+  /**
+   * Sets the associated current active alert with this historical instance.
+   * 
+   * @param alertCurrent
+   *          the current alert or {@code null} for none.
+   */
+  public void setAlertCurrent(AlertCurrentEntity alertCurrent) {
+    this.alertCurrent = alertCurrent;
+  }
+
+  /**
    * Gets the associated alert definition for this alert instance. The alert
    * definition can be used to retrieve global information about an alert such
    * as the interval and the name.
@@ -323,33 +341,4 @@ public class AlertHistoryEntity {
   public void setAlertDefinition(AlertDefinitionEntity alertDefinition) {
     this.alertDefinition = alertDefinition;
   }
-
-  /**
-   *
-   */
-  @Override
-  public boolean equals(Object object) {
-    if (this == object)
-      return true;
-
-    if (object == null || getClass() != object.getClass())
-      return false;
-
-    AlertHistoryEntity that = (AlertHistoryEntity) object;
-
-    if (alertId != null ? !alertId.equals(that.alertId) : that.alertId != null)
-      return false;
-
-    return true;
-  }
-
-  /**
-   *
-   */
-  @Override
-  public int hashCode() {
-    int result = null != alertId ? alertId.hashCode() : 0;
-    return result;
-  }
-
 }

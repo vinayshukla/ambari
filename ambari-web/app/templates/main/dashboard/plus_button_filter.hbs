@@ -23,7 +23,7 @@
         {{#each widget in view.hiddenWidgets}}
           <li>
             <label class="checkbox">
-              {{view view.widgetCheckbox checkedBinding="widget.checked"}} {{unbound widget.displayName}}
+              {{view Ember.Checkbox checkedBinding="widget.checked"}} {{unbound widget.displayName}}
             </label>
           </li>
         {{/each}}

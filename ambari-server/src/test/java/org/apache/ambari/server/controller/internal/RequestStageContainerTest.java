@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.controller.internal;
 
-import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.actionmanager.ActionManager;
@@ -132,7 +131,7 @@ public class RequestStageContainerTest {
   }
 
   @Test
-  public void testPersist() throws AmbariException {
+  public void testPersist() {
     ActionManager actionManager = createStrictMock(ActionManager.class);
     RequestFactory requestFactory = createStrictMock(RequestFactory.class);
     Request request = createStrictMock(Request.class);
@@ -156,7 +155,7 @@ public class RequestStageContainerTest {
   }
 
   @Test
-  public void testPersist_noStages() throws AmbariException {
+  public void testPersist_noStages() {
     ActionManager actionManager = createStrictMock(ActionManager.class);
     RequestFactory requestFactory = createStrictMock(RequestFactory.class);
 

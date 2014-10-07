@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.controller;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -36,9 +35,7 @@ public class ClusterRequest {
   
   Set<String> hostNames; // CREATE/UPDATE
   
-  private List<ConfigurationRequest> configs = null;
-
-  private ServiceConfigVersionRequest serviceConfigVersionRequest = null;
+  private ConfigurationRequest config = null;
 
   public ClusterRequest(Long clusterId, String clusterName, 
       String stackVersion, Set<String> hostNames) {
@@ -129,31 +126,30 @@ public class ClusterRequest {
   }
   
   /**
-   * Sets the configs requests (if any)
+   * Sets the config request (if any)
    * @param configRequest
    */
-  public void setDesiredConfig(List<ConfigurationRequest> configRequest) {
-    configs = configRequest;
+  public void setDesiredConfig(ConfigurationRequest configRequest) {
+    config = configRequest;
   }
   
   /**
    * Gets any configuration-based request (if any).
-   * @return the list of configuration requests,
-   * or <code>null</code> if none is set.
+   * @return the configuration request, or <code>null</code> if none is set.
    */
-  public List<ConfigurationRequest> getDesiredConfig() {
-    return configs;
+  public ConfigurationRequest getDesiredConfig() {
+    return config;
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("{" + " clusterName=").append(clusterName)
-        .append(", clusterId=").append(clusterId)
-        .append(", provisioningState=").append(provisioningState)
-        .append(", stackVersion=").append(stackVersion)
-        .append(", desired_scv=").append(serviceConfigVersionRequest)
-        .append(", hosts=[");
+    sb.append("{"
+        + " clusterName=" + clusterName
+        + ", clusterId=" + clusterId
+        + ", provisioningState=" + provisioningState
+        + ", stackVersion=" + stackVersion
+        + ", hosts=[");
     if (hostNames != null) {
       int i = 0;
       for (String hostName : hostNames) {
@@ -167,13 +163,6 @@ public class ClusterRequest {
     sb.append("] }");
     return sb.toString();
   }
+  
 
-
-  public ServiceConfigVersionRequest getServiceConfigVersionRequest() {
-    return serviceConfigVersionRequest;
-  }
-
-  public void setServiceConfigVersionRequest(ServiceConfigVersionRequest serviceConfigVersionRequest) {
-    this.serviceConfigVersionRequest = serviceConfigVersionRequest;
-  }
 }

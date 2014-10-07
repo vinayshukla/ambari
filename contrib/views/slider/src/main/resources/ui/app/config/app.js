@@ -20,8 +20,7 @@
 
 var config = {
   LOG_TRANSITIONS: true,
-  LOG_TRANSITIONS_INTERNAL: false,
-  rootElement: window.QUnit ? '#qunit-fixture' : 'body'
+  LOG_TRANSITIONS_INTERNAL: false
 };
 
 module.exports = Ember.Application.createWithMixins(Bootstrap, config);

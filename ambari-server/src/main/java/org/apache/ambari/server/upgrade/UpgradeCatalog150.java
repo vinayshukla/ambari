@@ -36,6 +36,7 @@ import org.apache.ambari.server.orm.dao.HostRoleCommandDAO;
 import org.apache.ambari.server.orm.dao.KeyValueDAO;
 import org.apache.ambari.server.orm.dao.ServiceComponentDesiredStateDAO;
 import org.apache.ambari.server.orm.entities.ClusterConfigEntity;
+import org.apache.ambari.server.orm.entities.ClusterConfigEntityPK;
 import org.apache.ambari.server.orm.entities.ClusterConfigMappingEntity;
 import org.apache.ambari.server.orm.entities.ClusterEntity;
 import org.apache.ambari.server.orm.entities.ClusterServiceEntity;
@@ -293,7 +294,7 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
 
     //Move tables from ambarirca db to ambari db; drop ambarirca; Mysql
     if (dbType.equals(Configuration.MYSQL_DB_NAME)) {
-      String dbName = configuration.getServerJDBCPostgresSchemaName();
+      String dbName = configuration.getServerJDBCSchemaName();
       moveRCATableInMySQL("workflow", dbName);
       moveRCATableInMySQL("job", dbName);
       moveRCATableInMySQL("task", dbName);
@@ -312,18 +313,16 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
       LOG.error(msg);
       throw new AmbariException(msg);
     } else if (!dbAccessor.tableHasData(tableName)) {
-      String query = null;
+      String query;
       if (dbType.equals(Configuration.POSTGRES_DB_NAME)) {
         query = getPostgresRequestUpgradeQuery();
       } else if (dbType.equals(Configuration.ORACLE_DB_NAME)) {
         query = getOracleRequestUpgradeQuery();
-      } else if (Configuration.MYSQL_DB_NAME.equals(dbType)) {
+      } else {
         query = getMysqlRequestUpgradeQuery();
       }
 
-      if (query != null) {
-        dbAccessor.executeQuery(query);
-      }
+      dbAccessor.executeQuery(query);
     } else {
       LOG.info("Table {} already filled", tableName);
     }
@@ -331,8 +330,7 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
     // Drop old constraints
     // ========================================================================
     if (Configuration.POSTGRES_DB_NAME.equals(dbType)
-      || Configuration.MYSQL_DB_NAME.equals(dbType)
-      || Configuration.DERBY_DB_NAME.equals(dbType)) {
+      || Configuration.MYSQL_DB_NAME.equals(dbType)) {
 
       //recreate old constraints to sync with oracle
       dbAccessor.dropConstraint("clusterconfigmapping", "FK_clusterconfigmapping_cluster_id");
@@ -453,7 +451,10 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
 
     //add new sequences for config groups
     //TODO evalate possibility to automatically wrap object names in DBAcessor
-    String valueColumnName = "sequence_value";
+    String valueColumnName = "\"value\"";
+    if (Configuration.ORACLE_DB_NAME.equals(dbType) || Configuration.MYSQL_DB_NAME.equals(dbType)) {
+      valueColumnName = "value";
+    }
 
     dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, " + valueColumnName + ") " +
       "VALUES('configgroup_id_seq', 1)", true);
@@ -693,8 +694,12 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
         if (configTypes != null) {
           for (String configType : configTypes) {
             if (configType.contains(log4jConfigTypeContains)) {
-              ClusterConfigEntity configEntity = clusterDAO.findConfig(clusterId, configType, defaultVersionTag);
-              
+              ClusterConfigEntityPK configEntityPK = new ClusterConfigEntityPK();
+              configEntityPK.setClusterId(clusterId);
+              configEntityPK.setType(configType);
+              configEntityPK.setTag(defaultVersionTag);
+              ClusterConfigEntity configEntity = clusterDAO.findConfig(configEntityPK);
+
               if (configEntity == null) {
                 String filename = configType + ".xml";
                 Map<String, String> properties = new HashMap<String, String>();
@@ -710,7 +715,6 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
                   configEntity.setType(configType);
                   configEntity.setTag(defaultVersionTag);
                   configEntity.setData(configData);
-                  configEntity.setVersion(1L);
                   configEntity.setTimestamp(System.currentTimeMillis());
                   configEntity.setClusterEntity(clusterEntity);
                   LOG.debug("Creating new " + configType + " config...");
@@ -728,7 +732,7 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
                     Long.valueOf(System.currentTimeMillis()));
                   clusterConfigMappingEntity.setSelected(1);
                   clusterConfigMappingEntity.setUser(defaultUser);
-                  clusterConfigMappingEntity.setTag(configEntity.getTag());
+                  clusterConfigMappingEntity.setVersion(configEntity.getTag());
                   entities.add(clusterConfigMappingEntity);
                   clusterDAO.merge(clusterEntity);
                 }
@@ -758,7 +762,11 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
         List<ClusterEntity> clusterEntities = clusterDAO.findAll();
         for (ClusterEntity clusterEntity : clusterEntities) {
           Long clusterId = clusterEntity.getClusterId();
-          ClusterConfigEntity configEntity = clusterDAO.findConfig(clusterId, "hdfs-exclude-file", value.trim());
+          ClusterConfigEntityPK configEntityPK = new ClusterConfigEntityPK();
+          configEntityPK.setClusterId(clusterId);
+          configEntityPK.setType("hdfs-exclude-file");
+          configEntityPK.setTag(value.trim());
+          ClusterConfigEntity configEntity = clusterDAO.findConfig(configEntityPK);
           if (configEntity != null) {
             String configData = configEntity.getData();
             if (configData != null) {
@@ -807,7 +815,7 @@ public class UpgradeCatalog150 extends AbstractUpgradeCatalog {
   }
 
   private String getPostgresSequenceUpgradeQuery() {
-    return "INSERT INTO ambari_sequences(sequence_name, sequence_value) " +
+    return "INSERT INTO ambari_sequences(sequence_name, \"value\") " +
       "SELECT 'cluster_id_seq', nextval('clusters_cluster_id_seq') " +
       "UNION ALL " +
       "SELECT 'user_id_seq', nextval('users_user_id_seq') " +

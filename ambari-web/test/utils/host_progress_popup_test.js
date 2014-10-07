@@ -95,6 +95,16 @@ describe('App.HostPopup', function () {
     }
   ];
 
+  var bgController = App.BackgroundOperationsController.create();
+  bgController.set('services', services);
+
+  describe('#initPopup', function() {
+    App.HostPopup.initPopup("", bgController, true);
+    it('services loaded', function() {
+      expect(App.HostPopup.get('inputData').length).to.equal(services.length);
+    });
+  });
+
   var test_tasks = [
     {
       t: [
@@ -165,7 +175,7 @@ describe('App.HostPopup', function () {
         }
       ],
       m: 'One ABORTED',
-      r: 'ABORTED',
+      r: 'CANCELLED',
       p: 100,
       ids: [1,2]
     },
@@ -228,33 +238,6 @@ describe('App.HostPopup', function () {
       r: 'PENDING',
       p: 55,
       ids: [2,3]
-    }
-  ];
-
-  var statusCases = [
-    {
-      status: 'FAILED',
-      result: false
-    },
-    {
-      status: 'ABORTED',
-      result: false
-    },
-    {
-      status: 'TIMEDOUT',
-      result: false
-    },
-    {
-      status: 'IN_PROGRESS',
-      result: true
-    },
-    {
-      status: 'COMPLETED',
-      result: false
-    },
-    {
-      status: 'PENDING',
-      result: true
     }
   ];
 
@@ -357,94 +340,6 @@ describe('App.HostPopup', function () {
     test_tasks.forEach(function(test_task) {
       it(test_task.m, function() {
         expect(App.HostPopup.getProgress(test_task.t)).to.equal(test_task.p);
-      });
-    });
-  });
-
-  describe('#isAbortableByStatus', function () {
-    statusCases.forEach(function (item) {
-      it('should return ' + item.result + ' for ' + item.status, function () {
-        expect(App.HostPopup.isAbortableByStatus(item.status)).to.equal(item.result);
-      });
-    });
-  });
-
-  describe('#abortRequest', function () {
-    beforeEach(function () {
-      sinon.stub(App.ajax, 'send', Em.K);
-      sinon.spy(App, 'showConfirmationPopup');
-    });
-    afterEach(function () {
-      App.ajax.send.restore();
-      App.showConfirmationPopup.restore();
-    });
-    it('should show confirmation popup', function () {
-      App.HostPopup.abortRequest(Em.Object.create({
-        name: 'name'
-      }));
-      expect(App.showConfirmationPopup.calledOnce).to.be.true;
-    });
-  });
-
-  describe('#abortRequestSuccessCallback', function () {
-    beforeEach(function () {
-      sinon.spy(App.ModalPopup, 'show');
-    });
-    afterEach(function () {
-      App.ModalPopup.show.restore();
-    });
-    it('should open popup', function () {
-      App.HostPopup.abortRequestSuccessCallback(null, null, {
-        requestName: 'name',
-        serviceInfo: Em.Object.create()
-      });
-      expect(App.ModalPopup.show.calledOnce).to.be.true;
-    });
-  });
-
-  describe('#abortRequestErrorCallback', function () {
-    var popup = App.HostPopup;
-    beforeEach(function () {
-      sinon.stub(App.ajax, 'get', function(k) {
-        if (k === 'modalPopup') return null;
-        return Em.get(App, k);
-      });
-      sinon.spy(App.ModalPopup, 'show');
-    });
-    afterEach(function () {
-      App.ModalPopup.show.restore();
-      App.ajax.get.restore();
-    });
-    it('should open popup', function () {
-      popup.abortRequestErrorCallback({
-        responseText: {
-          message: 'message'
-        },
-        status: 404
-      }, 'status', 'error', {
-        url: 'url'
-      }, {
-        requestId: 0,
-        serviceInfo: Em.Object.create()
-      });
-      expect(App.ModalPopup.show.calledOnce).to.be.true;
-    });
-    statusCases.forEach(function (item) {
-      it('should set serviceInfo.isAbortable to' + item.result + ' if status is ' + item.status, function () {
-        popup.abortRequestErrorCallback({
-          responseText: {
-            message: 'message'
-          },
-          status: 404
-        }, 'status', 'error', {
-          url: 'url'
-        }, {
-          requestId: 0,
-          serviceInfo: Em.Object.create({
-            status: item.status
-          })
-        });
-        expect(App.HostPopup.isAbortableByStatus(item.status)).to.equal(item.result);
       });
     });
   });

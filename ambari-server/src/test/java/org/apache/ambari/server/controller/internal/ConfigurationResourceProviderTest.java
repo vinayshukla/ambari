@@ -51,7 +51,6 @@ public class ConfigurationResourceProviderTest {
 
     managementController.createConfiguration(AbstractResourceProviderTest.Matcher.getConfigurationRequest(
         "Cluster100", "type", "tag", new HashMap<String, String>(), null));
-    expectLastCall().andReturn(null);
 
     // replay
     replay(managementController, response);
@@ -100,7 +99,6 @@ public class ConfigurationResourceProviderTest {
             });
           }
         }));
-    expectLastCall().andReturn(null);
 
     // replay
     replay(managementController, response);
@@ -138,13 +136,13 @@ public class ConfigurationResourceProviderTest {
     AmbariManagementController managementController = createMock(AmbariManagementController.class);
 
     Set<ConfigurationResponse> allResponse = new HashSet<ConfigurationResponse>();
-    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag1", 1L, null, null));
-    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag2", 2L, null, null));
-    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag3", 3L, null, null));
+    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag1", null, null));
+    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag2", null, null));
+    allResponse.add(new ConfigurationResponse("Cluster100", "type", "tag3", null, null));
 
     Set<ConfigurationResponse> orResponse = new HashSet<ConfigurationResponse>();
-    orResponse.add(new ConfigurationResponse("Cluster100", "type", "tag1", 1L, null, null));
-    orResponse.add(new ConfigurationResponse("Cluster100", "type", "tag2", 2L, null, null));
+    orResponse.add(new ConfigurationResponse("Cluster100", "type", "tag1", null, null));
+    orResponse.add(new ConfigurationResponse("Cluster100", "type", "tag2", null, null));
 
     Capture<Set<ConfigurationRequest>> configRequestCapture1 = new Capture<Set<ConfigurationRequest>>();
     Capture<Set<ConfigurationRequest>> configRequestCapture2 = new Capture<Set<ConfigurationRequest>>();

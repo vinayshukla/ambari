@@ -34,7 +34,6 @@ public class HeartBeatResponse {
  
   List<ExecutionCommand> executionCommands = new ArrayList<ExecutionCommand>();
   List<StatusCommand> statusCommands = new ArrayList<StatusCommand>();
-  List<CancelCommand> cancelCommands = new ArrayList<CancelCommand>();
 
   RegistrationCommand registrationCommand;
 
@@ -69,16 +68,6 @@ public class HeartBeatResponse {
   @JsonProperty("statusCommands")
   public void setStatusCommands(List<StatusCommand> statusCommands) {
     this.statusCommands = statusCommands;
-  }
-
-  @JsonProperty("cancelCommands")
-  public List<CancelCommand> getCancelCommands() {
-    return cancelCommands;
-  }
-
-  @JsonProperty("cancelCommands")
-  public void setCancelCommands(List<CancelCommand> cancelCommands) {
-    this.cancelCommands = cancelCommands;
   }
 
   @JsonProperty("registrationCommand")
@@ -119,17 +108,12 @@ public class HeartBeatResponse {
     statusCommands.add(statCmd);
   }
 
-  public void addCancelCommand(CancelCommand cancelCmd) {
-    cancelCommands.add(cancelCmd);
-  }
-
   @Override
   public String toString() {
     return "HeartBeatResponse{" +
             "responseId=" + responseId +
             ", executionCommands=" + executionCommands +
             ", statusCommands=" + statusCommands +
-            ", cancelCommands=" + cancelCommands +
             ", registrationCommand=" + registrationCommand +
             ", restartAgent=" + restartAgent +
             '}';

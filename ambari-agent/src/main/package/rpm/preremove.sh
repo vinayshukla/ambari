@@ -29,7 +29,7 @@ if [ "$1" -eq 0 ]; then  # Action is uninstall
       /var/lib/ambari-agent/install-helper.sh remove
     fi
 
-    chkconfig --list | grep ambari-server && chkconfig --del ambari-server
+    chkconfig --del ambari-agent
 fi
 
 exit 0

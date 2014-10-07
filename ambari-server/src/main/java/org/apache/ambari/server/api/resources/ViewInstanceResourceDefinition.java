@@ -20,7 +20,6 @@ package org.apache.ambari.server.api.resources;
 
 import org.apache.ambari.server.controller.spi.Resource;
 
-import java.util.HashSet;
 import java.util.Set;
 
 
@@ -41,8 +40,7 @@ public class ViewInstanceResourceDefinition extends BaseResourceDefinition {
    */
   public ViewInstanceResourceDefinition(Set<SubResourceDefinition> subResourceDefinitions) {
     super(Resource.Type.ViewInstance);
-    this.subResourceDefinitions = new HashSet<SubResourceDefinition>(subResourceDefinitions);
-    this.subResourceDefinitions.add(new SubResourceDefinition(Resource.Type.ViewPrivilege));
+    this.subResourceDefinitions = subResourceDefinitions;
   }
 
 

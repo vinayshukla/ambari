@@ -18,7 +18,6 @@
 
 var App = require('app');
 var batchUtils = require('utils/batch_scheduled_requests');
-var componentsUtils = require('utils/components');
 
 App.MainServiceItemController = Em.Controller.extend({
   name: 'mainServiceItemController',
@@ -45,76 +44,13 @@ App.MainServiceItemController = Em.Controller.extend({
     }
   },
 
-  initHosts: function() {
-    if (App.get('components.masters').length !== 0) {
-      var self = this;
-
-      var hostNames = App.Host.find().mapProperty('hostName');
-      this.set('allHosts', hostNames);
-
-      ['HBASE_MASTER', 'ZOOKEEPER_SERVER', 'FLUME_HANDLER'].forEach(function(componentName) {
-        self.loadHostsWithoutComponent(componentName);
-      });
-    }
-  }.observes('App.components.masters', 'content.hostComponents.length'),
-
-  loadHostsWithoutComponent: function (componentName) {
-    var self = this;
-    var hostsWithComponent = App.HostComponent.find().filterProperty('componentName', componentName).mapProperty('hostName');
-
-    var hostsWithoutComponent = this.get('allHosts').filter(function(hostName) {
-      return !hostsWithComponent.contains(hostName);
-    });
-
-    self.set('add' + componentName, function() {
-      self.addComponent(componentName);
-    });
-
-    Em.defineProperty(self, 'addDisabledTooltip-' + componentName, Em.computed('isAddDisabled-' + componentName, 'addDisabledMsg-' + componentName, function() {
-      if (self.get('isAddDisabled-' + componentName)) {
-        return self.get('addDisabledMsg-' + componentName);
-      }
-    }));
-
-    Em.defineProperty(self, 'isAddDisabled-' + componentName, Em.computed('hostsWithoutComponent-' + componentName, function() {
-      return self.get('hostsWithoutComponent-' + componentName).length === 0 ? 'disabled' : '';
-    }));
-
-    var disabledMsg = Em.I18n.t('services.summary.allHostsAlreadyRunComponent').format(componentName);
-    self.set('hostsWithoutComponent-' + componentName, hostsWithoutComponent);
-    self.set('addDisabledMsg-' + componentName, disabledMsg);
-  },
-
-  /**
-   * flag to control router switch between service summary and configs
-   * @type {boolean}
-   */
-  routeToConfigs: false,
-
   isClientsOnlyService: function() {
     return App.get('services.clientOnly').contains(this.get('content.serviceName'));
   }.property('content.serviceName'),
 
   isConfigurable: function () {
-    return !App.get('services.noConfigTypes').contains(this.get('content.serviceName'));
+    return !App.get('services.noConfigTypes').concat('HCATALOG').contains(this.get('content.serviceName'));
   }.property('App.services.noConfigTypes','content.serviceName'),
-
-  allHosts: [],
-
-  clientComponents: function () {
-    var clientNames = [];
-    var clients = App.StackServiceComponent.find().filterProperty('serviceName', this.get('content.serviceName')).filterProperty('isClient');
-    clients.forEach(function (item) {
-      clientNames.push({
-        action: 'downloadClientConfigs',
-        context: {
-          name: item.get('componentName'),
-          label: item.get('displayName')
-        }
-      });
-    });
-    return clientNames;
-  }.property('content.serviceName'),
 
   /**
    * Common method for ajax (start/stop service) responses
@@ -128,13 +64,13 @@ App.MainServiceItemController = Em.Controller.extend({
       var config = this.get('callBackConfig')[(JSON.parse(ajaxOptions.data)).Body.ServiceInfo.state];
       var self = this;
       console.log('Send request for ' + config.c + ' successfully');
-      if (App.get('testMode')) {
+      if (App.testMode) {
         self.set('content.workStatus', App.Service.Health[config.f]);
         self.get('content.hostComponents').setEach('workStatus', App.HostComponentStatus[config.f]);
         setTimeout(function () {
           self.set('content.workStatus', App.Service.Health[config.c2]);
           self.get('content.hostComponents').setEach('workStatus', App.HostComponentStatus[config.hs]);
-        }, App.get('testModeDelayForActions'));
+        }, App.testModeDelayForActions);
       }
       // load data (if we need to show this background operations popup) from persist
       App.router.get('applicationController').dataLoading().done(function (initValue) {
@@ -172,33 +108,19 @@ App.MainServiceItemController = Em.Controller.extend({
 
     return App.showConfirmationFeedBackPopup(function(query, runMmOperation) {
       self.set('isPending', true);
-      self.startStopWithMmode(serviceHealth, query, runMmOperation);
+      self.startStopPopupPrimary(serviceHealth, query, runMmOperation);
     }, bodyMessage);
   },
 
-
-  startStopWithMmode: function(serviceHealth, query, runMmOperation) {
-    var self = this;
-    if (runMmOperation) {
-      if (serviceHealth == "STARTED") {
-        this.startStopPopupPrimary(serviceHealth, query).complete(function() {
-          batchUtils.turnOnOffPassiveRequest("OFF", Em.I18n.t('passiveState.turnOff'), self.get('content.serviceName').toUpperCase());
-        });
-      } else {
-        batchUtils.turnOnOffPassiveRequest("ON", Em.I18n.t('passiveState.turnOn'), this.get('content.serviceName').toUpperCase()).complete(function() {
-          self.startStopPopupPrimary(serviceHealth, query);
-        })
-      }
+  startStopPopupPrimary: function (serviceHealth, query, runMmOperation) {
+    var requestInfo = "";
+    var turnOnMM = "ON"
+    if (serviceHealth == "STARTED") {
+      turnOnMM = "OFF"
+      requestInfo = App.BackgroundOperationsController.CommandContexts.START_SERVICE.format(this.get('content.serviceName'));
     } else {
-      this.startStopPopupPrimary(serviceHealth, query);
+      requestInfo = App.BackgroundOperationsController.CommandContexts.STOP_SERVICE.format(this.get('content.serviceName'));
     }
-
-  },
-
-  startStopPopupPrimary: function (serviceHealth, query) {
-    var requestInfo = (serviceHealth == "STARTED")
-        ? App.BackgroundOperationsController.CommandContexts.START_SERVICE.format(this.get('content.serviceName'))
-        : App.BackgroundOperationsController.CommandContexts.STOP_SERVICE.format(this.get('content.serviceName'));
 
     var data = {
       'context': requestInfo,
@@ -208,14 +130,18 @@ App.MainServiceItemController = Em.Controller.extend({
       },
       'query': query
     };
-
-    return App.ajax.send({
+    if (runMmOperation) {
+      data.ServiceInfo.maintenance_state = turnOnMM;
+    }
+    App.ajax.send({
       'name': 'common.service.update',
       'sender': this,
       'success': 'startStopPopupSuccessCallback',
       'error': 'startStopPopupErrorCallback',
       'data': data
     });
+    this.set('isStopDisabled', true);
+    this.set('isStartDisabled', true);
   },
 
   /**
@@ -249,113 +175,6 @@ App.MainServiceItemController = Em.Controller.extend({
         }
       });
     });
-  },
-   /**
-   * On click handler for Yarn Refresh Queues command from items menu
-   * @param event
-   */
-  refreshYarnQueues : function (event) {
-    var controller = this;
-    return App.showConfirmationPopup(function() {
-    App.ajax.send({
-      name : 'service.item.refreshQueueYarnRequest',
-        sender: controller,
-      data : {
-        command : "REFRESHQUEUES",
-        context : Em.I18n.t('services.service.actions.run.yarnRefreshQueues.context') ,
-        hosts : App.Service.find('YARN').get('hostComponents').findProperty('componentName', 'RESOURCEMANAGER').get('hostName'),
-        serviceName : "YARN",
-        componentName : "RESOURCEMANAGER",
-        forceRefreshConfigTags : "capacity-scheduler"
-      },
-      success : 'refreshYarnQueuesSuccessCallback',
-      error : 'refreshYarnQueuesErrorCallback'
-    });
-    });
-  },
-  refreshYarnQueuesSuccessCallback  : function(data, ajaxOptions, params) {
-    if (data.Requests.id) {
-      App.router.get('backgroundOperationsController').showPopup();
-    } else {
-      console.warn('Error during refreshYarnQueues');
-    }
-  },
-  refreshYarnQueuesErrorCallback : function(data) {
-    var error = Em.I18n.t('services.service.actions.run.yarnRefreshQueues.error');
-    if(data && data.responseText){
-      try {
-        var json = $.parseJSON(data.responseText);
-        error += json.message;
-      } catch (err) {}
-    }
-    App.showAlertPopup(Em.I18n.t('services.service.actions.run.yarnRefreshQueues.error'), error);
-    console.warn('Error during refreshYarnQueues:'+error);
-  },
-  /**
-   * On click handler for rebalance Hdfs command from items menu
-   */
-  rebalanceHdfsNodes: function () {
-    var controller = this;
-    App.ModalPopup.show({
-      classNames: ['fourty-percent-width-modal'],
-      header: Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.context'),
-      primary: Em.I18n.t('common.start'),
-      secondary: Em.I18n.t('common.cancel'),
-      inputValue: 10,
-      errorMessage: Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.promptError'),
-      isInvalid: function () {
-        var intValue = Number(this.get('inputValue'));
-        return this.get('inputValue')!=='DEBUG' && (isNaN(intValue) || intValue < 1 || intValue > 100);
-      }.property('inputValue'),
-      disablePrimary : function() {
-        return this.get('isInvalid');
-      }.property('isInvalid'),
-      onPrimary: function () {
-        if (this.get('isInvalid')) {
-          return;
-        }
-        App.ajax.send({
-          name : 'service.item.rebalanceHdfsNodes',
-          sender: controller,
-          data : {
-            hosts : App.Service.find('HDFS').get('hostComponents').findProperty('componentName', 'NAMENODE').get('hostName'),
-            threshold: this.get('inputValue')
-          },
-          success : 'rebalanceHdfsNodesSuccessCallback',
-          error : 'rebalanceHdfsNodesErrorCallback'
-        });
-        this.hide();
-      },
-      bodyClass: Ember.View.extend({
-        templateName: require('templates/common/prompt_popup'),
-        text: Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.prompt'),
-        didInsertElement: function () {
-          App.tooltip(this.$(".prompt-input"), {
-            placement: "bottom",
-            title: Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.promptTooltip')
-          });
-        }
-      })
-    });
-  },
-  rebalanceHdfsNodesSuccessCallback: function (data) {
-    if (data.Requests.id) {
-      App.router.get('backgroundOperationsController').showPopup();
-    } else {
-      console.warn('Error during runRebalanceHdfsNodes');
-    }
-  },
-  rebalanceHdfsNodesErrorCallback : function(data) {
-    var error = Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.error');
-    if(data && data.responseText){
-      try {
-        var json = $.parseJSON(data.responseText);
-        error += json.message;
-      } catch (err) {
-      }
-    }
-    App.showAlertPopup(Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.error'), error);
-    console.warn('Error during runRebalanceHdfsNodes:'+error);
   },
 
   /**
@@ -491,7 +310,7 @@ App.MainServiceItemController = Em.Controller.extend({
    */
   refreshConfigs: function () {
     var self = this;
-    if (this.get('isClientsOnlyService') || this.get('content.serviceName') == "FLUME") {
+    if (this.get('isClientsOnlyService')) {
       return App.showConfirmationFeedBackPopup(function (query) {
         batchUtils.getComponentsFromServer({
           services: [self.get('content.serviceName')]
@@ -513,92 +332,13 @@ App.MainServiceItemController = Em.Controller.extend({
   },
 
   /**
-   * Send command to server to install client on selected host
-   * @param componentName
-   */
-  addComponent: function (componentName) {
-    var self = this;
-    var component = App.HostComponent.find().findProperty('componentName', componentName);
-    var componentDisplayName = component.get('displayName');
-
-    self.loadHostsWithoutComponent(componentName);
-
-    return App.ModalPopup.show({
-      primary: function() {
-        if (this.get('anyHostsWithoutComponent')) {
-          return Em.I18n.t('hosts.host.addComponent.popup.confirm')
-        } else {
-          return undefined;
-        }
-      }.property('anyHostsWithoutComponent'),
-
-      header: Em.I18n.t('popup.confirmation.commonHeader'),
-
-      addComponentMsg: function () {
-        return Em.I18n.t('hosts.host.addComponent.msg').format(componentDisplayName);
-      }.property(),
-
-      selectHostMsg: function () {
-        return Em.I18n.t('services.summary.selectHostForComponent').format(this.get('componentDisplayName'))
-      }.property('componentDisplayName'),
-
-      thereIsNoHostsMsg: function () {
-        return Em.I18n.t('services.summary.allHostsAlreadyRunComponent').format(this.get('componentDisplayName'))
-      }.property('componentDisplayName'),
-
-      hostsWithoutComponent: function() {
-        return self.get("hostsWithoutComponent-" + this.get('componentName'));
-      }.property('componentName', 'self.hostsWithoutComponent-' + this.get('componentName')),
-
-      anyHostsWithoutComponent: function() {
-        return this.get('hostsWithoutComponent').length > 0
-      }.property('hostsWithoutComponent'),
-
-      selectedHost: null,
-
-      componentName: function() {
-        return componentName;
-      }.property(),
-
-      componentDisplayName: function() {
-        return componentDisplayName;
-      }.property(),
-
-      bodyClass: Em.View.extend({
-        templateName: require('templates/main/service/add_host_popup')
-      }),
-
-      restartNagiosMsg: Em.View.extend({
-        template: Em.Handlebars.compile(Em.I18n.t('hosts.host.addComponent.note').format(componentDisplayName))
-      }),
-
-      onPrimary: function () {
-        var selectedHost = this.get('selectedHost');
-
-        // Install
-        componentsUtils.installHostComponent(selectedHost, component);
-
-        // Remove host from 'without' collection to immediate recalculate add menu item state
-        var hostsWithoutComponent = this.get('hostsWithoutComponent');
-        var index = hostsWithoutComponent.indexOf(this.get('selectedHost'));
-        if (index > -1) {
-          hostsWithoutComponent.splice(index, 1);
-        }
-
-        self.set('hostsWithoutComponent-' + this.get('componentName'), hostsWithoutComponent);
-        this.hide();
-      }
-    });
-  },
-
-  /**
    * set property isPending (if this property is true - means that service has task in BGO)
    * and this makes start/stop button disabled
    */
   setStartStopState: function () {
     var serviceName = this.get('content.serviceName');
     var backgroundOperations = App.router.get('backgroundOperationsController.services');
-    if (backgroundOperations && backgroundOperations.length > 0) {
+    if (backgroundOperations.length > 0) {
       for (var i = 0; i < backgroundOperations.length; i++) {
         if (backgroundOperations[i].isRunning &&
             (backgroundOperations[i].dependentService === "ALL_SERVICES" ||
@@ -626,35 +366,21 @@ App.MainServiceItemController = Em.Controller.extend({
     return (this.get('content.healthStatus') != 'green');
   }.property('content.healthStatus','isPending'),
 
-  /**
-   * Determine if service has than one service client components
-   */
-  isSeveralClients: function () {
-    return App.StackServiceComponent.find().filterProperty('serviceName', this.get('content.serviceName')).filterProperty('isClient').length > 1;
-  }.property('content.serviceName'),
-
   enableHighAvailability: function() {
     var ability_controller = App.router.get('mainAdminHighAvailabilityController');
+    ability_controller.setSecurityStatus();
     ability_controller.enableHighAvailability();
   },
 
   disableHighAvailability: function() {
     var ability_controller = App.router.get('mainAdminHighAvailabilityController');
+    ability_controller.setSecurityStatus();
     ability_controller.disableHighAvailability();
   },
 
   enableRMHighAvailability: function() {
     var ability_controller = App.router.get('mainAdminHighAvailabilityController');
     ability_controller.enableRMHighAvailability();
-  },
-
-  downloadClientConfigs: function (event) {
-    var component = this.get('content.hostComponents').findProperty('isClient');
-    componentsUtils.downloadClientConfigs.call(this, {
-      serviceName: this.get('content.serviceName'),
-      componentName: (event && event.name) || component.get('componentName'),
-      displayName: (event && event.label) || component.get('displayName')
-    });
   },
 
   isPending:true

@@ -99,11 +99,7 @@ class TestHBaseMaster(RMFTestCase):
                               content = StaticFile('draining_servers.rb'),
                               mode = 0755,
                               )
-    self.assertResourceCalled('Execute', ' /usr/lib/hbase/bin/hbase --config /etc/hbase/conf org.jruby.Main /usr/lib/hbase/bin/draining_servers.rb add host1',
-                              logoutput = True,
-                              user = 'hbase',
-                              )
-    self.assertResourceCalled('Execute', ' /usr/lib/hbase/bin/hbase --config /etc/hbase/conf org.jruby.Main /usr/lib/hbase/bin/region_mover.rb unload host1',
+    self.assertResourceCalled('Execute', ' /usr/lib/hbase/bin/hbase --config /etc/hbase/conf org.jruby.Main /usr/lib/hbase/bin/draining_servers.rb remove host1',
                               logoutput = True,
                               user = 'hbase',
                               )
@@ -181,22 +177,19 @@ class TestHBaseMaster(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
+      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
-                              configurations = self.getConfig()['configurations']['hdfs-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+                              configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',
@@ -271,22 +264,19 @@ class TestHBaseMaster(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
+      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hdfs',
       group = 'hadoop',
       conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',

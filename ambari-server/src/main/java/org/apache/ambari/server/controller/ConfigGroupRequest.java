@@ -29,7 +29,6 @@ public class ConfigGroupRequest {
   private String groupName;
   private String tag;
   private String description;
-  private String serviceConfigVersionNote;
   private Set<String> hosts;
   private Map<String, Config> configs;
 
@@ -99,13 +98,5 @@ public class ConfigGroupRequest {
 
   public void setId(Long id) {
     this.id = id;
-  }
-
-  public String getServiceConfigVersionNote() {
-    return serviceConfigVersionNote;
-  }
-
-  public void setServiceConfigVersionNote(String serviceConfigVersionNote) {
-    this.serviceConfigVersionNote = serviceConfigVersionNote;
   }
 }

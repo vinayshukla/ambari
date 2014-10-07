@@ -27,6 +27,7 @@ class BeforeStartHook(Hook):
     import params
 
     self.run_custom_hook('before-ANY')
+    self.run_custom_hook('after-INSTALL')
     env.set_params(params)
     
     setup_hadoop()

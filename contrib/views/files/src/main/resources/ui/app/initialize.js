@@ -49,8 +49,6 @@ require('models/file');
 
 require('controllers/files');
 require('controllers/file');
-require('controllers/error');
-require('controllers/filesAlert');
 
 /////////////////////////////////
 // Components

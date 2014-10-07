@@ -23,23 +23,17 @@ var Ember = require('ember');
 require('models/host');
 require('controllers/wizard/stack_upgrade/step3_controller');
 
+if (!App.router) {
+  App.router = Em.Object.create({});
+}
+
+App.router.set('stackUpgradeController', Em.Object.create({
+  save: Em.K
+}));
+
 describe('App.StackUpgradeStep3Controller', function() {
 
   var stackUpgradeStep3Controller = App.StackUpgradeStep3Controller.create();
-
-  beforeEach(function() {
-    sinon.stub(App.router, 'get', function(k) {
-      if ('stackUpgradeController' === k) return Em.Object.create({
-        save: Em.K
-      })
-      if ('stackUpgradeController.save' === k) return Em.K;
-      return Em.get(App.router, k);
-    });
-  });
-
-  afterEach(function() {
-    App.router.get.restore();
-  });
 
   describe('#runUpgradeErrorCallback', function() {
     var processes = [
@@ -54,15 +48,12 @@ describe('App.StackUpgradeStep3Controller', function() {
     stackUpgradeStep3Controller.set('content', {cluster: {}, controllerName:'stackUpgradeController'});
 
     it('check process condition', function() {
-      sinon.stub(App, 'get', function(k) {
-        if ('testMode' === k) return true;
-        return Em.get(App, k);
-      });
+      App.testMode = true;
       stackUpgradeStep3Controller.runUpgradeErrorCallback();
       expect(stackUpgradeStep3Controller.get('processes').findProperty('name', 'UPGRADE_SERVICES').get('status')).to.equal('FAILED');
       expect(stackUpgradeStep3Controller.get('processes').findProperty('name', 'UPGRADE_SERVICES').get('isRetry')).to.equal(true);
       expect(stackUpgradeStep3Controller.get('submitButton')).to.equal(false);
-      App.get.restore();
+      App.testMode = false;
     });
   });
 

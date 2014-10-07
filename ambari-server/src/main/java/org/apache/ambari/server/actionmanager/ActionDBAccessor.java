@@ -18,7 +18,6 @@
 package org.apache.ambari.server.actionmanager;
 
 import com.google.inject.persist.Transactional;
-import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.agent.ExecutionCommand;
 
@@ -67,7 +66,7 @@ public interface ActionDBAccessor {
    * @param request request object
    */
   @Transactional
-  void persistActions(Request request) throws AmbariException;
+  void persistActions(Request request);
 
   @Transactional
   void startRequest(long requestId);

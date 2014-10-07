@@ -1,14 +1,14 @@
 {
   "host_groups" : [
     {
-      "name" : "master",
+      "name" : "host_group_1",
       "components" : [
       {
         "name" : "NAMENODE"
       },
       {
         "name" : "SECONDARY_NAMENODE"
-      },
+      },       
       {
         "name" : "DATANODE"
       },

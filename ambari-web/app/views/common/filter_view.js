@@ -50,24 +50,6 @@ var wrapperView = Ember.View.extend({
    */
   fieldId: null,
 
-  /**
-   * This option is useful for Em.Select, if you want get events when same option selected more than one time a raw.
-   * This property is Object[] (for example see App.MainConfigHistoryView.modifiedFilterView),
-   * that have followed structure:
-   *
-   * <code>
-   * [
-   *  {
-   *    values: ['DefinedValue1', 'DefinedValue2'], // this properties should be defined in `content` property
-   *    displayAs: 'Choose me' // this value will be displayed
-   *  }
-   * ]
-   * </code>
-   * @type {Array}
-   *
-   **/
-  triggeredOnSameValue: null,
-
   clearFilter: function(){
     this.set('value', this.get('emptyValue'));
     if(this.get('setPropertyOnApply')){
@@ -90,24 +72,11 @@ var wrapperView = Ember.View.extend({
   emptyValue: '',
 
   /**
-   * empty value that actually applied to filtering on server,
-   * used with Select filter where displayed and actual filter value are different
-   */
-  appliedEmptyValue: "",
-
-  /**
-   * reset value to empty string if emptyValue selected
-   */
-  actualValue: function () {
-    return this.get('value') === this.get('emptyValue') ? "" : this.get('value');
-  }.property('value'),
-
-  /**
    * Whether our <code>value</code> is empty or not
    * @return {Boolean}
    */
   isEmpty: function(){
-    if (Em.isNone(this.get('value'))) {
+    if(this.get('value') === null){
       return true;
     }
     return this.get('value').toString() === this.get('emptyValue').toString();
@@ -160,62 +129,6 @@ var wrapperView = Ember.View.extend({
     var parent = this.$().parent();
     this.set('parentNode', parent);
     parent.addClass('notActive');
-    this.checkSelectSpecialOptions();
-  },
-
-  /**
-   * Check for Em.Select that should use dispatching event when option with same value selected more than one time.
-   **/
-  checkSelectSpecialOptions: function() {
-    // check predefined property
-    if (!this.get('triggeredOnSameValue') || !this.get('triggeredOnSameValue').length) return;
-    // add custom additional observer that will handle property changes
-    this.addObserver('value', this, 'valueCustomObserver');
-    // get the full class attribute to find our select
-    var classInlineAttr = this.get('fieldType').split(',')
-      .map(function(className) {
-        return '.' + className.trim();
-      }).join('');
-    this.set('classInlineAttr', classInlineAttr);
-    this.get('triggeredOnSameValue').forEach(function(triggeredValue) {
-      triggeredValue.values.forEach(function(value, index) {
-        // option with property `value`
-        var $optionEl = $(this.get('element')).find(classInlineAttr)
-          .find('option[value="' + value + '"]');
-        // should be displayed with `displayAs` caption
-        $optionEl.text(triggeredValue.displayAs);
-        // the second one option should be hidden
-        // as the result, on init stage we show only one option that could be selected
-        if (index == 1) {
-          $optionEl.css('display', 'none');
-        }
-      }, this);
-    }, this);
-  },
-  /**
-   *
-   * Custom observer that used for special case of Em.Select related to dispatching event
-   * when option with same value selected more than one time.
-   *
-   **/
-  valueCustomObserver: function() {
-    var hiddenValue;
-    this.get('triggeredOnSameValue').forEach(function(triggeredValue) {
-      var values = triggeredValue.values;
-      // find current selected value from `values` list
-      var currentValueIndex = values.indexOf(this.get('value'));
-      if (currentValueIndex < 0) return;
-      // value assigned to hidden option
-      hiddenValue = values[Number(currentValueIndex == 0)];
-    }, this);
-    if (hiddenValue) {
-      // our select
-      var $select = $(this.get('element')).find(this.get('classInlineAttr'));
-      // now hide option with current value
-      $select.find('option[value="{0}"]'.format(this.get('value'))).css('display', 'none');
-      // and show option that was hidden
-      $select.find('option[value="{0}"'.format(hiddenValue)).css('display', 'block');
-    }
   }
 });
 
@@ -354,11 +267,11 @@ module.exports = {
 
     config.fieldType = config.fieldType || 'input-medium';
     config.filterView = selectFieldView.extend({
-      classNames : config.fieldType.split(','),
+      classNames : [ config.fieldType ],
       attributeBindings: ['disabled','multiple'],
       disabled: false
     });
-    config.emptyValue = config.emptyValue || 'Any';
+    config.emptyValue = Em.I18n.t('any');
 
     return wrapperView.extend(config);
   },
@@ -565,24 +478,6 @@ module.exports = {
       case 'boolean':
         return function (origin, compareValue){
           return origin === compareValue;
-        };
-        break;
-      case 'select':
-        return function (origin, compareValue){
-          //TODO add filter by select value
-          return true;
-        };
-        break;
-      case 'range':
-        return function (origin, compareValue){
-          if (compareValue[1] && compareValue[0]) {
-            return origin >= compareValue[0] && origin <= compareValue[1];
-          } else if (compareValue[0]){
-            return origin >= compareValue[0];
-          } else if (compareValue[1]) {
-            return origin <= compareValue[1]
-          }
-          return true;
         };
         break;
       case 'string':

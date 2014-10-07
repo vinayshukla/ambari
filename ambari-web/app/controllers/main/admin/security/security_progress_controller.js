@@ -24,6 +24,7 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
   commands: [],
   configs: [],
   serviceConfigTags: [],
+  globalProperties: [],
   totalSteps: 3,
   isSubmitDisabled: true,
   hasHostPopup: true,
@@ -158,7 +159,7 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
           command.start();
         } else if (command.get('name') === 'APPLY_CONFIGURATIONS') {
           command.set('isStarted', true);
-          if (App.get('testMode')) {
+          if (App.testMode) {
             command.set('isError', false);
             command.set('isSuccess', true);
           } else {
@@ -166,16 +167,12 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
           }
         } else if (command.get('name') === 'DELETE_ATS') {
           command.set('isStarted', true);
-          if (App.get('testMode')) {
+          if (App.testMode) {
             command.set('isError', false);
             command.set('isSuccess', true);
           } else {
             var timeLineServer = App.HostComponent.find().findProperty('componentName', 'APP_TIMELINE_SERVER');
-            if (timeLineServer) {
-              this.deleteComponents('APP_TIMELINE_SERVER', timeLineServer.get('hostName'));
-            } else {
-              this.onDeleteComplete();
-            }
+            this.deleteComponents('APP_TIMELINE_SERVER', timeLineServer.get('hostName'));
           }
         }
         return true;
@@ -222,7 +219,7 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
     var urlPrefix = App.apiPrefix + '/clusters/' + App.get('clusterName');
     operationsInfo.forEach(function (operation) {
       var command = this.get('commands').findProperty('name', operation.name);
-      var url = (App.get('testMode')) ? operation.testUrl : urlPrefix + operation.realUrl;
+      var url = (App.testMode) ? operation.testUrl : urlPrefix + operation.realUrl;
       command.set('url', url);
       command.set('data', operation.data);
     }, this);
@@ -278,53 +275,28 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
    * form query data and apply security configurations to server
    */
   applyConfigurationsToCluster: function () {
-    var configData = this.get('serviceConfigTags').map(function (_serviceConfig) {
-      var res = {
-        type: _serviceConfig.siteName,
-        tag: _serviceConfig.newTagName,
-        properties: _serviceConfig.configs,
-        service_config_version_note: Em.I18n.t('admin.security.step4.save.configuration.note')
-      };
-      if (_serviceConfig.properties_attributes) {
-        res['properties_attributes'] = _serviceConfig.properties_attributes
-      }
-      return res;
-    }, this);
-
-    var selectedServices = this.get('secureServices');
-    var allConfigData = [];
-    selectedServices.forEach(function (service) {
-      var stackService = App.StackService.find(service.serviceName);
-      if (stackService) {
-        var serviceConfigData = [];
-        Object.keys(stackService.get('configTypesRendered')).forEach(function (type) {
-          var serviceConfigTag = configData.findProperty('type', type);
-          if (serviceConfigTag) {
-            serviceConfigData.pushObject(serviceConfigTag);
-          }
-        }, this);
-        allConfigData.pushObject(JSON.stringify({
-          Clusters: {
-            desired_config: serviceConfigData
-          }
-        }));
-      }
-    }, this);
-
-    var clusterConfig = configData.findProperty('type', 'cluster-env');
-    if (clusterConfig) {
-      allConfigData.pushObject(JSON.stringify({
+    var configData = [];
+    this.get('serviceConfigTags').forEach(function (_serviceConfig) {
+      var Clusters = {
         Clusters: {
-          desired_config: [clusterConfig]
+          desired_config: {
+            type: _serviceConfig.siteName,
+            tag: _serviceConfig.newTagName,
+            properties: _serviceConfig.configs
+          }
         }
-      }));
-    }
+      };
+      configData.pushObject(JSON.stringify(Clusters));
+    }, this);
+
+    var data = {
+      configData: '[' + configData.toString() + ']'
+    };
+
     App.ajax.send({
-      name: 'common.across.services.configurations',
+      name: 'admin.security.apply_configurations',
       sender: this,
-      data: {
-        data: '[' + allConfigData.toString() + ']'
-      },
+      data: data,
       success: 'applyConfigurationToClusterSuccessCallback',
       error: 'applyConfigurationToClusterErrorCallback'
     });
@@ -372,13 +344,10 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
         command.set('isSuccess', false);
         command.set('isError', true);
       }
-      var cfg = data.items.findProperty('type', _tag.siteName);
-      _tag.configs = cfg.properties;
-      if (cfg.properties_attributes) {
-        _tag.properties_attributes = cfg.properties_attributes;
-      }
+      _tag.configs = data.items.findProperty('type', _tag.siteName).properties;
     }, this);
     if (this.manageSecureConfigs()) {
+      this.escapeXMLCharacters(this.get('serviceConfigTags'));
       this.applyConfigurationsToCluster();
     }
   },
@@ -391,6 +360,32 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
     console.log("TRACE: error code status is: " + request.status);
   },
 
+  /*
+   Iterate over keys of all configurations and escape xml characters in their values
+   */
+  escapeXMLCharacters: function (serviceConfigTags) {
+    serviceConfigTags.forEach(function (_serviceConfigTags) {
+      var configs = _serviceConfigTags.configs;
+      for (var key in configs) {
+        configs[key] = this.setServerConfigValue(key, configs[key]);
+      }
+    }, this);
+  },
+
+  /**
+   * set specific server values to config
+   * @param configName
+   * @param value
+   * @return {*}
+   */
+  setServerConfigValue: function (configName, value) {
+    switch (configName) {
+      case 'storm.zookeeper.servers':
+        return value;
+      default:
+        return App.config.escapeXMLCharacters(value);
+    }
+  },
   /**
    * save commands to server and local storage
    */
@@ -414,7 +409,7 @@ App.MainAdminSecurityProgressController = Em.Controller.extend({
         commands.pushObject(command);
       }, this);
       App.db.setSecurityDeployCommands(commands);
-      if (!App.get('testMode')) {
+      if (!App.testMode) {
         App.clusterStatus.setClusterStatus({
           clusterName: this.get('clusterName'),
           clusterState: 'ADD_SECURITY_STEP_4',

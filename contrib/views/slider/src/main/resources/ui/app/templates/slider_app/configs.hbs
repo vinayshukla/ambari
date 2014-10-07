@@ -16,25 +16,65 @@
 * limitations under the License.
 }}
 
-<div class="app_configs">
-  {{#each configCategory in view.configsByCategories}}
-    {{#if configCategory.isVisible}}
-      {{#bs-panel heading=configCategory.name collapsible=true}}
-        <div class="container-fluid">
-          {{#each configCategory.configs}}
-            <div class="row">
-              <div class="col-md-3 property-name">{{formatWordBreak key devider="."}}</div>
-              <div>
-                {{#if isMultiline}}
-                  {{textarea disabled=true value=value classNames="col-md-6"}}
-                {{else}}
-                  <input type="text" {{bind-attr value=value}} disabled="disabled" class="col-md-6" />
-                {{/if}}
-              </div>
-            </div>
-          {{/each}}
-        </div>
-      {{/bs-panel}}
-    {{/if}}
-  {{/each}}
-</div>
+{{#if model.otherConfigs}}
+  {{#bs-panel heading="General" collapsible=true}}
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+      <tr>
+        <th class="col-sm-4">{{t common.name}}</th>
+        <th>{{t common.value}}</th>
+      </tr>
+      </thead>
+      <tbody>
+        {{#each model.otherConfigs}}
+        <tr>
+          <td>{{key}}</td>
+          <td>{{formatWordBreak value}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/bs-panel}}
+{{/if}}
+
+{{#if model.globals}}
+  {{#bs-panel heading="Global" collapsible=true}}
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th class="col-sm-4">{{t common.name}}</th>
+          <th>{{t common.value}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each model.globals}}
+          <tr>
+            <td>{{key}}</td>
+            <td>{{formatWordBreak value}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/bs-panel}}
+{{/if}}
+
+{{#if model.hbaseSite}}
+  {{#bs-panel heading="HBase-Site" collapsible=true}}
+    <table class="table table-striped table-bordered table-condensed">
+      <thead>
+      <tr>
+        <th class="col-sm-4">{{t common.name}}</th>
+        <th>{{t common.value}}</th>
+      </tr>
+      </thead>
+      <tbody>
+        {{#each model.hbaseSite}}
+        <tr>
+          <td>{{key}}</td>
+          <td>{{formatWordBreak value}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/bs-panel}}
+{{/if}}

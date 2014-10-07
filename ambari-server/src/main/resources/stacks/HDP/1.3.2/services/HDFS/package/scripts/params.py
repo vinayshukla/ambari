@@ -22,13 +22,16 @@ import status_params
 import os
 
 config = Script.get_config()
-tmp_dir = Script.get_tmp_dir()
 
-ulimit_cmd = "ulimit -c unlimited; "
+if System.get_instance().os_type == "oraclelinux":
+  ulimit_cmd = ''
+else:
+  ulimit_cmd = "ulimit -c unlimited; "
 
 #security params
-security_enabled = config['configurations']['cluster-env']['security_enabled']
-smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 
 #exclude file
@@ -86,13 +89,14 @@ oozie_user = config['configurations']['oozie-env']['oozie_user']
 webhcat_user = config['configurations']['hive-env']['hcat_user']
 hcat_user = config['configurations']['hive-env']['hcat_user']
 hive_user = config['configurations']['hive-env']['hive_user']
-smoke_user =  config['configurations']['cluster-env']['smokeuser']
+smoke_user =  config['configurations']['hadoop-env']['smokeuser']
 mapred_user = config['configurations']['mapred-env']['mapred_user']
 hdfs_user = status_params.hdfs_user
 
-user_group = config['configurations']['cluster-env']['user_group']
+user_group = config['configurations']['hadoop-env']['user_group']
 proxyuser_group =  config['configurations']['hadoop-env']['proxyuser_group']
 nagios_group = config['configurations']['nagios-env']['nagios_group']
+smoke_user_group = "users"
 
 #hadoop params
 hadoop_conf_dir = "/etc/hadoop/conf"
@@ -100,7 +104,6 @@ hadoop_pid_dir_prefix = status_params.hadoop_pid_dir_prefix
 hadoop_bin = "/usr/lib/hadoop/bin"
 
 hdfs_log_dir_prefix = config['configurations']['hadoop-env']['hdfs_log_dir_prefix']
-hadoop_root_logger = config['configurations']['hadoop-env']['hadoop_root_logger']
 
 dfs_domain_socket_path = "/var/lib/hadoop-hdfs/dn_socket"
 dfs_domain_socket_dir = os.path.dirname(dfs_domain_socket_path)
@@ -122,14 +125,11 @@ namenode_formatted_mark_dir = format("{hadoop_pid_dir_prefix}/hdfs/namenode/form
 fs_checkpoint_dir = config['configurations']['core-site']['fs.checkpoint.dir']
 
 dfs_data_dir = config['configurations']['hdfs-site']['dfs.data.dir']
-data_dir_mount_file = config['configurations']['hadoop-env']['dfs.datanode.data.dir.mount.file']
-
 #for create_hdfs_directory
 hostname = config["hostname"]
 hadoop_conf_dir = "/etc/hadoop/conf"
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 import functools
 #create partial functions with common arguments for every HdfsDirectory call
@@ -149,44 +149,3 @@ if not "com.hadoop.compression.lzo" in io_compression_codecs:
   exclude_packages = ["lzo", "hadoop-lzo", "hadoop-lzo-native"]
 else:
   exclude_packages = []
-
-
-java_home = config['hostLevelParams']['java_home']
-#hadoop params
-
-hadoop_conf_empty_dir = "/etc/hadoop/conf.empty"
-hadoop_env_sh_template = config['configurations']['hadoop-env']['content']
-
-#hadoop-env.sh
-if System.get_instance().os_family == "suse":
-  jsvc_path = "/usr/lib/bigtop-utils"
-else:
-  jsvc_path = "/usr/libexec/bigtop-utils"
-hadoop_heapsize = config['configurations']['hadoop-env']['hadoop_heapsize']
-namenode_heapsize = config['configurations']['hadoop-env']['namenode_heapsize']
-namenode_opt_newsize =  config['configurations']['hadoop-env']['namenode_opt_newsize']
-namenode_opt_maxnewsize =  config['configurations']['hadoop-env']['namenode_opt_maxnewsize']
-
-jtnode_opt_newsize = default("/configurations/mapred-env/jtnode_opt_newsize","200m")
-jtnode_opt_maxnewsize = default("/configurations/mapred-env/jtnode_opt_maxnewsize","200m")
-jtnode_heapsize =  default("/configurations/mapred-env/jtnode_heapsize","1024m")
-ttnode_heapsize = default("/configurations/mapred-env/ttnode_heapsize","1024m")
-
-dtnode_heapsize = config['configurations']['hadoop-env']['dtnode_heapsize']
-
-mapred_pid_dir_prefix = default("/configurations/hadoop-env/mapred_pid_dir_prefix","/var/run/hadoop-mapreduce")
-mapreduce_libs_path = "/usr/lib/hadoop-mapreduce/*"
-
-rca_enabled = False
-if 'mapred-env' in config['configurations']:
-  rca_enabled =  config['configurations']['mapred-env']['rca_enabled']
-
-ambari_db_rca_url = config['hostLevelParams']['ambari_db_rca_url']
-ambari_db_rca_driver = config['hostLevelParams']['ambari_db_rca_driver']
-ambari_db_rca_username = config['hostLevelParams']['ambari_db_rca_username']
-ambari_db_rca_password = config['hostLevelParams']['ambari_db_rca_password']
-
-rca_properties = ''
-if rca_enabled and 'mapreduce-log4j' in config['configurations'] \
-  and 'rca_properties' in config['configurations']['mapred-env']:
-  rca_properties = format(config['configurations']['mapred-env']['rca_properties'])

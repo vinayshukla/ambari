@@ -73,12 +73,24 @@ describe('App.ExperimentalView', function () {
         }
         return Ember.set(p, v);
       });
-      sinon.stub(App.router, 'transitionTo', Em.K);
+      if (App.router.get('transitionTo') === undefined) {
+        App.router.set('transitionTo', Em.K);
+      } else {
+        sinon.stub(App.router, 'transitionTo', function (k) {
+          if (k === 'root.index') return Em.K;
+          return App.router.transitionTo(k);
+        });
+        transitionStubbed = true;
+      }
     });
 
     after(function () {
-      Em.set.restore();
-      App.router.transitionTo.restore();
+      Ember.set.restore();
+      if (transitionStubbed) {
+        App.router.transitionTo.restore();
+      } else {
+        App.router.set('transitionTo', undefined);
+      }
     });
 
     it('should pass data to App.supports', function () {

@@ -42,15 +42,6 @@
                 <timeout>600</timeout>
               </commandScript>
             </customCommand>
-            <customCommand>
-              <name>REBALANCEHDFS</name>
-              <background>true</background>
-              <commandScript>
-                <script>scripts/namenode.py</script>
-                <scriptType>PYTHON</scriptType>
-              </commandScript>
-            </customCommand>
-            
           </customCommands>
         </component>
 
@@ -150,7 +141,7 @@
         </osSpecific>
 
         <osSpecific>
-          <osFamily>ubuntu12</osFamily>
+          <osFamily>debian12</osFamily>
           <packages>
             <package>
               <name>libsnappy1</name>

@@ -43,17 +43,21 @@ describe('App.NameNodeCpuPieChartView', function() {
   describe('#calcIsPieExists', function() {
     var tests = [
       {
-        cpuWio: 1,
+        model: Em.Object.create({
+          used: 1
+        }),
         e: true,
         m: 'Exists'
       },
       {
-        cpuWio: null,
-        e: false,
-        m: 'Not exists'
+        model: Em.Object.create({
+          used: 0
+        }),
+        e: true,
+        m: 'Exists'
       },
       {
-        cpuWio: undefined,
+        model: Em.Object.create({}),
         e: false,
         m: 'Not exists'
       }
@@ -61,26 +65,32 @@ describe('App.NameNodeCpuPieChartView', function() {
 
     tests.forEach(function(test) {
       it(test.m, function() {
-        nameNodeCpuPieChartView.set('cpuWio', test.cpuWio);
+        nameNodeCpuPieChartView.set('model', test.model);
         expect(nameNodeCpuPieChartView.calcIsPieExists()).to.equal(test.e);
       });
     });
   });
 
-  describe('calcDataForPieChart', function () {
+  describe('calcDataForPieChart', function() {
     var tests = [
       {
-        cpuWio: 0,
+        model: Em.Object.create({
+          used: 0
+        }),
         e: ['0.0', '0.00'],
         m: 'Nothing is used'
       },
       {
-        cpuWio: 100,
+        model: Em.Object.create({
+          used: 100
+        }),
         e: ['100.0', '100.00'],
         m: 'All is used'
       },
       {
-        cpuWio: 50,
+        model: Em.Object.create({
+          used: 50
+        }),
         e: ['50.0', '50.00'],
         m: 'Half is used'
       }
@@ -88,7 +98,7 @@ describe('App.NameNodeCpuPieChartView', function() {
 
     tests.forEach(function(test) {
       it(test.m, function() {
-        nameNodeCpuPieChartView.set('cpuWio', test.cpuWio);
+        nameNodeCpuPieChartView.set('model', test.model);
         expect(nameNodeCpuPieChartView.calcDataForPieChart()).to.eql(test.e);
       });
     });

@@ -43,13 +43,12 @@ class TestHcatClient(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hive/conf',
       configurations = self.getConfig()['configurations']['hive-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
     )
-    self.assertResourceCalled('File', '/etc/hcatalog/conf/hcat-env.sh',
-                              content = InlineTemplate(self.getConfig()['configurations']['hcat-env']['content']),
-                              owner = 'hcat',
-                              group = 'hadoop',
-                              )
+
+    self.assertResourceCalled('TemplateConfig', '/etc/hcatalog/conf/hcat-env.sh',
+      owner = 'hcat',
+      group = 'hadoop',
+    )
 
     self.assertNoMoreResources()
 
@@ -76,11 +75,10 @@ class TestHcatClient(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hive/conf',
       configurations = self.getConfig()['configurations']['hive-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
     )
-    self.assertResourceCalled('File', '/etc/hcatalog/conf/hcat-env.sh',
-                              content = InlineTemplate(self.getConfig()['configurations']['hcat-env']['content']),
-                              owner = 'hcat',
-                              group = 'hadoop',
-                              )
+
+    self.assertResourceCalled('TemplateConfig', '/etc/hcatalog/conf/hcat-env.sh',
+      owner = 'hcat',
+      group = 'hadoop',
+    )
     self.assertNoMoreResources()

@@ -46,8 +46,8 @@ public class PostgresHelper extends GenericDbmsHelper {
 
   @Override
   public StringBuilder writeSetNullableString(StringBuilder builder,
-      String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable) {
-    builder.append(" ALTER COLUMN ").append(columnInfo.getName());
+      String tableName, String columnName, boolean nullable) {
+    builder.append(" ALTER COLUMN ").append(columnName);
     String nullStatement = nullable ? " SET NULL" : " SET NOT NULL";
     builder.append(nullStatement);
     return builder;

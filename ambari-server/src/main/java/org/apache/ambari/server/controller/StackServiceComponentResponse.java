@@ -19,12 +19,6 @@
 package org.apache.ambari.server.controller;
 
 import org.apache.ambari.server.state.AutoDeployInfo;
-import org.apache.ambari.server.state.ComponentInfo;
-import org.apache.ambari.server.state.CustomCommandDefinition;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Stack service component response.
@@ -51,11 +45,6 @@ public class StackServiceComponentResponse {
   private String componentName;
 
   /**
-   * component display name
-   */
-  private String componentDisplayName;
-
-  /**
    * component category
    */
   private String componentCategory;
@@ -80,37 +69,14 @@ public class StackServiceComponentResponse {
    */
   private AutoDeployInfo autoDeploy;
 
-  /**
-   * The names of the custom commands defined for the component.
-   */
-  private List<String> customCommands;
 
-
-  /**
-   * Constructor.
-   *
-   * @param component
-   *          the component to generate the response from (not {@code null}).
-   */
-  public StackServiceComponentResponse(ComponentInfo component) {
-    componentName = component.getName();
-    componentDisplayName = component.getDisplayName();
-    componentCategory = component.getCategory();
-    isClient = component.isClient();
-    isMaster = component.isMaster();
-    cardinality = component.getCardinality();
-    autoDeploy = component.getAutoDeploy();
-
-    // the custom command names defined for this component
-    List<CustomCommandDefinition> definitions = component.getCustomCommands();
-    if (null == definitions || definitions.size() == 0) {
-      customCommands = Collections.emptyList();
-    } else {
-      customCommands = new ArrayList<String>(definitions.size());
-      for (CustomCommandDefinition command : definitions) {
-        customCommands.add(command.getName());
-      }
-    }
+  public StackServiceComponentResponse(String componentName, String componentCategory,
+      boolean isClient, boolean isMaster, String cardinality) {
+    setComponentName(componentName);
+    setComponentCategory(componentCategory);
+    setClient(isClient);
+    setMaster(isMaster);
+    setCardinality(cardinality);
   }
 
   /**
@@ -183,25 +149,6 @@ public class StackServiceComponentResponse {
    */
   public void setComponentName(String componentName) {
     this.componentName = componentName;
-  }
-
-  /**
-   * Get component display name.
-   *
-   * @return component display name
-   */
-
-  public String getComponentDisplayName() {
-    return componentDisplayName;
-  }
-
-  /**
-   * Set component display name.
-   *
-   * @param componentDisplayName  component display name
-   */
-  public void setComponentDisplayName(String componentDisplayName) {
-    this.componentDisplayName = componentDisplayName;
   }
 
   /**
@@ -292,14 +239,5 @@ public class StackServiceComponentResponse {
    */
   public void setAutoDeploy(AutoDeployInfo autoDeploy) {
     this.autoDeploy = autoDeploy;
-  }
-
-  /**
-   * Gets the names of all of the custom commands for this component.
-   *
-   * @return the commands or an empty list (never {@code null}).
-   */
-  public List<String> getCustomCommands() {
-    return customCommands;
   }
 }

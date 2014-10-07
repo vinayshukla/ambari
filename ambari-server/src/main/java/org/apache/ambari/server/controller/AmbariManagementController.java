@@ -22,10 +22,7 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.internal.RequestStageContainer;
-import org.apache.ambari.server.metadata.RoleCommandOrder;
 import org.apache.ambari.server.scheduler.ExecutionScheduleManager;
-import org.apache.ambari.server.security.ldap.LdapBatchDto;
-import org.apache.ambari.server.security.ldap.LdapSyncDto;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.ConfigHelper;
@@ -77,7 +74,7 @@ public interface AmbariManagementController {
    *
    * @throws AmbariException when the configuration cannot be created.
    */
-  public ConfigurationResponse createConfiguration(ConfigurationRequest request)
+  public void createConfiguration(ConfigurationRequest request)
       throws AmbariException;
 
   /**
@@ -157,15 +154,6 @@ public interface AmbariManagementController {
    * @throws AmbariException if the configurations could not be read
    */
   public Set<TaskStatusResponse> getTaskStatus(Set<TaskStatusRequest> requests)
-      throws AmbariException;
-
-  /**
-   * Get service config version history
-   * @param requests service config version requests
-   * @return service config versions
-   * @throws AmbariException
-   */
-  Set<ServiceConfigVersionResponse> getServiceConfigVersions(Set<ServiceConfigVersionRequest> requests)
       throws AmbariException;
 
   /**
@@ -259,15 +247,6 @@ public interface AmbariManagementController {
    * @throws AmbariException if the resources cannot be updated
    */
   public void updateGroups(Set<GroupRequest> requests) throws AmbariException;
-
-  /**
-   * Updates the members of the group specified.
-   *
-   * @param requests the members to be set for this group
-   *
-   * @throws AmbariException if the resources cannot be updated
-   */
-  public void updateMembers(Set<MemberRequest> requests) throws AmbariException;
 
 
   // ----- Delete -----------------------------------------------------------
@@ -455,18 +434,6 @@ public interface AmbariManagementController {
 
 
   // ----- Common utility methods --------------------------------------------
-
-  /**
-   * Get service name by cluster instance and component name
-   *
-   * @param cluster the cluster instance
-   * @param componentName the component name in String type
-   *
-   * @return a service name
-   *
-   * @throws  AmbariException if service name is null or empty
-   */
-  public String findServiceName(Cluster cluster, String componentName) throws AmbariException;
 
   /**
    * Get the clusters for this management controller.
@@ -659,13 +626,6 @@ public interface AmbariManagementController {
   public ExecutionScheduleManager getExecutionScheduleManager();
 
   /**
-   * Get cached clusterUpdateResults, used only for service config versions currently
-   * @param clusterRequest
-   * @return
-   */
-  ClusterResponse getClusterUpdateResults(ClusterRequest clusterRequest);
-
-  /**
    * Get JobTracker hostname
    */
   public String getJobTrackerHost(Cluster cluster);
@@ -678,53 +638,5 @@ public interface AmbariManagementController {
    */
   public MaintenanceState getEffectiveMaintenanceState(ServiceComponentHost sch)
       throws AmbariException;
-
-  /**
-   * Get Role Command Order
-   */
-  public RoleCommandOrder getRoleCommandOrder(Cluster cluster);
-
-  /**
-   * Performs a test if LDAP server is reachable.
-   *
-   * @return true if connection to LDAP was established
-   */
-  public boolean checkLdapConfigured();
-
-  /**
-   * Retrieves groups and users from external LDAP.
-   *
-   * @return ldap sync DTO
-   * @throws AmbariException if LDAP is configured incorrectly
-   */
-  public LdapSyncDto getLdapSyncInfo() throws AmbariException;
-
-  /**
-   * Synchronizes local users and groups with given data.
-   *
-   * @param userRequest  users to be synchronized
-   * @param groupRequest groups to be synchronized
-   *
-   * @return the results of the LDAP synchronization
-   *
-   * @throws AmbariException if synchronization data was invalid
-   */
-  public LdapBatchDto synchronizeLdapUsersAndGroups(
-      LdapSyncRequest userRequest, LdapSyncRequest groupRequest) throws AmbariException;
-
-  /**
-   * Checks if LDAP sync process is running.
-   *
-   * @return true if LDAP sync is in progress
-   */
-  public boolean isLdapSyncInProgress();
-
-  /**
-   * Get configurations which are specific for a cluster (!not a service).
-   * @param requests
-   * @return
-   * @throws AmbariException
-   */
-  public Set<StackConfigurationResponse> getStackLevelConfigurations(Set<StackLevelConfigurationRequest> requests) throws AmbariException;
 }
 

@@ -82,20 +82,14 @@ App.ConfigGroup = Ember.Object.extend({
   hosts: [],
 
   /**
-   * Public host names related by host_name.
-   */
-  publicHosts: [],
-
-  /**
-   * this flag is used for installed services' config groups
-   * if user make changes to them - mark this flag to true
+   * In add service wizard we have installed services.
+   * And on deploy step we need to update existing config groups
+   * also mark it for be sure that config group data came from
+   * installed service.
+   *
    */
   isForUpdate: false,
 
-  /**
-   * mark config groups for installed services
-   */
-  isForInstalledService: false,
   /**
    * Provides a display friendly name. This includes trimming
    * names to a certain length.
@@ -164,7 +158,5 @@ App.ConfigGroup = Ember.Object.extend({
       result += item.name + " : " + item.value + '<br/>';
     }, this);
     return result;
-  }.property('properties.length'),
-
-  hash: null
+  }.property('properties.length')
 });

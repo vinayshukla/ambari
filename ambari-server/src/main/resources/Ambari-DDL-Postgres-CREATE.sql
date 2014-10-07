@@ -16,18 +16,12 @@
 -- limitations under the License.
 --
 
-------create tables ang grant privileges to db user---------
-CREATE TABLE clusters (cluster_id BIGINT NOT NULL, resource_id BIGINT NOT NULL, cluster_info VARCHAR(255) NOT NULL, cluster_name VARCHAR(100) NOT NULL UNIQUE, provisioning_state VARCHAR(255) NOT NULL DEFAULT 'INIT', desired_cluster_state VARCHAR(255) NOT NULL, desired_stack_version VARCHAR(255) NOT NULL, PRIMARY KEY (cluster_id));
+------create tables and grant privileges to db user---------
+CREATE TABLE clusters (cluster_id BIGINT NOT NULL, cluster_info VARCHAR(255) NOT NULL, cluster_name VARCHAR(100) NOT NULL UNIQUE, provisioning_state VARCHAR(255) NOT NULL DEFAULT 'INIT', desired_cluster_state VARCHAR(255) NOT NULL, desired_stack_version VARCHAR(255) NOT NULL, PRIMARY KEY (cluster_id));
 
-CREATE TABLE clusterconfig (config_id BIGINT NOT NULL, version_tag VARCHAR(255) NOT NULL, version BIGINT NOT NULL, type_name VARCHAR(255) NOT NULL, cluster_id BIGINT NOT NULL, config_data VARCHAR(32000) NOT NULL, config_attributes VARCHAR(32000), create_timestamp BIGINT NOT NULL, PRIMARY KEY (config_id));
+CREATE TABLE clusterconfig (version_tag VARCHAR(255) NOT NULL, type_name VARCHAR(255) NOT NULL, cluster_id BIGINT NOT NULL, config_data VARCHAR(32000) NOT NULL, config_attributes VARCHAR(32000), create_timestamp BIGINT NOT NULL, PRIMARY KEY (cluster_id, type_name, version_tag));
 
 CREATE TABLE clusterconfigmapping (cluster_id BIGINT NOT NULL, type_name VARCHAR(255) NOT NULL, version_tag VARCHAR(255) NOT NULL, create_timestamp BIGINT NOT NULL, selected INTEGER NOT NULL DEFAULT 0, user_name VARCHAR(255) NOT NULL DEFAULT '_db', PRIMARY KEY (cluster_id, type_name, create_timestamp));
-
-CREATE TABLE serviceconfig (service_config_id BIGINT NOT NULL, cluster_id BIGINT NOT NULL, service_name VARCHAR(255) NOT NULL, version BIGINT NOT NULL, create_timestamp BIGINT NOT NULL, user_name VARCHAR(255) NOT NULL DEFAULT '_db', group_id BIGINT, note TEXT, PRIMARY KEY (service_config_id));
-
-CREATE TABLE serviceconfighosts (service_config_id BIGINT NOT NULL, hostname VARCHAR(255) NOT NULL, PRIMARY KEY(service_config_id, hostname));
-
-CREATE TABLE serviceconfigmapping (service_config_id BIGINT NOT NULL, config_id BIGINT NOT NULL, PRIMARY KEY(service_config_id, config_id));
 
 CREATE TABLE clusterservices (service_name VARCHAR(255) NOT NULL, cluster_id BIGINT NOT NULL, service_enabled INTEGER NOT NULL, PRIMARY KEY (service_name, cluster_id));
 
@@ -45,21 +39,23 @@ CREATE TABLE servicecomponentdesiredstate (component_name VARCHAR(255) NOT NULL,
 
 CREATE TABLE servicedesiredstate (cluster_id BIGINT NOT NULL, desired_host_role_mapping INTEGER NOT NULL, desired_stack_version VARCHAR(255) NOT NULL, desired_state VARCHAR(255) NOT NULL, service_name VARCHAR(255) NOT NULL, maintenance_state VARCHAR(32) NOT NULL, PRIMARY KEY (cluster_id, service_name));
 
-CREATE TABLE users (user_id INTEGER, principal_id BIGINT NOT NULL, ldap_user INTEGER NOT NULL DEFAULT 0, user_name VARCHAR(255) NOT NULL, create_time TIMESTAMP DEFAULT NOW(), user_password VARCHAR(255), PRIMARY KEY (user_id), active INTEGER NOT NULL DEFAULT 1, UNIQUE (ldap_user, user_name));
+CREATE TABLE roles (role_name VARCHAR(255) NOT NULL, PRIMARY KEY (role_name));
 
-CREATE TABLE groups (group_id INTEGER, principal_id BIGINT NOT NULL, group_name VARCHAR(255) NOT NULL, ldap_group INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (group_id), UNIQUE (ldap_group, group_name));
+CREATE TABLE users (user_id INTEGER, ldap_user INTEGER NOT NULL DEFAULT 0, user_name VARCHAR(255) NOT NULL, create_time TIMESTAMP DEFAULT NOW(), user_password VARCHAR(255), PRIMARY KEY (user_id), active INTEGER NOT NULL DEFAULT 1, UNIQUE (ldap_user, user_name));
+
+CREATE TABLE groups (group_id INTEGER, group_name VARCHAR(255) NOT NULL, ldap_group INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (group_id), UNIQUE (ldap_group, group_name));
 
 CREATE TABLE members (member_id INTEGER, group_id INTEGER NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (member_id), UNIQUE(group_id, user_id));
 
 CREATE TABLE execution_command (command BYTEA, task_id BIGINT NOT NULL, PRIMARY KEY (task_id));
 
-CREATE TABLE host_role_command (task_id BIGINT NOT NULL, attempt_count SMALLINT NOT NULL, event VARCHAR(32000) NOT NULL, exitcode INTEGER NOT NULL, host_name VARCHAR(255) NOT NULL, last_attempt_time BIGINT NOT NULL, request_id BIGINT NOT NULL, role VARCHAR(255), stage_id BIGINT NOT NULL, start_time BIGINT NOT NULL, end_time BIGINT, status VARCHAR(255), std_error BYTEA, std_out BYTEA, output_log VARCHAR(255) NULL, error_log VARCHAR(255) NULL, structured_out BYTEA, role_command VARCHAR(255), command_detail VARCHAR(255), custom_command_name VARCHAR(255), PRIMARY KEY (task_id));
+CREATE TABLE host_role_command (task_id BIGINT NOT NULL, attempt_count SMALLINT NOT NULL, event VARCHAR(32000) NOT NULL, exitcode INTEGER NOT NULL, host_name VARCHAR(255) NOT NULL, last_attempt_time BIGINT NOT NULL, request_id BIGINT NOT NULL, role VARCHAR(255), stage_id BIGINT NOT NULL, start_time BIGINT NOT NULL, end_time BIGINT, status VARCHAR(255), std_error BYTEA, std_out BYTEA, structured_out BYTEA, role_command VARCHAR(255), command_detail VARCHAR(255), custom_command_name VARCHAR(255), PRIMARY KEY (task_id));
 
 CREATE TABLE role_success_criteria (role VARCHAR(255) NOT NULL, request_id BIGINT NOT NULL, stage_id BIGINT NOT NULL, success_factor FLOAT NOT NULL, PRIMARY KEY (role, request_id, stage_id));
 
-CREATE TABLE stage (stage_id BIGINT NOT NULL, request_id BIGINT NOT NULL, cluster_id BIGINT NOT NULL, log_info VARCHAR(255) NOT NULL, request_context VARCHAR(255), cluster_host_info BYTEA NOT NULL, command_params BYTEA, host_params BYTEA, PRIMARY KEY (stage_id, request_id));
+CREATE TABLE stage (stage_id BIGINT NOT NULL, request_id BIGINT NOT NULL, cluster_id BIGINT NOT NULL, log_info VARCHAR(255) NOT NULL, request_context VARCHAR(255), cluster_host_info BYTEA NOT NULL, PRIMARY KEY (stage_id, request_id));
 
-CREATE TABLE request (request_id BIGINT NOT NULL, cluster_id BIGINT, command_name VARCHAR(255), create_time BIGINT NOT NULL, end_time BIGINT NOT NULL, exclusive_execution SMALLINT NOT NULL DEFAULT 0, inputs BYTEA, request_context VARCHAR(255), request_type VARCHAR(255), request_schedule_id BIGINT, start_time BIGINT NOT NULL, status VARCHAR(255), PRIMARY KEY (request_id));
+CREATE TABLE request (request_id BIGINT NOT NULL, cluster_id BIGINT, command_name VARCHAR(255), create_time BIGINT NOT NULL, end_time BIGINT NOT NULL, inputs BYTEA, request_context VARCHAR(255), request_type VARCHAR(255), request_schedule_id BIGINT, start_time BIGINT NOT NULL, status VARCHAR(255), PRIMARY KEY (request_id));
 
 CREATE TABLE requestresourcefilter (filter_id BIGINT NOT NULL, request_id BIGINT NOT NULL, service_name VARCHAR(255), component_name VARCHAR(255), hosts BYTEA, PRIMARY KEY (filter_id));
 
@@ -67,15 +63,17 @@ CREATE TABLE requestoperationlevel (operation_level_id BIGINT NOT NULL, request_
 
 CREATE TABLE ClusterHostMapping (cluster_id BIGINT NOT NULL, host_name VARCHAR(255) NOT NULL, PRIMARY KEY (cluster_id, host_name));
 
+CREATE TABLE user_roles (role_name VARCHAR(255) NOT NULL, user_id INTEGER NOT NULL, PRIMARY KEY (role_name, user_id));
+
 CREATE TABLE key_value_store ("key" VARCHAR(255), "value" VARCHAR, PRIMARY KEY ("key"));
 
 CREATE TABLE hostconfigmapping (cluster_id BIGINT NOT NULL, host_name VARCHAR(255) NOT NULL, type_name VARCHAR(255) NOT NULL, version_tag VARCHAR(255) NOT NULL, service_name VARCHAR(255), create_timestamp BIGINT NOT NULL, selected INTEGER NOT NULL DEFAULT 0, user_name VARCHAR(255) NOT NULL DEFAULT '_db', PRIMARY KEY (cluster_id, host_name, type_name, create_timestamp));
 
 CREATE TABLE metainfo ("metainfo_key" VARCHAR(255), "metainfo_value" VARCHAR, PRIMARY KEY ("metainfo_key"));
 
-CREATE TABLE ambari_sequences (sequence_name VARCHAR(255) PRIMARY KEY, sequence_value BIGINT NOT NULL);
+CREATE TABLE ambari_sequences (sequence_name VARCHAR(255) PRIMARY KEY, "value" BIGINT NOT NULL);
 
-CREATE TABLE configgroup (group_id BIGINT, cluster_id BIGINT NOT NULL, group_name VARCHAR(255) NOT NULL, tag VARCHAR(1024) NOT NULL, description VARCHAR(1024), create_timestamp BIGINT NOT NULL, service_name VARCHAR(255), PRIMARY KEY(group_id));
+CREATE TABLE configgroup (group_id BIGINT, cluster_id BIGINT NOT NULL, group_name VARCHAR(255) NOT NULL, tag VARCHAR(1024) NOT NULL, description VARCHAR(1024), create_timestamp BIGINT NOT NULL, PRIMARY KEY(group_id));
 
 CREATE TABLE confgroupclusterconfigmapping (config_group_id BIGINT NOT NULL, cluster_id BIGINT NOT NULL, config_type VARCHAR(255) NOT NULL, version_tag VARCHAR(255) NOT NULL, user_name VARCHAR(255) DEFAULT '_db', create_timestamp BIGINT NOT NULL, PRIMARY KEY(config_group_id, cluster_id, config_type));
 
@@ -88,31 +86,16 @@ CREATE TABLE requestschedulebatchrequest (schedule_id bigint, batch_id bigint, r
 CREATE TABLE blueprint (blueprint_name VARCHAR(255) NOT NULL, stack_name VARCHAR(255) NOT NULL, stack_version VARCHAR(255) NOT NULL, PRIMARY KEY(blueprint_name));
 CREATE TABLE hostgroup (blueprint_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, cardinality VARCHAR(255) NOT NULL, PRIMARY KEY(blueprint_name, name));
 CREATE TABLE hostgroup_component (blueprint_name VARCHAR(255) NOT NULL, hostgroup_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, PRIMARY KEY(blueprint_name, hostgroup_name, name));
-CREATE TABLE blueprint_configuration (blueprint_name varchar(255) NOT NULL, type_name varchar(255) NOT NULL, config_data varchar(32000) NOT NULL , config_attributes varchar(32000), PRIMARY KEY(blueprint_name, type_name));
-CREATE TABLE hostgroup_configuration (blueprint_name VARCHAR(255) NOT NULL, hostgroup_name VARCHAR(255) NOT NULL, type_name VARCHAR(255) NOT NULL, config_data TEXT NOT NULL, config_attributes varchar(32000), PRIMARY KEY(blueprint_name, hostgroup_name, type_name));
+CREATE TABLE blueprint_configuration (blueprint_name varchar(255) NOT NULL, type_name varchar(255) NOT NULL, config_data varchar(32000) NOT NULL , PRIMARY KEY(blueprint_name, type_name));
+CREATE TABLE hostgroup_configuration (blueprint_name VARCHAR(255) NOT NULL, hostgroup_name VARCHAR(255) NOT NULL, type_name VARCHAR(255) NOT NULL, config_data TEXT NOT NULL, PRIMARY KEY(blueprint_name, hostgroup_name, type_name));
 
-CREATE TABLE viewmain (view_name VARCHAR(255) NOT NULL, label VARCHAR(255), description VARCHAR(2048), version VARCHAR(255), resource_type_id INTEGER NOT NULL, icon VARCHAR(255), icon64 VARCHAR(255), archive VARCHAR(255), mask VARCHAR(255), system_view SMALLINT NOT NULL DEFAULT 0, PRIMARY KEY(view_name));
+CREATE TABLE viewmain (view_name VARCHAR(255) NOT NULL, label VARCHAR(255), version VARCHAR(255), icon VARCHAR(255), icon64 VARCHAR(255), archive VARCHAR(255), mask VARCHAR(255), PRIMARY KEY(view_name));
 CREATE TABLE viewinstancedata (view_instance_id BIGINT, view_name VARCHAR(255) NOT NULL, view_instance_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, user_name VARCHAR(255) NOT NULL, value VARCHAR(2000) NOT NULL, PRIMARY KEY(view_instance_id, name, user_name));
-CREATE TABLE viewinstance (view_instance_id BIGINT, resource_id BIGINT NOT NULL, view_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, label VARCHAR(255), description VARCHAR(2048), visible CHAR(1), icon VARCHAR(255), icon64 VARCHAR(255), xml_driven CHAR(1), PRIMARY KEY(view_instance_id));
+CREATE TABLE viewinstance (view_instance_id BIGINT, view_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, label VARCHAR(255), description VARCHAR(255), visible CHAR(1), icon VARCHAR(255), icon64 VARCHAR(255), PRIMARY KEY(view_instance_id));
 CREATE TABLE viewinstanceproperty (view_name VARCHAR(255) NOT NULL, view_instance_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, value VARCHAR(2000) NOT NULL, PRIMARY KEY(view_name, view_instance_name, name));
-CREATE TABLE viewparameter (view_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, description VARCHAR(2048), required CHAR(1), masked CHAR(1), PRIMARY KEY(view_name, name));
+CREATE TABLE viewparameter (view_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, description VARCHAR(255), required CHAR(1), masked CHAR(1), PRIMARY KEY(view_name, name));
 CREATE TABLE viewresource (view_name VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, plural_name VARCHAR(255), id_property VARCHAR(255), subResource_names VARCHAR(255), provider VARCHAR(255), service VARCHAR(255), resource VARCHAR(255), PRIMARY KEY(view_name, name));
 CREATE TABLE viewentity (id BIGINT NOT NULL, view_name VARCHAR(255) NOT NULL, view_instance_name VARCHAR(255) NOT NULL, class_name VARCHAR(255) NOT NULL, id_property VARCHAR(255), PRIMARY KEY(id));
-
-CREATE TABLE adminresourcetype (resource_type_id INTEGER NOT NULL, resource_type_name VARCHAR(255) NOT NULL, PRIMARY KEY(resource_type_id));
-CREATE TABLE adminresource (resource_id BIGINT NOT NULL, resource_type_id INTEGER NOT NULL, PRIMARY KEY(resource_id));
-CREATE TABLE adminprincipaltype (principal_type_id INTEGER NOT NULL, principal_type_name VARCHAR(255) NOT NULL, PRIMARY KEY(principal_type_id));
-CREATE TABLE adminprincipal (principal_id BIGINT NOT NULL, principal_type_id INTEGER NOT NULL, PRIMARY KEY(principal_id));
-CREATE TABLE adminpermission (permission_id BIGINT NOT NULL, permission_name VARCHAR(255) NOT NULL, resource_type_id INTEGER NOT NULL, PRIMARY KEY(permission_id));
-CREATE TABLE adminprivilege (privilege_id BIGINT, permission_id BIGINT NOT NULL, resource_id BIGINT NOT NULL, principal_id BIGINT NOT NULL, PRIMARY KEY(privilege_id));
-
---------altering tables by creating unique constraints----------
-ALTER TABLE clusterconfig ADD CONSTRAINT UQ_config_type_tag UNIQUE (cluster_id, type_name, version_tag);
-ALTER TABLE clusterconfig ADD CONSTRAINT UQ_config_type_version UNIQUE (cluster_id, type_name, version);
-ALTER TABLE viewinstance ADD CONSTRAINT UQ_viewinstance_name UNIQUE (view_name, name);
-ALTER TABLE viewinstance ADD CONSTRAINT UQ_viewinstance_name_id UNIQUE (view_instance_id, view_name, name);
-ALTER TABLE serviceconfig ADD CONSTRAINT UQ_scv_service_version UNIQUE (cluster_id, service_name, version);
-ALTER TABLE adminpermission ADD CONSTRAINT UQ_perm_name_resource_type_id UNIQUE (permission_name, resource_type_id);
 
 --------altering tables by creating foreign keys----------
 ALTER TABLE members ADD CONSTRAINT FK_members_group_id FOREIGN KEY (group_id) REFERENCES groups (group_id);
@@ -135,6 +118,8 @@ ALTER TABLE role_success_criteria ADD CONSTRAINT role_success_criteria_stage_id 
 ALTER TABLE stage ADD CONSTRAINT FK_stage_request_id FOREIGN KEY (request_id) REFERENCES request (request_id);
 ALTER TABLE request ADD CONSTRAINT FK_request_schedule_id FOREIGN KEY (request_schedule_id) REFERENCES requestschedule (schedule_id);
 ALTER TABLE ClusterHostMapping ADD CONSTRAINT ClusterHostMapping_host_name FOREIGN KEY (cluster_id) REFERENCES clusters (cluster_id);
+ALTER TABLE user_roles ADD CONSTRAINT FK_user_roles_user_id FOREIGN KEY (user_id) REFERENCES users (user_id);
+ALTER TABLE user_roles ADD CONSTRAINT FK_user_roles_role_name FOREIGN KEY (role_name) REFERENCES roles (role_name);
 ALTER TABLE hostconfigmapping ADD CONSTRAINT FK_hostconfmapping_cluster_id FOREIGN KEY (cluster_id) REFERENCES clusters (cluster_id);
 ALTER TABLE hostconfigmapping ADD CONSTRAINT FK_hostconfmapping_host_name FOREIGN KEY (host_name) REFERENCES hosts (host_name);
 ALTER TABLE configgroup ADD CONSTRAINT FK_configgroup_cluster_id FOREIGN KEY (cluster_id) REFERENCES clusters (cluster_id);
@@ -149,26 +134,14 @@ ALTER TABLE blueprint_configuration ADD CONSTRAINT FK_cfg_blueprint_name FOREIGN
 ALTER TABLE hostgroup_configuration ADD CONSTRAINT FK_hg_cfg_bp_hg_name FOREIGN KEY (blueprint_name, hostgroup_name) REFERENCES hostgroup (blueprint_name, name);
 ALTER TABLE requestresourcefilter ADD CONSTRAINT FK_reqresfilter_req_id FOREIGN KEY (request_id) REFERENCES request (request_id);
 ALTER TABLE requestoperationlevel ADD CONSTRAINT FK_req_op_level_req_id FOREIGN KEY (request_id) REFERENCES request (request_id);
+ALTER TABLE viewinstance ADD CONSTRAINT UQ_viewinstance_name UNIQUE (view_name, name);
+ALTER TABLE viewinstance ADD CONSTRAINT UQ_viewinstance_name_id UNIQUE (view_instance_id, view_name, name);
 ALTER TABLE viewparameter ADD CONSTRAINT FK_viewparam_view_name FOREIGN KEY (view_name) REFERENCES viewmain(view_name);
 ALTER TABLE viewresource ADD CONSTRAINT FK_viewres_view_name FOREIGN KEY (view_name) REFERENCES viewmain(view_name);
 ALTER TABLE viewinstance ADD CONSTRAINT FK_viewinst_view_name FOREIGN KEY (view_name) REFERENCES viewmain(view_name);
 ALTER TABLE viewinstanceproperty ADD CONSTRAINT FK_viewinstprop_view_name FOREIGN KEY (view_name, view_instance_name) REFERENCES viewinstance(view_name, name);
 ALTER TABLE viewinstancedata ADD CONSTRAINT FK_viewinstdata_view_name FOREIGN KEY (view_instance_id, view_name, view_instance_name) REFERENCES viewinstance(view_instance_id, view_name, name);
 ALTER TABLE viewentity ADD CONSTRAINT FK_viewentity_view_name FOREIGN KEY (view_name, view_instance_name) REFERENCES viewinstance(view_name, name);
-ALTER TABLE adminresource ADD CONSTRAINT FK_resource_resource_type_id FOREIGN KEY (resource_type_id) REFERENCES adminresourcetype(resource_type_id);
-ALTER TABLE adminprincipal ADD CONSTRAINT FK_principal_principal_type_id FOREIGN KEY (principal_type_id) REFERENCES adminprincipaltype(principal_type_id);
-ALTER TABLE adminpermission ADD CONSTRAINT FK_permission_resource_type_id FOREIGN KEY (resource_type_id) REFERENCES adminresourcetype(resource_type_id);
-ALTER TABLE adminprivilege ADD CONSTRAINT FK_privilege_permission_id FOREIGN KEY (permission_id) REFERENCES adminpermission(permission_id);
-ALTER TABLE adminprivilege ADD CONSTRAINT FK_privilege_resource_id FOREIGN KEY (resource_id) REFERENCES adminresource(resource_id);
-ALTER TABLE viewmain ADD CONSTRAINT FK_view_resource_type_id FOREIGN KEY (resource_type_id) REFERENCES adminresourcetype(resource_type_id);
-ALTER TABLE viewinstance ADD CONSTRAINT FK_viewinstance_resource_id FOREIGN KEY (resource_id) REFERENCES adminresource(resource_id);
-ALTER TABLE adminprivilege ADD CONSTRAINT FK_privilege_principal_id FOREIGN KEY (principal_id) REFERENCES adminprincipal(principal_id);
-ALTER TABLE users ADD CONSTRAINT FK_users_principal_id FOREIGN KEY (principal_id) REFERENCES adminprincipal(principal_id);
-ALTER TABLE groups ADD CONSTRAINT FK_groups_principal_id FOREIGN KEY (principal_id) REFERENCES adminprincipal(principal_id);
-ALTER TABLE serviceconfigmapping ADD CONSTRAINT FK_scvm_scv FOREIGN KEY (service_config_id) REFERENCES serviceconfig(service_config_id);
-ALTER TABLE serviceconfigmapping ADD CONSTRAINT FK_scvm_config FOREIGN KEY (config_id) REFERENCES clusterconfig(config_id);
-ALTER TABLE serviceconfighosts ADD CONSTRAINT  FK_scvhosts_scv FOREIGN KEY (service_config_id) REFERENCES serviceconfig(service_config_id);
-ALTER TABLE clusters ADD CONSTRAINT FK_clusters_resource_id FOREIGN KEY (resource_id) REFERENCES adminresource(resource_id);
 
 -- Alerting Framework
 CREATE TABLE alert_definition (
@@ -177,10 +150,8 @@ CREATE TABLE alert_definition (
   definition_name VARCHAR(255) NOT NULL,
   service_name VARCHAR(255) NOT NULL,
   component_name VARCHAR(255),
-  scope VARCHAR(255),
-  label VARCHAR(255),
   enabled SMALLINT DEFAULT 1 NOT NULL,
-  schedule_interval INTEGER NOT NULL,
+  schedule_interval BIGINT NOT NULL,
   source_type VARCHAR(255) NOT NULL,
   alert_source TEXT NOT NULL,
   hash VARCHAR(64) NOT NULL,
@@ -208,15 +179,11 @@ CREATE TABLE alert_history (
 
 CREATE TABLE alert_current (
   alert_id BIGINT NOT NULL,
-  definition_id BIGINT NOT NULL,
-  history_id BIGINT NOT NULL UNIQUE,
   maintenance_state VARCHAR(255),
   original_timestamp BIGINT NOT NULL,
   latest_timestamp BIGINT NOT NULL,
-  latest_text TEXT,
   PRIMARY KEY (alert_id),
-  FOREIGN KEY (definition_id) REFERENCES alert_definition(definition_id),
-  FOREIGN KEY (history_id) REFERENCES alert_history(alert_id)
+  FOREIGN KEY (alert_id) REFERENCES alert_history(alert_id)
 );
 
 CREATE TABLE alert_group (
@@ -224,9 +191,8 @@ CREATE TABLE alert_group (
   cluster_id BIGINT NOT NULL,
   group_name VARCHAR(255) NOT NULL,
   is_default SMALLINT NOT NULL DEFAULT 0,
-  service_name VARCHAR(255),
   PRIMARY KEY (group_id),
-  CONSTRAINT uni_alert_group_name UNIQUE(cluster_id,group_name)
+  CONSTRAINT uni_group_name UNIQUE(cluster_id,group_name)
 );
 
 CREATE TABLE alert_target (
@@ -241,7 +207,6 @@ CREATE TABLE alert_target (
 CREATE TABLE alert_group_target (
   group_id BIGINT NOT NULL,
   target_id BIGINT NOT NULL,
-  PRIMARY KEY (group_id, target_id),
   FOREIGN KEY (group_id) REFERENCES alert_group(group_id),
   FOREIGN KEY (target_id) REFERENCES alert_target(target_id)
 );
@@ -249,7 +214,6 @@ CREATE TABLE alert_group_target (
 CREATE TABLE alert_grouping (
   definition_id BIGINT NOT NULL,
   group_id BIGINT NOT NULL,
-  PRIMARY KEY (group_id, definition_id),
   FOREIGN KEY (definition_id) REFERENCES alert_definition(definition_id),
   FOREIGN KEY (group_id) REFERENCES alert_group(group_id)
 );
@@ -259,23 +223,20 @@ CREATE TABLE alert_notice (
   target_id BIGINT NOT NULL,
   history_id BIGINT NOT NULL,
   notify_state VARCHAR(255) NOT NULL,
-  uuid VARCHAR(64) NOT NULL UNIQUE,
   PRIMARY KEY (notification_id),
   FOREIGN KEY (target_id) REFERENCES alert_target(target_id),  
   FOREIGN KEY (history_id) REFERENCES alert_history(alert_id)
 );
 
-CREATE INDEX idx_alert_history_def_id on alert_history(alert_definition_id);
 CREATE INDEX idx_alert_history_service on alert_history(service_name);
 CREATE INDEX idx_alert_history_host on alert_history(host_name);
 CREATE INDEX idx_alert_history_time on alert_history(alert_timestamp);
 CREATE INDEX idx_alert_history_state on alert_history(alert_state);
 CREATE INDEX idx_alert_group_name on alert_group(group_name);
-CREATE INDEX idx_alert_notice_state on alert_notice(notify_state);
 
 ---------inserting some data-----------
 BEGIN;
-  INSERT INTO ambari_sequences (sequence_name, sequence_value)
+  INSERT INTO ambari_sequences (sequence_name, "value")
   SELECT 'cluster_id_seq', 1
   UNION ALL
   SELECT 'user_id_seq', 2
@@ -296,68 +257,18 @@ BEGIN;
   union all
   select 'operation_level_id_seq', 1
   union all
-  select 'view_instance_id_seq', 1
-  union all
-  select 'resource_type_id_seq', 4
-  union all
-  select 'resource_id_seq', 2
-  union all
-  select 'principal_type_id_seq', 3
-  union all
-  select 'principal_id_seq', 2
-  union all
-  select 'permission_id_seq', 5
-  union all
-  select 'privilege_id_seq', 1
-  union all
-  select 'alert_definition_id_seq', 0
-  union all
-  select 'alert_group_id_seq', 0
-  union all
-  select 'alert_target_id_seq', 0
-  union all
-  select 'alert_history_id_seq', 0
-  union all
-  select 'alert_notice_id_seq', 0
-  union all
-  select 'alert_current_id_seq', 0
-  union all
-  select 'config_id_seq', 1
-  union all
-  select 'service_config_id_seq', 1;
+  select 'view_instance_id_seq', 1;
 
-  INSERT INTO adminresourcetype (resource_type_id, resource_type_name)
-  SELECT 1, 'AMBARI'
+  INSERT INTO Roles (role_name)
+  SELECT 'admin'
   UNION ALL
-  SELECT 2, 'CLUSTER'
-  UNION ALL
-  SELECT 3, 'VIEW';
+  SELECT 'user';
 
-  INSERT INTO adminresource (resource_id, resource_type_id)
-  SELECT 1, 1;
+  INSERT INTO Users (user_id, user_name, user_password)
+  SELECT 1, 'admin', '538916f8943ec225d97a9a86a2c6ec0818c1cd400e09e03b660fdaaec4af29ddbb6f2b1033b81b00';
 
-  INSERT INTO adminprincipaltype (principal_type_id, principal_type_name)
-  SELECT 1, 'USER'
-  UNION ALL
-  SELECT 2, 'GROUP';
-
-  INSERT INTO adminprincipal (principal_id, principal_type_id)
-  SELECT 1, 1;
-
-  INSERT INTO Users (user_id, principal_id, user_name, user_password)
-  SELECT 1, 1, 'admin', '538916f8943ec225d97a9a86a2c6ec0818c1cd400e09e03b660fdaaec4af29ddbb6f2b1033b81b00';
-
-  INSERT INTO adminpermission(permission_id, permission_name, resource_type_id)
-  SELECT 1, 'AMBARI.ADMIN', 1
-  UNION ALL
-  SELECT 2, 'CLUSTER.READ', 2
-  UNION ALL
-  SELECT 3, 'CLUSTER.OPERATE', 2
-  UNION ALL
-  SELECT 4, 'VIEW.USE', 3;
-
-  INSERT INTO adminprivilege (privilege_id, permission_id, resource_id, principal_id)
-  SELECT 1, 1, 1, 1;
+  INSERT INTO user_roles (role_name, user_id)
+  SELECT 'admin', 1;
 
   INSERT INTO metainfo (metainfo_key, metainfo_value)
   SELECT 'version', '${ambariVersion}';

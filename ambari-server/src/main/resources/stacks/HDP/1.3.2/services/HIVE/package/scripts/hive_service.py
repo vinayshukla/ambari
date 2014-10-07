@@ -53,7 +53,7 @@ def hive_service(
        params.hive_jdbc_driver == "oracle.jdbc.driver.OracleDriver":
       
       db_connection_check_command = format(
-        "{java64_home}/bin/java -cp {check_db_connection_jar}:/usr/share/java/{jdbc_jar_name} org.apache.ambari.server.DBConnectionVerification '{hive_jdbc_connection_url}' {hive_metastore_user_name} {hive_metastore_user_passwd!p} {hive_jdbc_driver}")
+        "{java64_home}/bin/java -cp {check_db_connection_jar}:/usr/share/java/{jdbc_jar_name} org.apache.ambari.server.DBConnectionVerification {hive_jdbc_connection_url} {hive_metastore_user_name} {hive_metastore_user_passwd!p} {hive_jdbc_driver}")
       
       Execute(db_connection_check_command,
               path='/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin', tries=5, try_sleep=10)
@@ -76,7 +76,6 @@ def hive_service(
         while time.time() < end_time:
           try:
             s.connect((address, port))
-            s.send("A001 AUTHENTICATE ANONYMOUS")
             is_service_socket_valid = True
             break
           except socket.error, e:          

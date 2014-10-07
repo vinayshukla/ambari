@@ -36,16 +36,17 @@ tasktracker_pid_file = status_params.tasktracker_pid_file
 
 hadoop_libexec_dir = '/usr/lib/hadoop/libexec'
 hadoop_bin = "/usr/lib/hadoop/bin"
-user_group = config['configurations']['cluster-env']['user_group']
+user_group = config['configurations']['hadoop-env']['user_group']
 hdfs_log_dir_prefix = config['configurations']['hadoop-env']['hdfs_log_dir_prefix']
 mapred_log_dir_prefix = hdfs_log_dir_prefix
 mapred_local_dir = config['configurations']['mapred-site']['mapred.local.dir']
 update_exclude_file_only = config['commandParams']['update_exclude_file_only']
 
 hadoop_jar_location = "/usr/lib/hadoop/"
-smokeuser = config['configurations']['cluster-env']['smokeuser']
-security_enabled = config['configurations']['cluster-env']['security_enabled']
-smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+smokeuser = config['configurations']['hadoop-env']['smokeuser']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 
 #exclude file
@@ -62,7 +63,6 @@ hadoop_conf_dir = "/etc/hadoop/conf"
 hadoop_pid_dir_prefix = config['configurations']['hadoop-env']['hadoop_pid_dir_prefix']
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 import functools
 #create partial functions with common arguments for every HdfsDirectory call
 #to create hdfs directory we need to call params.HdfsDirectory in code
@@ -78,16 +78,3 @@ HdfsDirectory = functools.partial(
 mapred_tt_group = default("/configurations/mapred-site/mapreduce.tasktracker.group", user_group)
 
 slave_hosts = default("/clusterHostInfo/slave_hosts", [])
-
-rca_enabled = False
-if 'mapred-env' in config['configurations']:
-  rca_enabled =  config['configurations']['mapred-env']['rca_enabled']
-
-ambari_db_rca_url = config['hostLevelParams']['ambari_db_rca_url']
-ambari_db_rca_driver = config['hostLevelParams']['ambari_db_rca_driver']
-ambari_db_rca_username = config['hostLevelParams']['ambari_db_rca_username']
-ambari_db_rca_password = config['hostLevelParams']['ambari_db_rca_password']
-
-rca_properties = ''
-if rca_enabled and 'rca_properties' in config['configurations']['mapred-env']:
-  rca_properties = format(config['configurations']['mapred-env']['rca_properties'])

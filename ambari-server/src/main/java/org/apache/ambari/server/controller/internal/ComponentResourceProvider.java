@@ -485,7 +485,7 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
         }
         if (serviceName == null
             || serviceName.isEmpty()) {
-          throw new AmbariException("Could not find service for component"
+          throw new ObjectNotFoundException("Could not find service for component"
               + ", componentName=" + request.getComponentName()
               + ", clusterName=" + cluster.getClusterName()
               + ", stackInfo=" + stackId.getStackId());
@@ -835,6 +835,8 @@ public class ComponentResourceProvider extends AbstractControllerResourceProvide
 
     // TODO additional validation?
 
+    // TODO if all components reach a common state, should service state be
+    // modified?
     Cluster cluster = clusters.getCluster(clusterNames.iterator().next());
 
     return getManagementController().createAndPersistStages(cluster, requestProperties, null, null, changedComps, changedScHosts,

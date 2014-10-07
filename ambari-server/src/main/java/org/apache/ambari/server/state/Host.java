@@ -164,7 +164,7 @@ public interface Host {
    * Get the os Family: 
    * redhat5: for centos5, rhel5, oraclelinux5 ..
    * redhat6: for centos6, rhel6, oraclelinux6 ..
-   * ubuntu12 : for ubuntu12
+   * debian12 : for ubuntu12
    * suse11: for sles11, suse11 ..
    * 
    * @return the osFamily
@@ -274,18 +274,6 @@ public interface Host {
    * @param state Host State
    */
   public void setState(HostState state);
-
-  /**
-   * Get the prefix path of all logs
-   * @return prefix
-   */
-  public String getPrefix();
-
-  /**
-   * Set the prefix path of all logs of the host
-   * @param prefix the prefix path to set
-   */
-  public void setPrefix(String prefix);
 
   /**
    * Send an event to the Host's StateMachine

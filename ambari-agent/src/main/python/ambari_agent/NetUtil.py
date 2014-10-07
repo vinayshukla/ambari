@@ -15,17 +15,12 @@
 
 
 from urlparse import urlparse
-import time
 import logging
 import httplib
 from ssl import SSLError
-
-ERROR_SSL_WRONG_VERSION = "SSLError: Failed to connect. Please check openssl library versions. \n" +\
-              "Refer to: https://bugzilla.redhat.com/show_bug.cgi?id=1022468 for more details."
-LOG_REQUEST_MESSAGE = "GET %s -> %s, body: %s"
+import platform
 
 logger = logging.getLogger()
-
 
 class NetUtil:
 
@@ -35,61 +30,84 @@ class NetUtil:
 
   # Url within server to request during status check. This url
   # should return HTTP code 200
-  SERVER_STATUS_REQUEST = "{0}/ca"
+  SERVER_STATUS_REQUEST = "{0}/cert/ca"
+
   # For testing purposes
   DEBUG_STOP_RETRIES_FLAG = False
 
+  # Stop implementation
+  # Typically, it waits for a certain time for the daemon/service to receive the stop signal.
+  # Received the number of seconds to wait as an argument
+  # Returns true if the application is stopping, false if continuing execution
+  stopCallback = None
+
+  def __init__(self, stop_callback=None):
+    if stop_callback is None:
+      IS_WINDOWS = platform.system() == "Windows"
+      if IS_WINDOWS:
+        from HeartbeatHandlers_windows import HeartbeatStopHandler
+      else:
+        from HeartbeatStopHandler_linux import HeartbeatStopHandler
+      stop_callback = HeartbeatStopHandler
+
+    self.stopCallback = stop_callback
+
   def checkURL(self, url):
     """Try to connect to a given url. Result is True if url returns HTTP code 200, in any other case
-    (like unreachable server or wrong HTTP code) result will be False.
-
-       Additionally returns body of request, if available
+    (like unreachable server or wrong HTTP code) result will be False
     """
-    logger.info("Connecting to " + url)
-    responseBody = ""
-
+    logger.info("Connecting to " + url);
+    
     try:
       parsedurl = urlparse(url)
       ca_connection = httplib.HTTPSConnection(parsedurl[1])
-      ca_connection.request("GET", parsedurl[2])
-      response = ca_connection.getresponse()
-      status = response.status
-
+      ca_connection.request("HEAD", parsedurl[2])
+      response = ca_connection.getresponse()  
+      status = response.status    
+      
+      requestLogMessage = "HEAD %s -> %s"
+      
       if status == 200:
-        responseBody = response.read()
-        logger.debug(LOG_REQUEST_MESSAGE, url, str(status), responseBody)
-        return True, responseBody
-      else:
-        logger.warning(LOG_REQUEST_MESSAGE, url, str(status), responseBody)
-        return False, responseBody
+        logger.debug(requestLogMessage, url, str(status) ) 
+        return True
+      else: 
+        logger.warning(requestLogMessage, url, str(status) )
+        return False
     except SSLError as slerror:
       logger.error(str(slerror))
-      logger.error(ERROR_SSL_WRONG_VERSION)
-      return False, responseBody
-
+      logger.error("SSLError: Failed to connect. Please check openssl library versions. \n" +
+                   "Refer to: https://bugzilla.redhat.com/show_bug.cgi?id=1022468 for more details.")
+      return False
+    
     except Exception, e:
       logger.warning("Failed to connect to " + str(url) + " due to " + str(e) + "  ")
-      return False, responseBody
+      return False
 
-  def try_to_connect(self, server_url, max_retries, logger=None):
+  def try_to_connect(self, server_url, max_retries, logger = None):
     """Try to connect to a given url, sleeping for CONNECT_SERVER_RETRY_INTERVAL_SEC seconds
     between retries. No more than max_retries is performed. If max_retries is -1, connection
     attempts will be repeated forever until server is not reachable
-
     Returns count of retries
     """
+    connected = False
     if logger is not None:
       logger.debug("Trying to connect to %s", server_url)
-
+      
     retries = 0
     while (max_retries == -1 or retries < max_retries) and not self.DEBUG_STOP_RETRIES_FLAG:
-      server_is_up, responseBody = self.checkURL(self.SERVER_STATUS_REQUEST.format(server_url))
+      server_is_up = self.checkURL(self.SERVER_STATUS_REQUEST.format(server_url))
       if server_is_up:
+        connected = True
         break
       else:
         if logger is not None:
           logger.warn('Server at {0} is not reachable, sleeping for {1} seconds...'.format(server_url,
             self.CONNECT_SERVER_RETRY_INTERVAL_SEC))
         retries += 1
-        time.sleep(self.CONNECT_SERVER_RETRY_INTERVAL_SEC)
-    return retries
+
+      if 0 == self.stopCallback.wait(self.CONNECT_SERVER_RETRY_INTERVAL_SEC):
+        #stop waiting
+        logger.info("Stop event received")
+        self.DEBUG_STOP_RETRIES_FLAG = True
+    return retries, connected
+

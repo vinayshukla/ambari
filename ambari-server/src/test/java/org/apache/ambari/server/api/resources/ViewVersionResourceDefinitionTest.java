@@ -44,11 +44,8 @@ public class ViewVersionResourceDefinitionTest {
     ViewVersionResourceDefinition viewVersionResourceDefinition = new ViewVersionResourceDefinition();
     Set<SubResourceDefinition> subResourceDefinitions = viewVersionResourceDefinition.getSubResourceDefinitions ();
 
-    Assert.assertEquals(2, subResourceDefinitions.size());
+    Assert.assertEquals(1, subResourceDefinitions.size());
 
-    for (SubResourceDefinition subResourceDefinition : subResourceDefinitions) {
-      String name = subResourceDefinition.getType().name();
-      Assert.assertTrue(name.equals("ViewInstance") || name.equals("ViewPermission"));
-    }
+    Assert.assertEquals("ViewInstance", subResourceDefinitions.iterator().next().getType().name());
   }
 }

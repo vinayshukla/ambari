@@ -26,7 +26,6 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -45,14 +44,11 @@ import org.apache.ambari.server.ServiceComponentHostNotFoundException;
 import org.apache.ambari.server.actionmanager.ActionScheduler.RoleStats;
 import org.apache.ambari.server.agent.ActionQueue;
 import org.apache.ambari.server.agent.AgentCommand;
-import org.apache.ambari.server.agent.AgentCommand.AgentCommandType;
-import org.apache.ambari.server.agent.CancelCommand;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.HostsMap;
 import org.apache.ambari.server.serveraction.ServerAction;
-import org.apache.ambari.server.serveraction.ServerActionManager;
 import org.apache.ambari.server.serveraction.ServerActionManagerImpl;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
@@ -62,12 +58,11 @@ import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceComponentHost;
 import org.apache.ambari.server.state.ServiceComponentHostEvent;
+import org.apache.ambari.server.state.ServiceComponentHostEventType;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostInstallEvent;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostOpFailedEvent;
 import org.apache.ambari.server.state.svccomphost.ServiceComponentHostUpgradeEvent;
 import org.apache.ambari.server.utils.StageUtils;
-import org.easymock.Capture;
-import org.easymock.EasyMock;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -85,7 +80,6 @@ public class TestActionScheduler {
   private static final String CLUSTER_HOST_INFO_UPDATED = "{all_hosts=[c6401.ambari.apache.org,"
       + " c6402.ambari.apache.org], slave_hosts=[c6401.ambari.apache.org,"
       + " c6402.ambari.apache.org]}";
-  private final String hostname = "ahost.ambari.apache.org";
 
 
   /**
@@ -115,6 +109,7 @@ public class TestActionScheduler {
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
     
+    String hostname = "ahost.ambari.apache.org";
     Host host = mock(Host.class);
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
@@ -127,14 +122,9 @@ public class TestActionScheduler {
 
     ActionDBAccessor db = mock(ActionDBAccessorImpl.class);
     List<Stage> stages = new ArrayList<Stage>();
-    Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO);
     stages.add(s);
     when(db.getStagesInProgress()).thenReturn(stages);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     //Keep large number of attempts so that the task is not expired finally
     //Small action timeout to test rescheduling
@@ -201,6 +191,7 @@ public class TestActionScheduler {
     when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
+    String hostname = "ahost.ambari.apache.org";
     Host host = mock(Host.class);
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
@@ -212,8 +203,7 @@ public class TestActionScheduler {
     when(host.getHostName()).thenReturn(hostname);
 
     List<Stage> stages = new ArrayList<Stage>();
-    final Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    final Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO);
     stages.add(s);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
@@ -266,6 +256,7 @@ public class TestActionScheduler {
     when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
+    String hostname = "ahost.ambari.apache.org";
     Host host = mock(Host.class);
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
@@ -277,16 +268,10 @@ public class TestActionScheduler {
     when(host.getHostName()).thenReturn(hostname);
 
     List<Stage> stages = new ArrayList<Stage>();
-    final Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    final Stage s = StageUtils.getATestStage(1, 977, hostname, CLUSTER_HOST_INFO);
     stages.add(s);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
       @Override
@@ -299,15 +284,10 @@ public class TestActionScheduler {
       }
     }).when(db).timeoutHostRole(anyString(), anyLong(), anyLong(), anyString());
 
-    ServerActionManager sam = EasyMock.createNiceMock(ServerActionManager.class);
 
     //Small action timeout to test rescheduling
-    ActionScheduler scheduler = EasyMock.createMockBuilder(ActionScheduler.class).
-        withConstructor((long) 100, (long) 50, db, aq, fsm, 3,
-                new HostsMap((String) null), sam, unitOfWork, conf).
-        addMockedMethod("cancelHostRoleCommands").
-        createMock();
-    EasyMock.replay(scheduler);
+    ActionScheduler scheduler = new ActionScheduler(100, 50, db, aq, fsm, 3,
+      new HostsMap((String) null), null, unitOfWork, conf);
     scheduler.setTaskTimeoutAdjustment(false);
     // Start the thread
     scheduler.start();
@@ -316,11 +296,10 @@ public class TestActionScheduler {
       .equals(HostRoleStatus.TIMEDOUT)) {
       Thread.sleep(100L);
     }
+//    assertEquals(stages.get(0).getHostRoleStatus(hostname, "NAMENODE"),
+//      HostRoleStatus.TIMEDOUT);
 
     scheduler.stop();
-
-    //Check that cancelHostRoleCommands() was not called
-    EasyMock.verify(scheduler);
   }
 
   @Test
@@ -361,7 +340,7 @@ public class TestActionScheduler {
 
     final List<Stage> stages = new ArrayList<Stage>();
     Stage stage = new Stage(1, "/tmp", "cluster1", 1L, "stageWith2Tasks",
-      CLUSTER_HOST_INFO, "", "");
+      CLUSTER_HOST_INFO);
     addInstallTaskToStage(stage, hostname1, "cluster1", Role.DATANODE,
       RoleCommand.INSTALL, Service.Type.HDFS, 1);
     addInstallTaskToStage(stage, hostname2, "cluster1", Role.NAMENODE,
@@ -369,10 +348,6 @@ public class TestActionScheduler {
     stages.add(stage);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     when(db.getStagesInProgress()).thenReturn(stages);
 
@@ -488,6 +463,7 @@ public class TestActionScheduler {
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
 
+    String hostname = "ahost.ambari.apache.org";
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
     hosts.put(hostname, sch);
@@ -501,11 +477,6 @@ public class TestActionScheduler {
     stages.add(s);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
       @Override
@@ -554,6 +525,7 @@ public class TestActionScheduler {
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
 
+    String hostname = "ahost.ambari.apache.org";
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
     hosts.put(hostname, sch);
@@ -566,11 +538,6 @@ public class TestActionScheduler {
     stages.add(s);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
       @Override
@@ -601,8 +568,7 @@ public class TestActionScheduler {
 
   private static Stage getStageWithServerAction(long requestId, long stageId, String hostName,
                                                 Map<String, String> payload, String requestContext) {
-    Stage stage = new Stage(requestId, "/tmp", "cluster1", 1L, requestContext, CLUSTER_HOST_INFO,
-      "", "");
+    Stage stage = new Stage(requestId, "/tmp", "cluster1", 1L, requestContext, CLUSTER_HOST_INFO);
     stage.setStageId(stageId);
     long now = System.currentTimeMillis();
     stage.addServerActionCommand(ServerAction.Command.FINALIZE_UPGRADE, Role.AMBARI_SERVER_ACTION,
@@ -675,11 +641,6 @@ public class TestActionScheduler {
                     RoleCommand.START, Service.Type.GANGLIA, 5, 5, 4));
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
 
     Properties properties = new Properties();
@@ -759,11 +720,6 @@ public class TestActionScheduler {
                     RoleCommand.START, Service.Type.GANGLIA, 5, 5, 4));
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
 
     Properties properties = new Properties();
@@ -786,79 +742,6 @@ public class TestActionScheduler {
     Assert.assertEquals(HostRoleStatus.PENDING, stages.get(3).getHostRoleStatus(hostname3, "DATANODE"));
     Assert.assertEquals(HostRoleStatus.PENDING, stages.get(4).getHostRoleStatus(hostname4, "GANGLIA_MONITOR"));
   }
-  /**
-   * Verifies that ActionScheduler allows to execute background tasks in parallel
-   */
-  @Test
-  public void testBackgroundStagesExecutionEnable() throws Exception {
-    ActionQueue aq = new ActionQueue();
-    Clusters fsm = mock(Clusters.class);
-    Cluster oneClusterMock = mock(Cluster.class);
-    Service serviceObj = mock(Service.class);
-    ServiceComponent scomp = mock(ServiceComponent.class);
-    ServiceComponentHost sch = mock(ServiceComponentHost.class);
-    UnitOfWork unitOfWork = mock(UnitOfWork.class);
-    RequestFactory requestFactory = mock(RequestFactory.class);
-    when(fsm.getCluster(anyString())).thenReturn(oneClusterMock);
-    when(oneClusterMock.getService(anyString())).thenReturn(serviceObj);
-    when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
-    when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
-    when(serviceObj.getCluster()).thenReturn(oneClusterMock);
-    
-    String hostname1 = "ahost.ambari.apache.org";
-    String hostname2 = "bhost.ambari.apache.org";
-    HashMap<String, ServiceComponentHost> hosts =
-        new HashMap<String, ServiceComponentHost>();
-    hosts.put(hostname1, sch);
-    hosts.put(hostname2, sch);
-    when(scomp.getServiceComponentHosts()).thenReturn(hosts);
-    
-    List<Stage> stages = new ArrayList<Stage>();
-    Stage backgroundStage = null;
-    stages.add(//stage with background command
-        backgroundStage = getStageWithSingleTask(
-            hostname1, "cluster1", Role.NAMENODE, RoleCommand.CUSTOM_COMMAND, "REBALANCEHDFS", Service.Type.HDFS, 1, 1, 1));
-    
-    Assert.assertEquals(AgentCommandType.BACKGROUND_EXECUTION_COMMAND ,backgroundStage.getExecutionCommands(hostname1).get(0).getExecutionCommand().getCommandType());
-    
-    stages.add( // Stage with the same hostname, should be scheduled
-        getStageWithSingleTask(
-            hostname1, "cluster1", Role.GANGLIA_MONITOR,
-            RoleCommand.START, Service.Type.GANGLIA, 2, 2, 2));
-    
-    stages.add(
-        getStageWithSingleTask(
-            hostname2, "cluster1", Role.DATANODE,
-            RoleCommand.START, Service.Type.HDFS, 3, 3, 3));
-    
-    
-    ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
-    when(db.getStagesInProgress()).thenReturn(stages);
-    
-    Properties properties = new Properties();
-    properties.put(Configuration.PARALLEL_STAGE_EXECUTION_KEY, "true");
-    Configuration conf = new Configuration(properties);
-    ActionScheduler scheduler = new ActionScheduler(100, 50, db, aq, fsm, 3,
-        new HostsMap((String) null), new ServerActionManagerImpl(fsm),
-        unitOfWork, conf);
-    
-    ActionManager am = new ActionManager(
-        2, 2, aq, fsm, db, new HostsMap((String) null),
-        new ServerActionManagerImpl(fsm), unitOfWork,
-        requestFactory, conf);
-    
-    scheduler.doWork();
-    
-    Assert.assertEquals(HostRoleStatus.QUEUED, stages.get(0).getHostRoleStatus(hostname1, "NAMENODE"));
-    Assert.assertEquals(HostRoleStatus.QUEUED, stages.get(2).getHostRoleStatus(hostname2, "DATANODE"));
-
-    Assert.assertEquals(HostRoleStatus.QUEUED, stages.get(1).getHostRoleStatus(hostname1, "GANGLIA_MONITOR"));
-  }
 
 
   @Test
@@ -877,6 +760,7 @@ public class TestActionScheduler {
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
 
+    String hostname = "ahost.ambari.apache.org";
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
     hosts.put(hostname, sch);
@@ -896,10 +780,6 @@ public class TestActionScheduler {
     when(host.getHostName()).thenReturn(hostname);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
@@ -965,34 +845,21 @@ public class TestActionScheduler {
 
     Properties properties = new Properties();
     Configuration conf = new Configuration(properties);
-    ServerActionManagerImpl serverActionManager = new ServerActionManagerImpl(fsm);
-
-    Capture<Collection<HostRoleCommand>> cancelCommandList = new Capture<Collection<HostRoleCommand>>();
-    ActionScheduler scheduler = EasyMock.createMockBuilder(ActionScheduler.class).
-        withConstructor((long)100, (long)50, db, aq, fsm, 3,
-          new HostsMap((String) null), serverActionManager,
-          unitOfWork, conf).
-          addMockedMethod("cancelHostRoleCommands").
-          createMock();
-    scheduler.cancelHostRoleCommands(EasyMock.capture(cancelCommandList),
-            EasyMock.eq(ActionScheduler.FAILED_TASK_ABORT_REASONING));
-    EasyMock.expectLastCall().once();
-    EasyMock.replay(scheduler);
-
+    ActionScheduler scheduler = new ActionScheduler(100, 50, db, aq, fsm, 3,
+        new HostsMap((String) null), new ServerActionManagerImpl(fsm),
+        unitOfWork, conf);
     ActionManager am = new ActionManager(
-        2, 2, aq, fsm, db, new HostsMap((String) null), serverActionManager, unitOfWork, requestFactory, conf);
+        2, 2, aq, fsm, db, new HostsMap((String) null), new ServerActionManagerImpl(fsm), unitOfWork, requestFactory, conf);
 
     scheduler.doWork();
 
     List<CommandReport> reports = new ArrayList<CommandReport>();
     reports.add(getCommandReport(HostRoleStatus.FAILED, Role.NAMENODE, Service.Type.HDFS, "1-1", 1));
-    am.processTaskResponse(hostname, reports, stages.get(0).getOrderedHostRoleCommands());
+    am.processTaskResponse(hostname, reports);
 
     scheduler.doWork();
     Assert.assertEquals(HostRoleStatus.FAILED, stages.get(0).getHostRoleStatus(hostname, "NAMENODE"));
     Assert.assertEquals(HostRoleStatus.ABORTED, stages.get(1).getHostRoleStatus(hostname, "DATANODE"));
-    Assert.assertEquals(cancelCommandList.getValue().size(), 1);
-    EasyMock.verify(scheduler);
   }
 
   /**
@@ -1030,11 +897,12 @@ public class TestActionScheduler {
     when(host.getState()).thenReturn(HostState.HEALTHY);
     when(host.getHostName()).thenReturn(host1);
 
+
     final List<Stage> stages = new ArrayList<Stage>();
 
     long now = System.currentTimeMillis();
     Stage stage = new Stage(1, "/tmp", "cluster1", 1L,
-        "testRequestFailureBasedOnSuccessFactor", CLUSTER_HOST_INFO, "", "");
+        "testRequestFailureBasedOnSuccessFactor", CLUSTER_HOST_INFO);
     stage.setStageId(1);
 
     addHostRoleExecutionCommand(now, stage, Role.SQOOP, Service.Type.SQOOP,
@@ -1077,10 +945,6 @@ public class TestActionScheduler {
     stage.setLastAttemptTime(host2, Role.HBASE_CLIENT.toString(), now);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
@@ -1223,8 +1087,7 @@ public class TestActionScheduler {
     final List<Stage> stages = new ArrayList<Stage>();
 
     long now = System.currentTimeMillis();
-    Stage stage = new Stage(1, "/tmp", "cluster1", 1L, "testRequestFailureBasedOnSuccessFactor",
-      CLUSTER_HOST_INFO, "", "");
+    Stage stage = new Stage(1, "/tmp", "cluster1", 1L, "testRequestFailureBasedOnSuccessFactor", CLUSTER_HOST_INFO);
     stage.setStageId(1);
     stage.addHostRoleExecutionCommand("host1", Role.DATANODE, RoleCommand.UPGRADE,
         new ServiceComponentHostUpgradeEvent(Role.DATANODE.toString(), "host1", now, "HDP-0.2"),
@@ -1254,10 +1117,6 @@ public class TestActionScheduler {
             "host1", "cluster1", Role.HDFS_CLIENT, RoleCommand.UPGRADE, Service.Type.HDFS, 4, 2, 1));
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
@@ -1333,15 +1192,15 @@ public class TestActionScheduler {
 
     List<CommandReport> reports = new ArrayList<CommandReport>();
     reports.add(getCommandReport(HostRoleStatus.FAILED, Role.DATANODE, Service.Type.HDFS, "1-1", 1));
-    am.processTaskResponse("host1", reports, stage.getOrderedHostRoleCommands());
+    am.processTaskResponse("host1", reports);
 
     reports.clear();
     reports.add(getCommandReport(HostRoleStatus.FAILED, Role.DATANODE, Service.Type.HDFS, "1-1", 2));
-    am.processTaskResponse("host2", reports, stage.getOrderedHostRoleCommands());
+    am.processTaskResponse("host2", reports);
 
     reports.clear();
     reports.add(getCommandReport(HostRoleStatus.COMPLETED, Role.DATANODE, Service.Type.HDFS, "1-1", 3));
-    am.processTaskResponse("host3", reports, stage.getOrderedHostRoleCommands());
+    am.processTaskResponse("host3", reports);
 
     scheduler.doWork();
     Assert.assertEquals(HostRoleStatus.ABORTED, stages.get(1).getHostRoleStatus("host1", "HDFS_CLIENT"));
@@ -1364,8 +1223,7 @@ public class TestActionScheduler {
   private Stage getStageWithSingleTask(String hostname, String clusterName, Role role,
                                        RoleCommand roleCommand, Service.Type service, int taskId,
                                        int stageId, int requestId) {
-    Stage stage = new Stage(requestId, "/tmp", clusterName, 1L, "getStageWithSingleTask",
-      CLUSTER_HOST_INFO, "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    Stage stage = new Stage(requestId, "/tmp", clusterName, 1L, "getStageWithSingleTask", CLUSTER_HOST_INFO);
     stage.setStageId(stageId);
     stage.addHostRoleExecutionCommand(hostname, role, roleCommand,
         new ServiceComponentHostUpgradeEvent(role.toString(), hostname, System.currentTimeMillis(), "HDP-0.2"),
@@ -1373,19 +1231,6 @@ public class TestActionScheduler {
     stage.getExecutionCommandWrapper(hostname,
         role.toString()).getExecutionCommand();
     stage.getOrderedHostRoleCommands().get(0).setTaskId(taskId);
-    return stage;
-  }
-
-  private Stage getStageWithSingleTask(String hostname, String clusterName, Role role, RoleCommand roleCommand,
-      String customCommandName, Service.Type service, int taskId, int stageId, int requestId) {
-    Stage stage = getStageWithSingleTask(hostname, clusterName, role, roleCommand, service, taskId, stageId, requestId);
-
-    HostRoleCommand cmd = stage.getHostRoleCommand(hostname, role.name());
-    if (cmd != null) {
-      cmd.setCustomCommandName(customCommandName);
-    }
-
-    stage.getExecutionCommandWrapper(hostname, role.toString()).getExecutionCommand().setCommandType(AgentCommandType.BACKGROUND_EXECUTION_COMMAND);
     return stage;
   }
 
@@ -1409,8 +1254,7 @@ public class TestActionScheduler {
 
   @Test
   public void testSuccessFactors() {
-    Stage s = StageUtils.getATestStage(1, 1, CLUSTER_HOST_INFO,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    Stage s = StageUtils.getATestStage(1, 1, CLUSTER_HOST_INFO);
     assertEquals(new Float(0.5), new Float(s.getSuccessFactor(Role.DATANODE)));
     assertEquals(new Float(0.5), new Float(s.getSuccessFactor(Role.TASKTRACKER)));
     assertEquals(new Float(0.5), new Float(s.getSuccessFactor(Role.GANGLIA_MONITOR)));
@@ -1471,6 +1315,7 @@ public class TestActionScheduler {
     when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
+    String hostname = "ahost.ambari.apache.org";
     Host host = mock(Host.class);
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
@@ -1481,16 +1326,10 @@ public class TestActionScheduler {
     when(host.getState()).thenReturn(HostState.HEALTHY);
     when(host.getHostName()).thenReturn(hostname);
 
+
     ActionDBAccessor db = mock(ActionDBAccessorImpl.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
-    Stage s1 = StageUtils.getATestStage(requestId1, stageId, hostname, CLUSTER_HOST_INFO,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
-    Stage s2 = StageUtils.getATestStage(requestId2, stageId, hostname, CLUSTER_HOST_INFO_UPDATED,
-      "{\"host_param\":\"param_value\"}", "{\"stage_param\":\"param_value\"}");
+    Stage s1 = StageUtils.getATestStage(requestId1, stageId, hostname, CLUSTER_HOST_INFO);
+    Stage s2 = StageUtils.getATestStage(requestId2, stageId, hostname, CLUSTER_HOST_INFO_UPDATED);
     when(db.getStagesInProgress()).thenReturn(Collections.singletonList(s1));
 
     //Keep large number of attempts so that the task is not expired finally
@@ -1561,7 +1400,7 @@ public class TestActionScheduler {
 
     final List<Stage> stages = new ArrayList<Stage>();
     Stage stage1 = new Stage(1, "/tmp", "cluster1", 1L, "stageWith2Tasks",
-            CLUSTER_HOST_INFO, "", "");
+            CLUSTER_HOST_INFO);
     addInstallTaskToStage(stage1, hostname1, "cluster1", Role.HBASE_MASTER,
             RoleCommand.INSTALL, Service.Type.HBASE, 1);
     addInstallTaskToStage(stage1, hostname1, "cluster1", Role.HBASE_REGIONSERVER,
@@ -1569,10 +1408,6 @@ public class TestActionScheduler {
     stages.add(stage1);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
 
     when(db.getStagesInProgress()).thenReturn(stages);
 
@@ -1638,6 +1473,7 @@ public class TestActionScheduler {
     when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
     when(serviceObj.getCluster()).thenReturn(oneClusterMock);
 
+    String hostname = "ahost.ambari.apache.org";
     HashMap<String, ServiceComponentHost> hosts =
             new HashMap<String, ServiceComponentHost>();
     hosts.put(hostname, sch);
@@ -1652,11 +1488,6 @@ public class TestActionScheduler {
     stages.add(s);
 
     ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
     when(db.getStagesInProgress()).thenReturn(stages);
     doAnswer(new Answer() {
       @Override
@@ -1684,335 +1515,7 @@ public class TestActionScheduler {
     scheduler.stop();
     assertEquals(stages.get(0).getHostRoleStatus(hostname, "AMBARI_SERVER_ACTION"),
             HostRoleStatus.COMPLETED);
-  }
 
-  @Test
-  public void testCancelRequests() throws Exception {
-    ActionQueue aq = new ActionQueue();
-    Clusters fsm = mock(Clusters.class);
-    Cluster oneClusterMock = mock(Cluster.class);
-    Service serviceObj = mock(Service.class);
-    ServiceComponent scomp = mock(ServiceComponent.class);
-    ServiceComponentHost sch = mock(ServiceComponentHost.class);
-    UnitOfWork unitOfWork = mock(UnitOfWork.class);
-    RequestFactory requestFactory = mock(RequestFactory.class);
-    when(fsm.getCluster(anyString())).thenReturn(oneClusterMock);
-    when(oneClusterMock.getService(anyString())).thenReturn(serviceObj);
-    when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
-    when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
-    when(serviceObj.getCluster()).thenReturn(oneClusterMock);
-
-    HashMap<String, ServiceComponentHost> hosts =
-            new HashMap<String, ServiceComponentHost>();
-    hosts.put(hostname, sch);
-    when(scomp.getServiceComponentHosts()).thenReturn(hosts);
-
-    long requestId = 1;
-
-    final List<Stage> stages = new ArrayList<Stage>();
-    int namenodeCmdTaskId = 1;
-    stages.add(
-            getStageWithSingleTask(
-                    hostname, "cluster1", Role.NAMENODE, RoleCommand.START,
-                    Service.Type.HDFS, namenodeCmdTaskId, 1, (int)requestId));
-    stages.add(
-            getStageWithSingleTask(
-                    hostname, "cluster1", Role.DATANODE, RoleCommand.START,
-                    Service.Type.HDFS, 2, 2, (int)requestId));
-
-    Host host = mock(Host.class);
-    when(fsm.getHost(anyString())).thenReturn(host);
-    when(host.getState()).thenReturn(HostState.HEALTHY);
-    when(host.getHostName()).thenReturn(hostname);
-
-    ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    Request request = mock(Request.class);
-    when(request.isExclusive()).thenReturn(false);
-    when(db.getRequest(anyLong())).thenReturn(request);
-
-    when(db.getStagesInProgress()).thenReturn(stages);
-
-    List<HostRoleCommand> requestTasks = new ArrayList<HostRoleCommand>();
-    for (Stage stage : stages) {
-      requestTasks.addAll(stage.getOrderedHostRoleCommands());
-    }
-    when(db.getRequestTasks(anyLong())).thenReturn(requestTasks);
-    when(db.getAllStages(anyLong())).thenReturn(stages);
-    doAnswer(new Answer() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        List<CommandReport> reports = (List<CommandReport>) invocation.getArguments()[0];
-        for (CommandReport report : reports) {
-          String actionId = report.getActionId();
-          long[] requestStageIds = StageUtils.getRequestStage(actionId);
-          Long requestId = requestStageIds[0];
-          Long stageId = requestStageIds[1];
-          String role = report.getRole();
-          Long id = report.getTaskId();
-          for (Stage stage : stages) {
-            if (requestId.equals(stage.getRequestId()) && stageId.equals(stage.getStageId())) {
-              for (HostRoleCommand hostRoleCommand : stage.getOrderedHostRoleCommands()) {
-                if (hostRoleCommand.getTaskId() == id) {
-                  hostRoleCommand.setStatus(HostRoleStatus.valueOf(report.getStatus()));
-                }
-              }
-            }
-          }
-
-        }
-
-        return null;
-      }
-    }).when(db).updateHostRoleStates(anyCollectionOf(CommandReport.class));
-
-    when(db.getTask(anyLong())).thenAnswer(new Answer<Object>() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        Long taskId = (Long) invocation.getArguments()[0];
-        for (Stage stage : stages) {
-          for (HostRoleCommand command : stage.getOrderedHostRoleCommands()) {
-            if (taskId.equals(command.getTaskId())) {
-              return command;
-            }
-          }
-        }
-        return null;
-      }
-    });
-    doAnswer(new Answer() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        Long requestId = (Long) invocation.getArguments()[0];
-        for (Stage stage : stages) {
-          if (requestId.equals(stage.getRequestId())) {
-            for (HostRoleCommand command : stage.getOrderedHostRoleCommands()) {
-              if (command.getStatus() == HostRoleStatus.QUEUED ||
-                      command.getStatus() == HostRoleStatus.IN_PROGRESS ||
-                      command.getStatus() == HostRoleStatus.PENDING) {
-                command.setStatus(HostRoleStatus.ABORTED);
-              }
-            }
-          }
-        }
-
-        return null;
-      }
-    }).when(db).abortOperation(anyLong());
-
-    Properties properties = new Properties();
-    Configuration conf = new Configuration(properties);
-    ServerActionManagerImpl serverActionManager = new ServerActionManagerImpl(fsm);
-
-    ActionScheduler scheduler =new ActionScheduler(100, 50, db, aq, fsm, 3,
-                    new HostsMap((String) null), serverActionManager, unitOfWork, conf);
-
-    ActionManager am = new ActionManager(
-            2, 2, aq, fsm, db, new HostsMap((String) null),
-            serverActionManager, unitOfWork, requestFactory, conf);
-
-    scheduler.doWork();
-
-    String reason = "Some reason";
-
-    scheduler.scheduleCancellingRequest(requestId, reason);
-
-    scheduler.doWork();
-    Assert.assertEquals(HostRoleStatus.ABORTED, stages.get(0).getHostRoleStatus(hostname, "NAMENODE"));
-    Assert.assertEquals(HostRoleStatus.ABORTED, stages.get(1).getHostRoleStatus(hostname, "DATANODE"));
-    Assert.assertEquals(aq.size(hostname), 1); // Cancel commands should be generated only for 1 stage
-
-    CancelCommand cancelCommand = (CancelCommand) aq.dequeue(hostname);
-    Assert.assertEquals(cancelCommand.getTargetTaskId(), namenodeCmdTaskId);
-    Assert.assertEquals(cancelCommand.getReason(), reason);
-  }
-
-
-  @Test
-  public void testExclusiveRequests() throws Exception {
-    ActionQueue aq = new ActionQueue();
-    Clusters fsm = mock(Clusters.class);
-    Cluster oneClusterMock = mock(Cluster.class);
-    Service serviceObj = mock(Service.class);
-    ServiceComponent scomp = mock(ServiceComponent.class);
-    ServiceComponentHost sch = mock(ServiceComponentHost.class);
-    UnitOfWork unitOfWork = mock(UnitOfWork.class);
-    RequestFactory requestFactory = mock(RequestFactory.class);
-    when(fsm.getCluster(anyString())).thenReturn(oneClusterMock);
-    when(oneClusterMock.getService(anyString())).thenReturn(serviceObj);
-    when(serviceObj.getServiceComponent(anyString())).thenReturn(scomp);
-    when(scomp.getServiceComponentHost(anyString())).thenReturn(sch);
-    when(serviceObj.getCluster()).thenReturn(oneClusterMock);
-
-    HashMap<String, ServiceComponentHost> hosts =
-            new HashMap<String, ServiceComponentHost>();
-    String hostname1 = "hostname1";
-    String hostname2 = "hostname2";
-    String hostname3 = "hostname3";
-
-    hosts.put(hostname1, sch);
-    hosts.put(hostname2, sch);
-    hosts.put(hostname3, sch);
-    when(scomp.getServiceComponentHosts()).thenReturn(hosts);
-
-    long requestId1 = 1;
-    long requestId2 = 2;
-    long requestId3 = 3;
-
-    final List<Stage> stagesInProgress = new ArrayList<Stage>();
-    int namenodeCmdTaskId = 1;
-    stagesInProgress.add(
-            getStageWithSingleTask(
-                    hostname1, "cluster1", Role.NAMENODE, RoleCommand.START,
-                    Service.Type.HDFS, namenodeCmdTaskId, 1, (int) requestId1));
-    stagesInProgress.add(
-            getStageWithSingleTask(
-                    hostname1, "cluster1", Role.DATANODE, RoleCommand.START,
-                    Service.Type.HDFS, 2, 2, (int) requestId1));
-    stagesInProgress.add(
-            getStageWithSingleTask(
-                    hostname2, "cluster1", Role.DATANODE, RoleCommand.STOP, //Exclusive
-                    Service.Type.HDFS, 3, 3, (int) requestId2));
-
-    stagesInProgress.add(
-            getStageWithSingleTask(
-                    hostname3, "cluster1", Role.DATANODE, RoleCommand.START,
-                    Service.Type.HDFS, 4, 4, (int) requestId3));
-
-
-    Host host1 = mock(Host.class);
-    when(fsm.getHost(anyString())).thenReturn(host1);
-    when(host1.getState()).thenReturn(HostState.HEALTHY);
-    when(host1.getHostName()).thenReturn(hostname);
-
-    Host host2 = mock(Host.class);
-    when(fsm.getHost(anyString())).thenReturn(host2);
-    when(host2.getState()).thenReturn(HostState.HEALTHY);
-    when(host2.getHostName()).thenReturn(hostname);
-
-    Host host3 = mock(Host.class);
-    when(fsm.getHost(anyString())).thenReturn(host3);
-    when(host3.getState()).thenReturn(HostState.HEALTHY);
-    when(host3.getHostName()).thenReturn(hostname);
-
-    ActionDBAccessor db = mock(ActionDBAccessor.class);
-
-    when(db.getStagesInProgress()).thenReturn(stagesInProgress);
-
-    List<HostRoleCommand> requestTasks = new ArrayList<HostRoleCommand>();
-    for (Stage stage : stagesInProgress) {
-      requestTasks.addAll(stage.getOrderedHostRoleCommands());
-    }
-    when(db.getRequestTasks(anyLong())).thenReturn(requestTasks);
-    when(db.getAllStages(anyLong())).thenReturn(stagesInProgress);
-    doAnswer(new Answer() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        List<CommandReport> reports = (List<CommandReport>) invocation.getArguments()[0];
-        for (CommandReport report : reports) {
-          String actionId = report.getActionId();
-          long[] requestStageIds = StageUtils.getRequestStage(actionId);
-          Long requestId = requestStageIds[0];
-          Long stageId = requestStageIds[1];
-          String role = report.getRole();
-          Long id = report.getTaskId();
-          for (Stage stage : stagesInProgress) {
-            if (requestId.equals(stage.getRequestId()) && stageId.equals(stage.getStageId())) {
-              for (HostRoleCommand hostRoleCommand : stage.getOrderedHostRoleCommands()) {
-                if (hostRoleCommand.getTaskId() == id) {
-                  hostRoleCommand.setStatus(HostRoleStatus.valueOf(report.getStatus()));
-                }
-              }
-            }
-          }
-
-        }
-
-        return null;
-      }
-    }).when(db).updateHostRoleStates(anyCollectionOf(CommandReport.class));
-
-    when(db.getTask(anyLong())).thenAnswer(new Answer<Object>() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        Long taskId = (Long) invocation.getArguments()[0];
-        for (Stage stage : stagesInProgress) {
-          for (HostRoleCommand command : stage.getOrderedHostRoleCommands()) {
-            if (taskId.equals(command.getTaskId())) {
-              return command;
-            }
-          }
-        }
-        return null;
-      }
-    });
-
-    final Map<Long, Boolean> startedRequests = new HashMap<Long, Boolean>();
-    doAnswer(new Answer() {
-      @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
-        startedRequests.put((Long)invocation.getArguments()[0], true);
-        return null;
-      }
-    }).when(db).startRequest(anyLong());
-
-    Request request1 = mock(Request.class);
-    when(request1.isExclusive()).thenReturn(false);
-    Request request2 = mock(Request.class);
-    when(request2.isExclusive()).thenReturn(true);
-    Request request3 = mock(Request.class);
-    when(request3.isExclusive()).thenReturn(false);
-
-    when(db.getRequest(requestId1)).thenReturn(request1);
-    when(db.getRequest(requestId2)).thenReturn(request2);
-    when(db.getRequest(requestId3)).thenReturn(request3);
-
-    Properties properties = new Properties();
-    Configuration conf = new Configuration(properties);
-    ServerActionManagerImpl serverActionManager = new ServerActionManagerImpl(fsm);
-
-    ActionScheduler scheduler =new ActionScheduler(100, 50, db, aq, fsm, 3,
-            new HostsMap((String) null), serverActionManager, unitOfWork, conf);
-
-    ActionManager am = new ActionManager(
-            2, 2, aq, fsm, db, new HostsMap((String) null),
-            serverActionManager, unitOfWork, requestFactory, conf);
-
-    // Execution of request 1
-
-    scheduler.doWork();
-
-    Assert.assertTrue(startedRequests.containsKey(requestId1));
-    Assert.assertFalse(startedRequests.containsKey(requestId2));
-    Assert.assertFalse(startedRequests.containsKey(requestId3));
-
-    stagesInProgress.remove(0);
-
-    scheduler.doWork();
-
-    Assert.assertTrue(startedRequests.containsKey(requestId1));
-    Assert.assertFalse(startedRequests.containsKey(requestId2));
-    Assert.assertFalse(startedRequests.containsKey(requestId3));
-
-    // Execution of request 2
-
-    stagesInProgress.remove(0);
-
-    scheduler.doWork();
-
-    Assert.assertTrue(startedRequests.containsKey(requestId1));
-    Assert.assertTrue(startedRequests.containsKey(requestId2));
-    Assert.assertFalse(startedRequests.containsKey(requestId3));
-
-    // Execution of request 3
-
-    stagesInProgress.remove(0);
-
-    scheduler.doWork();
-
-    Assert.assertTrue(startedRequests.containsKey(requestId1));
-    Assert.assertTrue(startedRequests.containsKey(requestId2));
-    Assert.assertTrue(startedRequests.containsKey(requestId3));
 
   }
 

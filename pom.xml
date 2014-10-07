@@ -31,7 +31,6 @@
     <deb.section>universe/admin</deb.section>
     <deb.architecture>i386 amd64</deb.architecture>
     <deb.priority>extra</deb.priority>
-    <stack.distribution>HDP</stack.distribution>
   </properties>
   <pluginRepositories>
     <pluginRepository>
@@ -58,7 +57,7 @@
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.11</version>
+          <version>0.10</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -73,11 +72,6 @@
         <plugin>
           <groupId>org.vafer</groupId>
           <artifactId>jdeb</artifactId>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-clean-plugin</artifactId>
-          <version>2.5</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -108,7 +102,7 @@
             <configuration>
               <name>package-release</name>
               <value>${project.version}</value>
-              <regex>^([0-9]+)\.([0-9]+)\.([0-9]+)(\.|-)(([0-9]+)|(SNAPSHOT)).*</regex>
+              <regex>^([0-9]+)\.([0-9]+)\.([0-9]+)(\.|-)(([0-9]+)|(SNAPSHOT)|(techwin)).*</regex>
               <replacement>$5</replacement>
               <failIfNoMatch>true</failIfNoMatch>
             </configuration>
@@ -183,17 +177,14 @@
             <exclude>contrib/ambari-scom/msi/src/GUI_Ambari.sln</exclude>
             <exclude>version</exclude>
             <!--IDE and GIT files-->
-            <exclude>.idea/</exclude>
+            <exclude>**/.idea/</exclude>
             <exclude>.git/</exclude>
-            <exclude>.pydevproject</exclude>
             <exclude>**/.gitignore</exclude>
             <exclude>**/.gitattributes</exclude>
             <exclude>**/.gitkeep</exclude>
-            <exclude>**/.jshintrc</exclude>
-            <exclude>**/.editorconfig</exclude>
-              <!--gitignore content-->
+            <!--gitignore content-->
             <exclude>.DS_Store</exclude>
-            <exclude>.iml/</exclude>
+            <exclude>**/*.iml</exclude>
             <exclude>.classpath</exclude>
             <exclude>.project</exclude>
             <exclude>.settings</exclude>
@@ -206,29 +197,17 @@
             <!--Python Mock library (BSD license)-->
             <exclude>ambari-common/src/test/python/mock/**</exclude>
             <!--Jinja2 library (BSD license)-->
-            <exclude>ambari-common/src/main/python/ambari_jinja2/**</exclude>
             <exclude>ambari-common/src/main/python/jinja2/**</exclude>
-
-            <exclude>ambari-web/node_modules/**</exclude>
 
             <!--Contributions-->
             <exclude>contrib/ambari-scom/management-pack/Hadoop_MP/**</exclude>
             <exclude>contrib/addons/test/dataServices/jmx/data/cluster_configuration.json.nohbase</exclude>
             <exclude>contrib/ambari-scom/msi/src/GUI_Ambari.sln</exclude>
-            <exclude>contrib/ambari-scom/ambari-scom-server/pass.txt</exclude>
-            <exclude>contrib/ambari-scom/*/rat.txt</exclude>
-            <exclude>contrib/ambari-scom/metrics-sink/target/**</exclude>
             <exclude>contrib/views/*/target/**</exclude>
             <exclude>contrib/views/files/src/main/resources/ui/bower_components/**</exclude>
             <exclude>contrib/views/files/src/main/resources/ui/node/**</exclude>
             <exclude>contrib/views/files/src/main/resources/ui/node_modules/**</exclude>
             <exclude>contrib/views/files/src/main/resources/ui/public/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/.tmp/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/**/bower_components/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/dist/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/node/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/node_modules/**</exclude>
-            <exclude>contrib/views/jobs/src/main/resources/ui/**/.bowerrc</exclude>
             <exclude>contrib/views/pig/src/main/resources/ui/pig-web/public/**</exclude>
             <exclude>contrib/views/pig/src/main/resources/ui/pig-web/node_modules/**</exclude>
             <exclude>contrib/views/pig/src/main/resources/ui/pig-web/node/**</exclude>
@@ -237,14 +216,18 @@
             <exclude>contrib/views/slider/src/main/resources/ui/public/**</exclude>
             <exclude>contrib/views/slider/src/main/resources/ui/node_modules/**</exclude>
             <exclude>contrib/views/slider/src/main/resources/ui/vendor/**</exclude>
-            <exclude>contrib/views/slider/src/main/resources/ui/app/assets/stylesheets/**</exclude>
-            <exclude>contrib/views/slider/src/main/resources/ui/app/assets/javascripts/**</exclude>
-            <exclude>contrib/views/slider/src/main/resources/ui/bower_components/**</exclude>
+            <exclude>contrib/views/slider/src/main/resources/ui/app/assets/javascripts/modernizr-2.6.2.min.js</exclude>
             <exclude>contrib/addons/package/deb/nagios_addon_deb_control</exclude>
             <exclude>contrib/addons/src/addOns/nagios/conf.d/hdp_mon_nagios_addons.conf</exclude>
             <exclude>contrib/views/*/.classpath</exclude>
             <exclude>contrib/views/*/.project</exclude>
             <exclude>contrib/views/*/.settings/**</exclude>
+            <exclude>contrib/views/jobs/src/main/resources/ui/**</exclude>
+            
+            <exclude>contrib/ambari-scom/ambari-scom-server/pass.txt</exclude>
+            <exclude>contrib/ambari-scom/ambari-scom-server/target/**</exclude>
+            <exclude>contrib/ambari-scom/*/rat.txt</exclude>
+            <exclude>contrib/ambari-scom/metrics-sink/target/**</exclude>
 
             <!--Velocity log -->
             <exclude>**/velocity.log*</exclude>
@@ -278,53 +261,21 @@
           <controlDir>${basedir}/ambari-project/src/main/package/deb/control</controlDir>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-clean-plugin</artifactId>
-        <configuration>
-          <filesets>
-            <fileset>
-              <directory>${basedir}</directory>
-              <followSymlinks>false</followSymlinks>
-               <includes>
-                <include>**/*.pyc</include>
-              </includes>
-             </fileset>
-          </filesets>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
   <profiles>
     <profile>
-      <id>default</id>
+      <id>linux</id>
       <activation>
-         <activeByDefault>true</activeByDefault>
+        <os>
+          <family>unix</family>
+        </os>
       </activation>
       <modules>
         <module>ambari-web</module>
         <module>ambari-project</module>
         <module>ambari-views</module>
         <module>ambari-admin</module>
-        <module>ambari-server</module>
-        <module>ambari-agent</module>
-        <module>ambari-client</module>
-        <module>ambari-shell</module>
-      </modules>
-    </profile>
-    <profile>
-      <id>default-views</id>
-      <activation>
-        <property>
-          <name>views</name>
-        </property>
-      </activation>
-      <modules>
-        <module>ambari-web</module>
-        <module>ambari-project</module>
-        <module>ambari-views</module>
-        <module>ambari-admin</module>
-        <module>contrib/views</module>
         <module>ambari-server</module>
         <module>ambari-agent</module>
         <module>ambari-client</module>
@@ -337,6 +288,25 @@
         <module>ambari-project</module>
         <module>ambari-views</module>
         <module>ambari-admin</module>
+        <module>ambari-server</module>
+        <module>ambari-agent</module>
+        <module>ambari-client</module>
+        <module>ambari-shell</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>windows</id>
+      <activation>
+        <os>
+          <family>win</family>
+        </os>
+      </activation>
+      <modules>
+        <module>ambari-web</module>
+        <module>ambari-project</module>
+        <module>ambari-views</module>
+        <module>ambari-admin</module>
+        <module>contrib/ambari-scom/metrics-sink</module>
         <module>ambari-server</module>
         <module>ambari-agent</module>
         <module>ambari-client</module>

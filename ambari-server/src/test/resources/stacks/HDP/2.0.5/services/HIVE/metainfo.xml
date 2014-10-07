@@ -28,7 +28,6 @@
           <name>HIVE_METASTORE</name>
           <category>MASTER</category>
           <cardinality>1</cardinality>
-          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <auto-deploy>
             <enabled>true</enabled>
             <co-locate>HIVE/HIVE_SERVER</co-locate>
@@ -44,7 +43,6 @@
           <name>HIVE_SERVER</name>
           <category>MASTER</category>
           <cardinality>1</cardinality>
-          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <dependencies>
             <dependency>
               <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
@@ -83,52 +81,6 @@
         </component>
 
         <component>
-          <name>WEBHCAT_SERVER</name>
-          <displayName>WebHCat Server</displayName>
-          <category>MASTER</category>
-          <cardinality>1</cardinality>
-          <clientsToUpdateConfigs>
-            <client>HCAT</client>
-          </clientsToUpdateConfigs>
-          <dependencies>
-            <dependency>
-              <name>HDFS/HDFS_CLIENT</name>
-              <scope>host</scope>
-              <auto-deploy>
-                <enabled>true</enabled>
-              </auto-deploy>
-            </dependency>
-            <dependency>
-              <name>MAPREDUCE/MAPREDUCE_CLIENT</name>
-              <scope>host</scope>
-              <auto-deploy>
-                <enabled>true</enabled>
-              </auto-deploy>
-            </dependency>
-            <dependency>
-              <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
-              <scope>cluster</scope>
-              <auto-deploy>
-                <enabled>true</enabled>
-                <co-locate>WEBHCAT/WEBHCAT_SERVER</co-locate>
-              </auto-deploy>
-            </dependency>
-            <dependency>
-              <name>ZOOKEEPER/ZOOKEEPER_CLIENT</name>
-              <scope>host</scope>
-              <auto-deploy>
-                <enabled>true</enabled>
-              </auto-deploy>
-            </dependency>
-          </dependencies>
-          <commandScript>
-            <script>scripts/webhcat_server.py</script>
-            <scriptType>PYTHON</scriptType>
-            <timeout>600</timeout>
-          </commandScript>
-        </component>
-
-        <component>
           <name>MYSQL_SERVER</name>
           <category>MASTER</category>
           <cardinality>1</cardinality>
@@ -146,49 +98,6 @@
             <script>scripts/hive_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>hive-site.xml</fileName>
-              <dictionaryName>hive-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hive-env.sh</fileName>
-              <dictionaryName>hive-env</dictionaryName>
-            </configFile>
-          </configFiles>
-        </component>
-        <component>
-          <name>HCAT</name>
-          <displayName>HCat</displayName>
-          <category>CLIENT</category>
-          <commandScript>
-            <script>scripts/hcat_client.py</script>
-            <scriptType>PYTHON</scriptType>
-          </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>hive-site.xml</fileName>
-              <dictionaryName>hive-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hive-env.sh</fileName>
-              <dictionaryName>hive-env</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hive-log4j.properties</fileName>
-              <dictionaryName>hive-log4j</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hive-exec-log4j.properties</fileName>
-              <dictionaryName>hive-exec-log4j</dictionaryName>
-            </configFile>
-          </configFiles>
         </component>
       </components>
 
@@ -213,7 +122,7 @@
           </packages>
         </osSpecific>
         <osSpecific>
-          <osFamily>redhat5,redhat6,ubuntu12</osFamily>
+          <osFamily>redhat5,redhat6,debian12</osFamily>
           <packages>
             <package>
               <name>mysql-server</name>

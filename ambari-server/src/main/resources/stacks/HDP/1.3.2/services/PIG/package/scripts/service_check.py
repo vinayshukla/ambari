@@ -45,12 +45,12 @@ class PigServiceCheck(Script):
       kinit_path_local = params.kinit_path_local
     )
 
-    File( format("{tmp_dir}/pigSmoke.sh"),
+    File( '/tmp/pigSmoke.sh',
       content = StaticFile("pigSmoke.sh"),
       mode = 0755
     )
 
-    Execute( format("pig {tmp_dir}/pigSmoke.sh"),
+    Execute( "pig /tmp/pigSmoke.sh",
       tries     = 3,
       try_sleep = 5,
       path      = '/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin',

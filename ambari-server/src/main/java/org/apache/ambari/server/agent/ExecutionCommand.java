@@ -18,11 +18,9 @@
 package org.apache.ambari.server.agent;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.gson.annotations.SerializedName;
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.utils.StageUtils;
 import org.apache.commons.logging.Log;
@@ -53,11 +51,8 @@ public class ExecutionCommand extends AgentCommand {
   private Map<String, Set<String>> clusterHostInfo = 
       new HashMap<String, Set<String>>();
   private Map<String, Map<String, String>> configurations;
-  @SerializedName("configuration_attributes")
-  private Map<String, Map<String, Map<String, String>>> configurationAttributes;
   private Map<String, Map<String, String>> configurationTags;
-  private Set<String> forceRefreshConfigTags = new HashSet<String>();
-  private Map<String, String> commandParams = new HashMap<String, String>();
+  private Map<String, String> commandParams;
   private String serviceName;
   private String componentName;
 
@@ -192,26 +187,6 @@ public class ExecutionCommand extends AgentCommand {
   public void setConfigurations(Map<String, Map<String, String>> configurations) {
     this.configurations = configurations;
   }
-  /**
-   * @return Returns the set of config-types that have to be propagated to actual-config of component of given custom command, if command is successfully finished. 
-   */
-  public Set<String> getForceRefreshConfigTags() {
-    return forceRefreshConfigTags;
-  }
-
-  public void setForceRefreshConfigTags(Set<String> forceRefreshConfigTags) {
-    this.forceRefreshConfigTags = forceRefreshConfigTags;
-  }
-
-  @JsonProperty("configuration_attributes")
-  public Map<String, Map<String, Map<String, String>>> getConfigurationAttributes() {
-    return configurationAttributes;
-  }
-
-  @JsonProperty("configuration_attributes")
-  public void setConfigurationAttributes(Map<String, Map<String, Map<String, String>>> configurationAttributes) {
-    this.configurationAttributes = configurationAttributes;
-  }
 
   @JsonProperty("commandParams")
   public Map<String, String> getCommandParams() {
@@ -294,7 +269,6 @@ public class ExecutionCommand extends AgentCommand {
     String MYSQL_JDBC_URL = "mysql_jdbc_url";
     String ORACLE_JDBC_URL = "oracle_jdbc_url";
     String DB_DRIVER_FILENAME = "db_driver_filename";
-    String CLIENTS_TO_UPDATE_CONFIGS = "clientsToUpdateConfigs";
     String REPO_INFO = "repo_info";
     String DB_NAME = "db_name";
     String GLOBAL = "global";
@@ -303,9 +277,6 @@ public class ExecutionCommand extends AgentCommand {
     String AMBARI_DB_RCA_USERNAME = "ambari_db_rca_username";
     String AMBARI_DB_RCA_PASSWORD = "ambari_db_rca_password";
     String COMPONENT_CATEGORY = "component_category";
-    String REFRESH_ADITIONAL_COMPONENT_TAGS = "forceRefreshConfigTags";
-    String USER_LIST = "user_list";
-    String GROUP_LIST = "group_list";
 
     String SERVICE_CHECK = "SERVICE_CHECK"; // TODO: is it standart command? maybe add it to RoleCommand enum?
     String CUSTOM_COMMAND = "custom_command";

@@ -48,7 +48,7 @@ import org.apache.commons.lang.ArrayUtils;
 @Table(name = "host_role_command")
 @Entity
 @TableGenerator(name = "host_role_command_id_generator",
-    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
+    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "value"
     , pkColumnValue = "host_role_command_id_seq"
     , initialValue = 1
     , allocationSize = 50
@@ -100,15 +100,6 @@ public class HostRoleCommandEntity {
   @Lob
   @Basic
   private byte[] stdOut = new byte[0];
-
-  @Column(name = "output_log")
-  @Basic
-  private String outputLog = null;
-
-  @Column(name = "error_log")
-  @Basic
-  private String errorLog = null;
-
 
   @Column(name = "structured_out")
   @Lob
@@ -237,14 +228,6 @@ public class HostRoleCommandEntity {
     this.stdOut = stdOut;
   }
 
-  public String getOutputLog() { return outputLog; }
-
-  public void setOutputLog(String outputLog) { this.outputLog = outputLog; }
-
-  public String getErrorLog() { return errorLog; }
-
-  public void setErrorLog(String errorLog) { this.errorLog = errorLog; }
-
   public Long getStartTime() {
     return startTime;
   }
@@ -335,8 +318,6 @@ public class HostRoleCommandEntity {
     if (status != null ? !status.equals(that.status) : that.status != null) return false;
     if (stdError != null ? !Arrays.equals(stdError, that.stdError) : that.stdError != null) return false;
     if (stdOut != null ? !Arrays.equals(stdOut, that.stdOut) : that.stdOut != null) return false;
-    if (outputLog != null ? !outputLog.equals(that.outputLog) : that.outputLog != null) return false;
-    if (errorLog != null ? !errorLog.equals(that.errorLog) : that.errorLog != null) return false;
     if (taskId != null ? !taskId.equals(that.taskId) : that.taskId != null) return false;
     if (structuredOut != null ? !Arrays.equals(structuredOut, that.structuredOut) : that.structuredOut != null) return false;
     if (endTime != null ? !endTime.equals(that.endTime) : that.endTime != null) return false;
@@ -356,8 +337,6 @@ public class HostRoleCommandEntity {
     result = 31 * result + (status != null ? status.hashCode() : 0);
     result = 31 * result + (stdError != null ? Arrays.hashCode(stdError) : 0);
     result = 31 * result + (stdOut != null ? Arrays.hashCode(stdOut) : 0);
-    result = 31 * result + (outputLog != null ? outputLog.hashCode() : 0);
-    result = 31 * result + (errorLog != null ? errorLog.hashCode() : 0);
     result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
     result = 31 * result + (lastAttemptTime != null ? lastAttemptTime.hashCode() : 0);
     result = 31 * result + (attemptCount != null ? attemptCount.hashCode() : 0);

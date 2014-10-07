@@ -27,46 +27,42 @@ import json
 import pprint
 import traceback
 import hostname
+import platform
 
 logger = logging.getLogger()
 
-GEN_AGENT_KEY = "openssl req -new -newkey rsa:1024 -nodes -keyout %(keysdir)s/%(hostname)s.key\
-  -subj /OU=%(hostname)s/\
-        -out %(keysdir)s/%(hostname)s.csr"
+GEN_AGENT_KEY='openssl req -new -newkey rsa:1024 -nodes -keyout "%(keysdir)s'+os.sep+'%(hostname)s.key" '\
+	'-subj /OU=%(hostname)s/ -out "%(keysdir)s'+os.sep+'%(hostname)s.csr"'
 
 
 class VerifiedHTTPSConnection(httplib.HTTPSConnection):
   """ Connecting using ssl wrapped sockets """
   def __init__(self, host, port=None, config=None):
     httplib.HTTPSConnection.__init__(self, host, port=port)
-    self.two_way_ssl_required = False
-    self.config = config
+    self.config=config
+    self.two_way_ssl_required=False
 
   def connect(self):
-    self.two_way_ssl_required = self.config.isTwoWaySSLConnection()
-    logger.debug("Server two-way SSL authentication required: %s" % str(self.two_way_ssl_required))
-    if self.two_way_ssl_required is True:
-      logger.info('Server require two-way SSL authentication. Use it instead of one-way...')
 
     if not self.two_way_ssl_required:
       try:
-        sock = self.create_connection()
+        sock=self.create_connection()
         self.sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_NONE)
         logger.info('SSL connection established. Two-way SSL authentication is '
                     'turned off on the server.')
       except (ssl.SSLError, AttributeError):
-        self.two_way_ssl_required = True
+        self.two_way_ssl_required=True
         logger.info('Insecure connection to https://' + self.host + ':' + self.port +
                     '/ failed. Reconnecting using two-way SSL authentication..')
 
     if self.two_way_ssl_required:
-      self.certMan = CertificateManager(self.config)
+      self.certMan=CertificateManager(self.config)
       self.certMan.initSecurity()
       agent_key = self.certMan.getAgentKeyName()
       agent_crt = self.certMan.getAgentCrtName()
       server_crt = self.certMan.getSrvrCrtName()
 
-      sock = self.create_connection()
+      sock=self.create_connection()
 
       try:
         self.sock = ssl.wrap_socket(sock,
@@ -92,40 +88,41 @@ class VerifiedHTTPSConnection(httplib.HTTPSConnection):
       self.sock.close()
     logger.info("SSL Connect being called.. connecting to the server")
     sock = socket.create_connection((self.host, self.port), 60)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    sock.setsockopt( socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
     if self._tunnel_host:
       self.sock = sock
       self._tunnel()
 
     return sock
 
-
 class CachedHTTPSConnection:
   """ Caches a ssl socket and uses a single https connection to the server. """
-
+  
   def __init__(self, config):
-    self.connected = False
+    self.connected = False;
     self.config = config
     self.server = config.get('server', 'hostname')
     self.port = config.get('server', 'secured_url_port')
     self.connect()
-
+  
   def connect(self):
-    if not self.connected:
+    if  not self.connected:
       self.httpsconn = VerifiedHTTPSConnection(self.server, self.port, self.config)
       self.httpsconn.connect()
       self.connected = True
     # possible exceptions are caught and processed in Controller
 
+
+  
   def forceClear(self):
     self.httpsconn = VerifiedHTTPSConnection(self.server, self.port, self.config)
     self.connect()
-
-  def request(self, req):
+    
+  def request(self, req): 
     self.connect()
     try:
-      self.httpsconn.request(req.get_method(), req.get_full_url(),
-                             req.get_data(), req.headers)
+      self.httpsconn.request(req.get_method(), req.get_full_url(), 
+                                  req.get_data(), req.headers)
       response = self.httpsconn.getresponse()
       readResponse = response.read()
     except Exception as ex:
@@ -136,60 +133,59 @@ class CachedHTTPSConnection:
       self.connected = False
       raise IOError("Error occured during connecting to the server: " + str(ex))
     return readResponse
-
-
+  
 class CertificateManager():
   def __init__(self, config):
     self.config = config
-    self.keysdir = self.config.get('security', 'keysdir')
-    self.server_crt = self.config.get('security', 'server_crt')
+    self.keysdir = os.path.abspath(self.config.get('security', 'keysdir'))
+    self.server_crt=self.config.get('security', 'server_crt')
     self.server_url = 'https://' + self.config.get('server', 'hostname') + ':' \
        + self.config.get('server', 'url_port')
-
+    
   def getAgentKeyName(self):
-    keysdir = self.config.get('security', 'keysdir')
-    return keysdir + os.sep + hostname.hostname(self.config) + ".key"
+    keysdir = os.path.abspath(self.config.get('security', 'keysdir'))
+    return keysdir + os.sep + hostname.hostname() + ".key"
 
   def getAgentCrtName(self):
-    keysdir = self.config.get('security', 'keysdir')
-    return keysdir + os.sep + hostname.hostname(self.config) + ".crt"
+    keysdir = os.path.abspath(self.config.get('security', 'keysdir'))
+    return keysdir + os.sep + hostname.hostname() + ".crt"
 
   def getAgentCrtReqName(self):
-    keysdir = self.config.get('security', 'keysdir')
-    return keysdir + os.sep + hostname.hostname(self.config) + ".csr"
+    keysdir = os.path.abspath(self.config.get('security', 'keysdir'))
+    return keysdir + os.sep + hostname.hostname() + ".csr"
 
   def getSrvrCrtName(self):
-    keysdir = self.config.get('security', 'keysdir')
+    keysdir = os.path.abspath(self.config.get('security', 'keysdir'))
     return keysdir + os.sep + "ca.crt"
-
+    
   def checkCertExists(self):
-
-    s = self.config.get('security', 'keysdir') + os.sep + "ca.crt"
+    
+    s = os.path.abspath(self.config.get('security', 'keysdir')) + os.sep + "ca.crt"
 
     server_crt_exists = os.path.exists(s)
-
+    
     if not server_crt_exists:
       logger.info("Server certicate not exists, downloading")
       self.loadSrvrCrt()
     else:
       logger.info("Server certicate exists, ok")
-
+      
     agent_key_exists = os.path.exists(self.getAgentKeyName())
-
+    
     if not agent_key_exists:
       logger.info("Agent key not exists, generating request")
       self.genAgentCrtReq()
     else:
       logger.info("Agent key exists, ok")
-
+      
     agent_crt_exists = os.path.exists(self.getAgentCrtName())
-
+    
     if not agent_crt_exists:
       logger.info("Agent certificate not exists, sending sign request")
       self.reqSignCrt()
     else:
       logger.info("Agent certificate exists, ok")
-
+            
   def loadSrvrCrt(self):
     get_ca_url = self.server_url + '/cert/ca/'
     logger.info("Downloading server cert from " + get_ca_url)
@@ -200,15 +196,15 @@ class CertificateManager():
     stream.close()
     srvr_crt_f = open(self.getSrvrCrtName(), 'w+')
     srvr_crt_f.write(response)
-
+      
   def reqSignCrt(self):
-    sign_crt_req_url = self.server_url + '/certs/' + hostname.hostname(self.config)
+    sign_crt_req_url = self.server_url + '/certs/' + hostname.hostname()
     agent_crt_req_f = open(self.getAgentCrtReqName())
     agent_crt_req_content = agent_crt_req_f.read()
     passphrase_env_var = self.config.get('security', 'passphrase_env_var_name')
     passphrase = os.environ[passphrase_env_var]
-    register_data = {'csr': agent_crt_req_content,
-                    'passphrase': passphrase}
+    register_data = {'csr'       : agent_crt_req_content,
+                    'passphrase' : passphrase}
     data = json.dumps(register_data)
     proxy_handler = urllib2.ProxyHandler({})
     opener = urllib2.build_opener(proxy_handler)
@@ -223,9 +219,9 @@ class CertificateManager():
     except Exception:
       logger.warn("Malformed response! data: " + str(data))
       data = {'result': 'ERROR'}
-    result = data['result']
+    result=data['result']
     if result == 'OK':
-      agentCrtContent = data['signedCa']
+      agentCrtContent=data['signedCa']
       agentCrtF = open(self.getAgentCrtName(), "w")
       agentCrtF.write(agentCrtContent)
     else:
@@ -239,11 +235,13 @@ class CertificateManager():
       raise ssl.SSLError
 
   def genAgentCrtReq(self):
-    generate_script = GEN_AGENT_KEY % {'hostname': hostname.hostname(self.config),
-                                     'keysdir': self.config.get('security', 'keysdir')}
+    generate_script = GEN_AGENT_KEY % {'hostname': hostname.hostname(),
+                                     'keysdir' : os.path.abspath(self.config.get('security', 'keysdir'))}
     logger.info(generate_script)
-    p = subprocess.Popen([generate_script], shell=True, stdout=subprocess.PIPE)
-    p.communicate()
-
+    if platform.system() == 'Windows':
+      subprocess.Popen(generate_script, stdout=subprocess.PIPE)
+    else:
+      subprocess.Popen([generate_script], shell=True, stdout=subprocess.PIPE)
+      
   def initSecurity(self):
     self.checkCertExists()

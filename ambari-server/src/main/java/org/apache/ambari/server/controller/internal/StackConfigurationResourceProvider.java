@@ -59,9 +59,6 @@ public class StackConfigurationResourceProvider extends
 
   public static final String PROPERTY_DESCRIPTION_PROPERTY_ID = PropertyHelper
       .getPropertyId("StackConfigurations", "property_description");
-  
-  public static final String PROPERTY_PROPERTY_TYPE_PROPERTY_ID = PropertyHelper
-      .getPropertyId("StackConfigurations", "property_type");
 
   public static final String PROPERTY_TYPE_PROPERTY_ID = PropertyHelper
       .getPropertyId("StackConfigurations", "type");
@@ -128,32 +125,16 @@ public class StackConfigurationResourceProvider extends
       setResourceProperty(resource, PROPERTY_DESCRIPTION_PROPERTY_ID,
           response.getPropertyDescription(), requestedIds);
       
-      setResourceProperty(resource, PROPERTY_PROPERTY_TYPE_PROPERTY_ID, 
-          response.getPropertyType(), requestedIds);
-      
       setResourceProperty(resource, PROPERTY_TYPE_PROPERTY_ID,
           response.getType(), requestedIds);
 
-      setDefaultPropertiesAttributes(resource, requestedIds);
-
-      for (Map.Entry<String, String> attribute : response.getPropertyAttributes().entrySet()) {
-        setResourceProperty(resource, PropertyHelper.getPropertyId("StackConfigurations", attribute.getKey()),
-            attribute.getValue(), requestedIds);
-      }
+      setResourceProperty(resource, PROPERTY_FINAL_PROPERTY_ID,
+          response.isFinal(), requestedIds);
 
       resources.add(resource);
     }
 
     return resources;
-  }
-
-  /**
-   * Set default values for properties attributes before applying original ones
-   * to prevent absence in case of empty attributes map
-   */
-  private void setDefaultPropertiesAttributes(Resource resource, Set<String> requestedIds) {
-    setResourceProperty(resource, PROPERTY_FINAL_PROPERTY_ID,
-        "false", requestedIds);
   }
 
   private StackConfigurationRequest getRequest(Map<String, Object> properties) {

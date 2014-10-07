@@ -46,7 +46,6 @@ class MapReduce2ServiceCheck(Script):
                   tries=1,
                   try_sleep=5,
                   user=params.smokeuser,
-                  bin_dir=params.execute_path,
                   conf_dir=params.hadoop_conf_dir
     )
 
@@ -54,7 +53,6 @@ class MapReduce2ServiceCheck(Script):
                   tries=1,
                   try_sleep=5,
                   user=params.smokeuser,
-                  bin_dir=params.execute_path,
                   conf_dir=params.hadoop_conf_dir
     )
 
@@ -62,14 +60,12 @@ class MapReduce2ServiceCheck(Script):
                   tries=1,
                   try_sleep=5,
                   user=params.smokeuser,
-                  bin_dir=params.execute_path,
                   conf_dir=params.hadoop_conf_dir,
                   logoutput=True
     )
 
     ExecuteHadoop(test_cmd,
                   user=params.smokeuser,
-                  bin_dir=params.execute_path,
                   conf_dir=params.hadoop_conf_dir
     )
 

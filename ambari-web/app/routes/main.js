@@ -26,26 +26,21 @@ module.exports = Em.Route.extend({
     console.log('in /main:enter');
     router.getAuthenticated().done(function (loggedIn) {
       if (loggedIn) {
-        App.router.get('mainViewsController').loadAmbariViews();
-        App.router.get('clusterController').loadClusterName(false).done(function () {
-          if (App.get('testMode')) {
-            router.get('mainController').initialize();
-          } else {
-            if (router.get('clusterInstallCompleted')) {
+        App.router.get('mainAdminAccessController').loadShowJobsForUsers().done(function () {
+          App.router.get('clusterController').loadClusterName(false).done(function () {
+            if (App.get('testMode')) {
+              router.get('mainController').initialize();
+            } else {
               App.router.get('mainController').checkServerClientVersion().done(function () {
                 App.router.get('clusterController').loadClientServerClockDistance().done(function () {
                   router.get('mainController').initialize();
                 });
               });
             }
-            else {
-              App.router.get('clusterController').set('isLoaded', true);
-            }
-          }
+          });
         });
         // TODO: redirect to last known state
       } else {
-        router.set('preferedPath', router.location.location.hash);
         Em.run.next(function () {
           router.transitionTo('login');
         });
@@ -74,6 +69,35 @@ module.exports = Em.Route.extend({
     router.get('applicationController').connectOutlet('main');
   },
 
+
+  views: Em.Route.extend({
+    route: '/views',
+    connectOutlets: function (router, context) {
+      router.get('mainController').connectOutlet('mainViews');
+    },
+    index: Em.Route.extend({
+      route: '/',
+      enter: function (router) {
+        Em.run.next(function () {
+          router.transitionTo('allViews');
+        });
+      }
+    }),
+    allViews: Em.Route.extend({
+      route: '/',
+      connectOutlets: function (router, context) {
+        router.get('mainController').connectOutlet('mainViews');
+      }
+    }),
+    viewDetails: Em.Route.extend({
+      route: '/:viewName/:version/:instanceName',
+      connectOutlets: function (router, view) {
+        router.get('mainController').connectOutlet('mainViewsDetails');
+      }
+    })
+  }),
+
+
   test: Em.Route.extend({
     route: '/test',
     connectOutlets: function (router, context) {
@@ -90,10 +114,11 @@ module.exports = Em.Route.extend({
       route: '/',
       enter: function (router) {
         Em.run.next(function () {
-          router.transitionTo('main.dashboard.widgets');
+          router.transitionTo('widgets');
         });
       }
     }),
+    //on click nav tabs events, go to widgets view or heatmap view
     goToDashboardView: function (router, event) {
       router.transitionTo(event.context);
     },
@@ -136,24 +161,7 @@ module.exports = Em.Route.extend({
         event.view.set('active', "active");
         router.transitionTo(event.context);
       }
-    }),
-    configHistory: Em.Route.extend({
-      route: '/config_history',
-      connectOutlets: function (router, context) {
-        if (App.get('supports.configHistory')) {
-          router.set('mainDashboardController.selectedCategory', 'configHistory');
-          router.get('mainDashboardController').connectOutlet('mainConfigHistory');
-        } else {
-          router.transitionTo('main.dashboard.widgets');
-        }
-      }
-    }),
-    goToServiceConfigs: function (router, event) {
-      router.get('mainServiceItemController').set('routeToConfigs', true);
-      router.get('mainServiceInfoConfigsController').set('preSelectedConfigVersion', event.context);
-      router.transitionTo('main.services.service.configs', App.Service.find(event.context.get('serviceName')));
-      router.get('mainServiceItemController').set('routeToConfigs', false);
-    }
+    })
   }),
 
   apps: Em.Route.extend({
@@ -168,6 +176,47 @@ module.exports = Em.Route.extend({
         router.get('mainController').connectOutlet('mainApps');
       }
     }
+  }),
+
+  jobs: Em.Route.extend({
+    route: '/jobs',
+    enter: function (router) {
+      if (!App.router.get('mainAdminAccessController.showJobs') && !App.get('isAdmin')) {
+        Em.run.next(function () {
+          router.transitionTo('main.dashboard.index');
+        });
+      }
+    },
+    exit: function (router) {
+      clearInterval(router.get('mainJobsController').jobsUpdate);
+    },
+    index: Ember.Route.extend({
+      route: '/',
+      connectOutlets: function (router) {
+        if (!App.get('isHadoop2Stack')) {
+          Em.run.next(function () {
+            router.transitionTo('main.dashboard.index');
+          });
+        } else {
+          router.get('mainJobsController').updateJobs('mainJobsController', 'refreshLoadedJobs');
+          router.get('mainController').connectOutlet('mainJobs');
+        }
+      }
+    }),
+    jobDetails: Em.Route.extend({
+      route: '/:job_id',
+      connectOutlets: function (router, job) {
+        if (job) {
+          router.get('mainHiveJobDetailsController').set('loaded', false);
+          router.get('mainController').connectOutlet('mainHiveJobDetails', job);
+          router.get('mainHiveJobDetailsController').loadJobDetails();
+          router.get('mainJobsController').updateJobs('mainHiveJobDetailsController', 'loadJobDetails');
+        }
+      },
+      exit: function (router) {
+        router.get('mainHiveJobDetailsController').set('loaded', false);
+      }
+    })
   }),
 
   mirroring: Em.Route.extend({
@@ -233,7 +282,6 @@ module.exports = Em.Route.extend({
     }
   }),
 
-  views: require('routes/views'),
 
   hosts: Em.Route.extend({
     route: '/hosts',
@@ -247,7 +295,6 @@ module.exports = Em.Route.extend({
     hostDetails: Em.Route.extend({
       route: '/:host_id',
       connectOutlets: function (router, host) {
-        router.get('mainHostController').set('showFilterConditionsFirstLoad', true);
         router.get('mainController').connectOutlet('mainHostDetails', host);
       },
 
@@ -313,7 +360,7 @@ module.exports = Em.Route.extend({
   admin: Em.Route.extend({
     route: '/admin',
     enter: function (router, transition) {
-      if (router.get('loggeIn') && !App.get('isAdmin')) {
+      if (!App.isAdmin) {
         Em.run.next(function () {
           router.transitionTo('main.dashboard.index');
         });
@@ -326,7 +373,8 @@ module.exports = Em.Route.extend({
           App.router.transitionTo('main.dashboard.index');
         });
       } else {
-        this._super(router, event);
+        var controller = router.get('mainAdminController');
+        router.transitionTo('admin' + controller.get('category').capitalize());
       }
     },
     connectOutlets: function (router, context) {
@@ -339,8 +387,62 @@ module.exports = Em.Route.extend({
        router.transitionTo('admin' + controller.get('category').capitalize());
        }, */
       route: '/',
-      redirectsTo: 'adminRepositories'
+      redirectsTo: 'adminUser'
     }),
+
+
+    adminUser: Em.Route.extend({
+      route: '/user',
+      index: Em.Route.extend({
+        route: '/',
+        redirectsTo: 'allUsers'
+      }),
+      enter: function (router) {
+        router.set('mainAdminController.category', "user");
+        Em.run.next(function () {
+          router.transitionTo('allUsers');
+        });
+      },
+      routePath: function (router, event) {
+        router.set('mainAdminController.category', "user");
+        router.transitionTo('allUsers');
+        Em.run.next(function () {
+          router.transitionTo('allUsers');
+        });
+      },
+      // events
+      gotoUsers: Em.Router.transitionTo("allUsers"),
+      gotoCreateUser: Em.Router.transitionTo("createUser"),
+      gotoEditUser: function (router, event) {
+        router.transitionTo("editUser", event.context)
+      },
+
+      // states
+      allUsers: Em.Route.extend({
+        route: '/allUsers',
+        // index: Ember.Route.extend({
+        //route: '/',
+        connectOutlets: function (router) {
+          router.get('mainAdminController').connectOutlet('mainAdminUser');
+        }
+        //})
+      }),
+
+      createUser: Em.Route.extend({
+        route: '/create',
+        connectOutlets: function (router) {
+          router.get('mainAdminController').connectOutlet('mainAdminUserCreate', {});
+        }
+      }),
+
+      editUser: Em.Route.extend({
+        route: '/edit/:user_id',
+        connectOutlets: function (router, user) {
+          router.get('mainAdminController').connectOutlet('mainAdminUserEdit', user);
+        }
+      })
+    }),
+
 
     adminAuthentication: Em.Route.extend({
       route: '/authentication',
@@ -349,6 +451,28 @@ module.exports = Em.Route.extend({
         router.get('mainAdminController').connectOutlet('mainAdminAuthentication');
       }
     }),
+
+    adminHighAvailability: Em.Route.extend({
+      route: '/highAvailability',
+      enter: function (router) {
+        Em.run.next(function () {
+          router.transitionTo('adminHighAvailability.index');
+        });
+      },
+      index: Ember.Route.extend({
+        route: '/',
+        connectOutlets: function (router, context) {
+          router.set('mainAdminController.category', "highAvailability");
+          router.get('mainAdminController').connectOutlet('mainAdminHighAvailability');
+        }
+      })
+    }),
+
+    enableHighAvailability: require('routes/high_availability_routes'),
+
+    rollbackHighAvailability: require('routes/rollbackHA_routes'),
+
+    enableRMHighAvailability: require('routes/rm_high_availability_routes'),
 
     adminSecurity: Em.Route.extend({
       route: '/security',
@@ -428,7 +552,6 @@ module.exports = Em.Route.extend({
                   App.db.setSecurityDeployCommands(undefined);
                   App.router.get('updateController').set('isWorking', true);
                   router.get('mainAdminSecurityController').setDisableSecurityStatus(undefined);
-                  router.get('addServiceController').finish();
                   App.clusterStatus.setClusterStatus({
                     clusterName: router.get('content.cluster.name'),
                     clusterState: 'DEFAULT'
@@ -461,11 +584,11 @@ module.exports = Em.Route.extend({
       adminAddSecurity: require('routes/add_security')
     }),
 
-    adminRepositories: Em.Route.extend({
-      route: '/repositories',
+    adminCluster: Em.Route.extend({
+      route: '/cluster',
       connectOutlets: function (router) {
-        router.set('mainAdminController.category', "repositories");
-        router.get('mainAdminController').connectOutlet('mainAdminRepositories');
+        router.set('mainAdminController.category', "cluster");
+        router.get('mainAdminController').connectOutlet('mainAdminCluster');
       }
     }),
     adminAdvanced: Em.Route.extend({
@@ -475,11 +598,23 @@ module.exports = Em.Route.extend({
         router.get('mainAdminController').connectOutlet('mainAdminAdvanced');
       }
     }),
-    adminServiceAccounts: Em.Route.extend({
-      route: '/serviceAccounts',
+    adminMisc: Em.Route.extend({
+      route: '/misc',
       connectOutlets: function (router) {
-        router.set('mainAdminController.category', "serviceAccounts");
-        router.get('mainAdminController').connectOutlet('mainAdminServiceAccounts');
+        router.set('mainAdminController.category', "misc");
+        router.get('mainAdminController').connectOutlet('mainAdminMisc');
+      }
+    }),
+    adminAccess: Em.Route.extend({
+      enter: function (router) {
+        router.get('mainController').dataLoading().done(function () {
+          if (!router.get('mainAdminController.isAccessAvailable')) router.transitionTo('adminUser.allUsers');
+        });
+      },
+      route: '/access',
+      connectOutlets: function (router) {
+        router.set('mainAdminController.category', "access");
+        router.get('mainAdminController').connectOutlet('mainAdminAccess');
       }
     }),
 
@@ -521,7 +656,7 @@ module.exports = Em.Route.extend({
             if (!service || !service.get('isLoaded')) {
               service = App.Service.find().objectAt(0); // getting the first service to display
             }
-            if (router.get('mainServiceItemController').get('routeToConfigs')) {
+            if (service.get('routeToConfigs')) {
               router.transitionTo('service.configs', service);
             }
             else {
@@ -538,7 +673,7 @@ module.exports = Em.Route.extend({
       route: '/:service_id',
       connectOutlets: function (router, service) {
         router.get('mainServiceController').connectOutlet('mainServiceItem', service);
-        if (service && router.get('mainServiceItemController').get('routeToConfigs')) {
+        if (service && service.get('routeToConfigs')) {
           router.transitionTo('configs');
         } else {
           router.transitionTo('summary');
@@ -614,7 +749,7 @@ module.exports = Em.Route.extend({
           mainServiceInfoConfigsController.showSavePopup(router.get('location.lastSetURL').replace('configs', 'summary'));
           return false;
         }
-        var parent = event.view.get('_parentView');
+        var parent = event.view._parentView;
         parent.deactivateChildViews();
         event.view.set('active', "active");
         router.transitionTo(event.context);
@@ -622,13 +757,7 @@ module.exports = Em.Route.extend({
     }),
     showService: Em.Router.transitionTo('service'),
     addService: Em.Router.transitionTo('serviceAdd'),
-    reassign: Em.Router.transitionTo('reassign'),
-
-    enableHighAvailability: require('routes/high_availability_routes'),
-
-    enableRMHighAvailability: require('routes/rm_high_availability_routes'),
-
-    rollbackHighAvailability: require('routes/rollbackHA_routes')
+    reassign: Em.Router.transitionTo('reassign')
   }),
 
   reassign: require('routes/reassign_master_routes'),

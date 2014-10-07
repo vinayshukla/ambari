@@ -16,33 +16,9 @@
 * limitations under the License.
 }}
 
-{{#if App.supports.hostOverrides}}
-  {{#if view.service.isRestartRequired}}
-    {{#if App.isAdmin}}
-      <div id="summary-restart-bar">
-        <div class="alert alert-warning clearfix">
-          <i class="icon-refresh"></i> {{{view.needToRestartMessage}}} {{t services.service.config.restartService.needToRestart}}  <a href="#" {{action showComponentsShouldBeRestarted target="view"}}>{{view.componentsCount}} {{pluralize view.componentsCount singular="t:common.component" plural="t:common.components"}}</a> {{t on}} <a href="#" {{action showHostsShouldBeRestarted target="view"}}>{{view.hostsCount}} {{pluralize view.hostsCount singular="t:common.host" plural="t:common.hosts"}}</a>
-          <span class="restart-components pull-right">&nbsp</span>
-          <div class="btn-group pull-right">
-            <button type="button" class="btn btn-default dropdown-toggle btn-warning" data-toggle="dropdown">
-              {{t hosts.host.details.needToRestart.button}}
-                <span class="caret"></span>
-            </button>
-            <ul class="dropdown-menu">
-                <li><a href="#" {{action restartAllStaleConfigComponents target="view"}}>{{t restart.service.all}}</a></li>
-              {{#if view.rollingRestartSlaveComponentName}}
-                  <li><a href="#" {{action rollingRestartStaleConfigSlaveComponents view.rollingRestartSlaveComponentName target="view"}}>{{view.rollingRestartActionName}}</a></li>
-              {{/if}}
-            </ul>
-          </div>
-        </div>
-      </div>
-    {{/if}}
-  {{/if}}
-{{/if}}
-
 <div class="row-fluid service-block">
   <div class="span6">
+
     <div class="box">
       <div class="box-header">
         <h4>{{controller.content.label}} {{t services.service.info.menu.summary}}</h4>
@@ -58,8 +34,8 @@
       </div>
     </div>
   </div>
-  <div class="span6">
-    {{#unless view.isNoAlertsService}}
+  {{#unless view.isNoAlertsService}}
+    <div class="span6">
       <div class="box">
         <div class="box-header">
           <h4>{{t services.alerts.headingOfList}}</h4>
@@ -95,8 +71,8 @@
           {{/if}}
         </ul>
       </div>
-    {{/unless}}
-  </div>
+    </div>
+  {{/unless}}
 </div>
 
 {{#if view.collapsedSections}}
@@ -129,40 +105,41 @@
   </div>
 {{/if}}
 
-{{#if view.serviceMetricGraphs.length}}
-<div class="row-fluid">
-  <div class="span12">
-    <div class="box">
-      <div class="box-header">
-      <h4>{{controller.content.displayName}} {{t services.service.metrics}}</h4>
-        {{#if controller.isGangliaInstalled}}
-          <div class="btn-group">
-            {{#if App.router.clusterController.isGangliaUrlLoaded}}
-              <a class="btn" target="_blank" rel="tooltip" title="Go to Ganglia" {{bindAttr href="view.gangliaUrl"}}><i class="icon-link"></i></a>
-            {{else}}
-              <div class="spinner"></div>
-            {{/if}}
-          </div>
-        {{/if}}
+{{!todo: Enable service metrics check once MetricsSink is deployed as a service}}
+{{!#unless view.isNoServiceMetricsService}}
+  {{#if view.serviceMetricGraphs.length}}
+  <div class="row-fluid">
+    <div class="span12">
+      <div class="box">
+        <div class="box-header">
+          <h4>{{controller.content.label}} {{t common.metrics}}</h4>
+          {{#if controller.isGangliaInstalled}}
+            <div class="btn-group">
+              {{#if App.router.clusterController.isGangliaUrlLoaded}}
+                <a class="btn" target="_blank" rel="tooltip" title="Go to Ganglia" {{bindAttr href="view.gangliaUrl"}}><i class="icon-link"></i></a>
+              {{else}}
+                <div class="spinner"></div>
+              {{/if}}
+            </div>
+          {{/if}}
+        </div>
+        <div class="">
+          <table class="graphs">
+            {{#each graphs in view.serviceMetricGraphs}}
+              <tr>
+                {{#each graph in graphs}}
+                  <td>
+                    <div class="">
+                      {{view graph}}
+                    </div>
+                  </td>
+                {{/each}}
+              </tr>
+            {{/each}}
+          </table>
+        </div>
       </div>
-
-      <div class="">
-        <table class="graphs">
-          {{#each graphs in view.serviceMetricGraphs}}
-            <tr>
-              {{#each graph in graphs}}
-                <td>
-                  <div class="">
-                    {{view graph}}
-                  </div>
-                </td>
-              {{/each}}
-            </tr>
-          {{/each}}
-        </table>
       </div>
-      
     </div>
-  </div>
-</div>
-{{/if}}
+  {{/if}}
+{{!/unless}}

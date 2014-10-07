@@ -37,9 +37,9 @@ var configs = [
   },
   {
     "name": "hadoop.proxyuser.<foreignKey[0]>.groups",
-    "templateName": [],
+    "templateName": ["proxyuser_group"],
     "foreignKey": ["oozie_user"],
-    "value": "*",
+    "value": "<templateName[0]>",
     "filename": "core-site.xml",
     "isOverridable": true
   },

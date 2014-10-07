@@ -18,11 +18,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 import ConfigParser
-from multiprocessing.pool import ThreadPool
 import os
 
 import pprint
-import shell
 
 from unittest import TestCase
 import threading
@@ -39,8 +37,6 @@ import sys
 from AgentException import AgentException
 from FileCache import FileCache
 from LiveStatus import LiveStatus
-from BackgroundCommandExecutionHandle import BackgroundCommandExecutionHandle
-from ambari_agent.ActionQueue import ActionQueue
 
 
 class TestCustomServiceOrchestrator(TestCase):
@@ -51,11 +47,9 @@ class TestCustomServiceOrchestrator(TestCase):
     sys.stdout = out
     # generate sample config
     tmpdir = tempfile.gettempdir()
-    exec_tmp_dir = os.path.join(tmpdir, 'tmp')
     self.config = ConfigParser.RawConfigParser()
     self.config.add_section('agent')
     self.config.set('agent', 'prefix', tmpdir)
-    self.config.set('agent', 'tmp_dir', exec_tmp_dir)
     self.config.set('agent', 'cache_dir', "/cachedir")
     self.config.add_section('python')
     self.config.set('python', 'custom_actions_dir', tmpdir)
@@ -189,8 +183,6 @@ class TestCustomServiceOrchestrator(TestCase):
        '/hooks_dir/prefix-command')
     dummy_controller = MagicMock()
     orchestrator = CustomServiceOrchestrator(self.config, dummy_controller)
-    unix_process_id = 111
-    orchestrator.commands_in_progress = {command['taskId']: unix_process_id}
     get_hook_base_dir_mock.return_value = "/hooks/"
     # normal run case
     run_file_mock.return_value = {
@@ -214,9 +206,9 @@ class TestCustomServiceOrchestrator(TestCase):
     ret = orchestrator.runCommand(command, "out.txt", "err.txt",
               forced_command_name=CustomServiceOrchestrator.COMMAND_NAME_STATUS)
     ## Check that override_output_files was true only during first call
-    self.assertEquals(run_file_mock.call_args_list[0][0][10], True)
-    self.assertEquals(run_file_mock.call_args_list[1][0][10], False)
-    self.assertEquals(run_file_mock.call_args_list[2][0][10], False)
+    self.assertEquals(run_file_mock.call_args_list[0][0][7], True)
+    self.assertEquals(run_file_mock.call_args_list[1][0][7], False)
+    self.assertEquals(run_file_mock.call_args_list[2][0][7], False)
     ## Check that forced_command_name was taken into account
     self.assertEqual(run_file_mock.call_args_list[0][0][1][0],
                                   CustomServiceOrchestrator.COMMAND_NAME_STATUS)
@@ -234,146 +226,6 @@ class TestCustomServiceOrchestrator(TestCase):
     self.assertEqual(ret['structuredOut'], '{}')
 
     pass
-
-  @patch("shell.kill_process_with_children")
-  @patch.object(CustomServiceOrchestrator, "resolve_script_path")
-  @patch.object(CustomServiceOrchestrator, "resolve_hook_script_path")
-  @patch.object(FileCache, "get_service_base_dir")
-  @patch.object(FileCache, "get_hook_base_dir")
-  @patch.object(CustomServiceOrchestrator, "dump_command_to_json")
-  @patch.object(PythonExecutor, "run_file")
-  @patch.object(FileCache, "__init__")
-  def test_cancel_command(self, FileCache_mock,
-                      run_file_mock, dump_command_to_json_mock,
-                      get_hook_base_dir_mock, get_service_base_dir_mock,
-                      resolve_hook_script_path_mock, resolve_script_path_mock,
-                      kill_process_with_children_mock):
-    FileCache_mock.return_value = None
-    command = {
-      'role' : 'REGION_SERVER',
-      'hostLevelParams' : {
-        'stack_name' : 'HDP',
-        'stack_version' : '2.0.7',
-        'jdk_location' : 'some_location'
-      },
-      'commandParams': {
-        'script_type': 'PYTHON',
-        'script': 'scripts/hbase_regionserver.py',
-        'command_timeout': '600',
-        'service_package_folder' : 'HBASE'
-      },
-      'taskId' : '3',
-      'roleCommand': 'INSTALL'
-    }
-    get_service_base_dir_mock.return_value = "/basedir/"
-    resolve_script_path_mock.return_value = "/basedir/scriptpath"
-    resolve_hook_script_path_mock.return_value = \
-      ('/hooks_dir/prefix-command/scripts/hook.py',
-       '/hooks_dir/prefix-command')
-    dummy_controller = MagicMock()
-    orchestrator = CustomServiceOrchestrator(self.config, dummy_controller)
-    unix_process_id = 111
-    orchestrator.commands_in_progress = {command['taskId']: unix_process_id}
-    get_hook_base_dir_mock.return_value = "/hooks/"
-    run_file_mock_return_value = {
-      'stdout' : 'killed',
-      'stderr' : 'killed',
-      'exitcode': 1,
-      }
-    def side_effect(*args, **kwargs):
-      time.sleep(0.2)
-      return run_file_mock_return_value
-    run_file_mock.side_effect = side_effect
-
-    _, out = tempfile.mkstemp()
-    _, err = tempfile.mkstemp()
-    pool = ThreadPool(processes=1)
-    async_result = pool.apply_async(orchestrator.runCommand, (command, out, err))
-
-    time.sleep(0.1)
-    orchestrator.cancel_command(command['taskId'], 'reason')
-
-    ret = async_result.get()
-
-    self.assertEqual(ret['exitcode'], 1)
-    self.assertEquals(ret['stdout'], 'killed\nCommand aborted. reason')
-    self.assertEquals(ret['stderr'], 'killed\nCommand aborted. reason')
-
-    self.assertTrue(kill_process_with_children_mock.called)
-    self.assertFalse(command['taskId'] in orchestrator.commands_in_progress.keys())
-    self.assertTrue(os.path.exists(out))
-    self.assertTrue(os.path.exists(err))
-    os.remove(out)
-    os.remove(err)
-    
-  from ambari_agent.StackVersionsFileHandler import StackVersionsFileHandler
-    
-  @patch("shell.kill_process_with_children")
-  @patch.object(FileCache, "__init__")
-  @patch.object(CustomServiceOrchestrator, "resolve_script_path")
-  @patch.object(CustomServiceOrchestrator, "resolve_hook_script_path")
-  @patch.object(StackVersionsFileHandler, "read_stack_version")
-  def test_cancel_backgound_command(self, read_stack_version_mock, resolve_hook_script_path_mock, resolve_script_path_mock, FileCache_mock,  
-                                      kill_process_with_children_mock):
-    FileCache_mock.return_value = None
-    FileCache_mock.cache_dir = MagicMock()
-    resolve_hook_script_path_mock.return_value = None
-#     shell.kill_process_with_children = MagicMock()
-    dummy_controller = MagicMock()
-    cfg = AmbariConfig().getConfig()
-    cfg.set('agent', 'tolerate_download_failures', 'true')
-    cfg.set('agent', 'prefix', '.')
-    cfg.set('agent', 'cache_dir', 'background_tasks')
-     
-    actionQueue = ActionQueue(cfg, dummy_controller)
-    
-    dummy_controller.actionQueue = actionQueue
-    orchestrator = CustomServiceOrchestrator(cfg, dummy_controller)
-    orchestrator.file_cache = MagicMock()
-    def f (a, b):
-      return ""
-    orchestrator.file_cache.get_service_base_dir = f
-    actionQueue.customServiceOrchestrator = orchestrator
-    
-    import TestActionQueue
-    import copy
-    
-    TestActionQueue.patch_output_file(orchestrator.python_executor)
-    orchestrator.python_executor.prepare_process_result = MagicMock()
-    orchestrator.dump_command_to_json = MagicMock()
- 
-    lock = threading.RLock()
-    complete_done = threading.Condition(lock)
-    
-    complete_was_called = {}
-    def command_complete_w(process_condenced_result, handle):
-      with lock:
-        complete_was_called['visited']= ''
-        complete_done.wait(3)
-     
-    actionQueue.on_background_command_complete_callback = TestActionQueue.wraped(actionQueue.on_background_command_complete_callback, command_complete_w, None) 
-    execute_command = copy.deepcopy(TestActionQueue.TestActionQueue.background_command)
-    actionQueue.put([execute_command])
-    actionQueue.processBackgroundQueueSafeEmpty()
-     
-    time.sleep(.1) 
-    
-    orchestrator.cancel_command(19,'')
-    self.assertTrue(kill_process_with_children_mock.called)
-    kill_process_with_children_mock.assert_called_with(33)
-     
-    with lock:
-      complete_done.notifyAll()
-
-    with lock:
-      self.assertTrue(complete_was_called.has_key('visited'))
-    
-    time.sleep(.1)
-     
-    runningCommand = actionQueue.commandStatuses.get_command_status(19)
-    self.assertTrue(runningCommand is not None)
-    self.assertEqual(runningCommand['status'], ActionQueue.FAILED_STATUS)
-
 
   @patch.object(CustomServiceOrchestrator, "dump_command_to_json")
   @patch.object(PythonExecutor, "run_file")
@@ -398,8 +250,6 @@ class TestCustomServiceOrchestrator(TestCase):
     }
     dummy_controller = MagicMock()
     orchestrator = CustomServiceOrchestrator(self.config, dummy_controller)
-    unix_process_id = 111
-    orchestrator.commands_in_progress = {command['taskId']: unix_process_id}
     # normal run case
     run_file_mock.return_value = {
       'stdout' : 'sss',
@@ -465,40 +315,6 @@ class TestCustomServiceOrchestrator(TestCase):
     status = orchestrator.requestComponentStatus(status_command)
     self.assertEqual(runCommand_mock.return_value, status)
 
-
-  @patch.object(CustomServiceOrchestrator, "dump_command_to_json")
-  @patch.object(FileCache, "__init__")
-  @patch.object(FileCache, "get_custom_actions_base_dir")
-  def test_runCommand_background_action(self, get_custom_actions_base_dir_mock,
-                                    FileCache_mock,
-                                    dump_command_to_json_mock):
-    FileCache_mock.return_value = None
-    get_custom_actions_base_dir_mock.return_value = "some path"
-    _, script = tempfile.mkstemp()
-    command = {
-      'role' : 'any',
-      'commandParams': {
-        'script_type': 'PYTHON',
-        'script': 'some_custom_action.py',
-        'command_timeout': '600',
-        'jdk_location' : 'some_location'
-      },
-      'taskId' : '13',
-      'roleCommand': 'ACTIONEXECUTE',
-      'commandType': 'BACKGROUND_EXECUTION_COMMAND',
-      '__handle': BackgroundCommandExecutionHandle({'taskId': '13'}, 13,
-                                                   MagicMock(), MagicMock())
-    }
-    dummy_controller = MagicMock()
-    orchestrator = CustomServiceOrchestrator(self.config, dummy_controller)
-    
-    import TestActionQueue
-    TestActionQueue.patch_output_file(orchestrator.python_executor)
-    orchestrator.python_executor.condenseOutput = MagicMock()
-    orchestrator.dump_command_to_json = MagicMock()
-    
-    ret = orchestrator.runCommand(command, "out.txt", "err.txt")
-    self.assertEqual(ret['exitcode'], 777)
 
   def tearDown(self):
     # enable stdout

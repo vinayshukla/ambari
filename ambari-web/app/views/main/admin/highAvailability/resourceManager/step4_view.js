@@ -19,16 +19,8 @@
 
 var App = require('app');
 
-App.RMHighAvailabilityWizardStep4View = App.HighAvailabilityProgressPageView.extend({
+App.RMHighAvailabilityWizardStep4View = Em.View.extend({
 
-  templateName: require('templates/main/admin/highAvailability/resourceManager/step4'),
-
-  headerTitle: Em.I18n.t('admin.rm_highAvailability.wizard.step4.header'),
-
-  noticeInProgress: Em.I18n.t('admin.rm_highAvailability.wizard.step4.notice.inProgress'),
-
-  noticeCompleted: Em.I18n.t('admin.rm_highAvailability.wizard.step4.notice.completed'),
-
-  submitButtonText: Em.I18n.t('common.complete')
+  templateName: require('templates/main/admin/highAvailability/resourceManager/step4')
 
 });

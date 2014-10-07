@@ -20,8 +20,6 @@ package org.apache.ambari.server.utils;
 import static org.easymock.EasyMock.expect;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.powermock.api.easymock.PowerMock.mockStaticPartial;
-import static org.powermock.api.easymock.PowerMock.replayAll;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -44,6 +42,8 @@ import org.apache.ambari.server.actionmanager.ExecutionCommandWrapper;
 import org.apache.ambari.server.actionmanager.Stage;
 import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.controller.HostsMap;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
 import org.apache.ambari.server.state.Cluster;
@@ -63,6 +63,9 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import static org.powermock.api.easymock.PowerMock.replayAll;
+import java.net.InetAddress;
+import static org.powermock.api.easymock.PowerMock.*;
 
 import com.google.common.collect.ContiguousSet;
 import com.google.common.collect.DiscreteDomain;
@@ -121,7 +124,7 @@ public class TestStageUtils {
   @Test
   @Ignore
   public void testGetATestStage() {
-    Stage s = StageUtils.getATestStage(1, 2, "host2", "", "hostParamsStage");
+    Stage s = StageUtils.getATestStage(1, 2, "host2");
     String hostname = s.getHosts().get(0);
     List<ExecutionCommandWrapper> wrappers = s.getExecutionCommands(hostname);
     for (ExecutionCommandWrapper wrapper : wrappers) {
@@ -134,7 +137,7 @@ public class TestStageUtils {
   @Test
   @Ignore
   public void testJaxbToString() throws Exception {
-    Stage s = StageUtils.getATestStage(1, 2, "host1", "", "hostParamsStage");
+    Stage s = StageUtils.getATestStage(1, 2, "host1");
     String hostname = s.getHosts().get(0);
     List<ExecutionCommandWrapper> wrappers = s.getExecutionCommands(hostname);
     for (ExecutionCommandWrapper wrapper : wrappers) {
@@ -147,7 +150,7 @@ public class TestStageUtils {
   @Ignore
   public void testJasonToExecutionCommand() throws JsonGenerationException,
       JsonMappingException, JAXBException, IOException {
-    Stage s = StageUtils.getATestStage(1, 2, "host1", "clusterHostInfo", "hostParamsStage");
+    Stage s = StageUtils.getATestStage(1, 2, "host1", "clusterHostInfo");
     ExecutionCommand cmd = s.getExecutionCommands("host1").get(0).getExecutionCommand();    
     HashMap<String, Map<String,String>> configTags = new HashMap<String, Map<String,String>>();
     Map<String, String> globalTag = new HashMap<String, String>();

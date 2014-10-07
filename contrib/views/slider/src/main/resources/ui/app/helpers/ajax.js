@@ -24,57 +24,18 @@
  *  real - real url (without API prefix)
  *  type - request type (also may be defined in the format method)
  *  format - function for processing ajax params after default formatRequest. May be called with one or two parameters (data, opt). Return ajax-params object
- *  schema - basic validation schema (tv4) for response (optional)
+ *  testInProduction - can this request be executed on production tests (used only in tests)
  *
  * @type {Object}
  */
 var urls = {
 
-  'slider.getViewParams': {
-    real: '',
-    mock: '/data/resource/slider-properties.json',
-    headers: {
-      Accept: "text/plain; charset=utf-8",
-      "Content-Type": "text/plain; charset=utf-8"
-    },
-    schema: {
-      required: ['ViewInstanceInfo'],
-      properties: {
-        ViewInstanceInfo: {
-          required: ['properties']
-        }
-      }
-    }
-  },
-
   'mapper.applicationTypes': {
     real: 'apptypes?fields=*',
     mock: '/data/apptypes/all_fields.json',
     headers: {
-      Accept: "text/plain; charset=utf-8",
+      Accept : "text/plain; charset=utf-8",
       "Content-Type": "text/plain; charset=utf-8"
-    },
-    schema: {
-      required: ['items'],
-      properties: {
-        items: {
-          type: 'array',
-          items: {
-            required: ['id', 'typeComponents', 'typeConfigs'],
-            properties: {
-              typeConfigs: {
-                type: 'object'
-              },
-              typeComponents: {
-                type: 'array',
-                items: {
-                  required: ['id', 'name', 'category', 'displayName']
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
 
@@ -82,30 +43,8 @@ var urls = {
     real: 'apps/?fields=*',
     mock: '/data/apps/apps.json',
     headers: {
-      Accept: "text/plain; charset=utf-8",
+      Accept : "text/plain; charset=utf-8",
       "Content-Type": "text/plain; charset=utf-8"
-    },
-    'format': function() {
-      return {
-        timeout: 20000
-      };
-    },
-    schema: {
-      required: ['items'],
-      properties: {
-        items: {
-          type: 'array',
-          items: {
-            required: ['id', 'description', 'diagnostics', 'name', 'user', 'state', 'type', 'components', 'configs'],
-            alerts: {
-              type: 'object',
-              detail: {
-                type: 'array'
-              }
-            }
-          }
-        }
-      }
     }
   },
 
@@ -114,33 +53,16 @@ var urls = {
     mock: '/data/resource/status_true.json'
   },
 
-  'saveInitialValues': {
-    real: '',
-    mock: '/data/resource/empty_json.json',
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8"
-    },
-    format: function (data) {
-      return {
-        type: 'PUT',
-        data: JSON.stringify(data.data),
-        dataType: 'text'
-      }
-    }
-  },
-
   'createNewApp': {
     real: 'apps',
-    mock: '/data/resource/empty_json.json',
+    mock: '',
     headers: {
       "Content-Type": "text/plain; charset=utf-8"
     },
-    format: function (data) {
+    format: function(data) {
       return {
         type: 'POST',
-        data: JSON.stringify(data.data),
-        dataType: 'text',
-        showErrorPopup: true
+        data: JSON.stringify(data.data)
       }
     }
   },
@@ -148,11 +70,9 @@ var urls = {
   'destroyApp': {
     real: 'apps/{id}',
     mock: '',
-    format: function () {
+    format: function() {
       return {
-        method: 'DELETE',
-        dataType: 'text',
-        showErrorPopup: true
+        method: 'DELETE'
       }
     }
   },
@@ -163,12 +83,10 @@ var urls = {
     headers: {
       "Content-Type": "text/plain; charset=utf-8"
     },
-    format: function (data) {
+    format: function(data) {
       return {
         method: 'PUT',
-        data: JSON.stringify(data.data),
-        dataType: 'text',
-        showErrorPopup: true
+        data: JSON.stringify(data.data)
       }
     }
   },
@@ -178,23 +96,17 @@ var urls = {
     headers: {
       "Content-Type": "text/plain; charset=utf-8"
     },
-    format: function (data) {
+    format: function(data) {
       return {
         method: 'PUT',
-        data: JSON.stringify(data.data),
-        dataType: 'text',
-        showErrorPopup: true
+        data: JSON.stringify(data.data)
       }
     }
   },
 
   'metrics': {
-    real: 'apps/{id}?fields=metrics/{metric}',
-    mock: '/data/metrics/metric.json',
-    headers: {
-      "Accept": "text/plain; charset=utf-8",
-      "Content-Type": "text/plain; charset=utf-8"
-    }
+    real: 'apps/{id}/metrics/{metric}',
+    mock: '/data/metrics/metric.json'
   },
 
   'metrics2': {
@@ -257,16 +169,12 @@ var formatRequest = function (data) {
   }
   else {
     var prefix = App.get('urlPrefix');
-    if (Em.get(data, 'urlPrefix')) {
-      prefix = Em.get(data, 'urlPrefix');
-    }
-    var url = formatUrl(this.real, data);
-    opt.url = prefix + (url ? url : '');
-    if (this.format) {
-      jQuery.extend(opt, this.format(data, opt));
-    }
+    opt.url = prefix + formatUrl(this.real, data);
   }
 
+  if (this.format) {
+    jQuery.extend(opt, this.format(data, opt));
+  }
   return opt;
 };
 
@@ -296,12 +204,8 @@ var ajax = Em.Object.extend({
     Ember.assert('Ajax sender should be defined!', config.sender);
     Ember.assert('Invalid config.name provided - ' + config.name, urls[config.name]);
 
-    var opt = {};
-
-    // default parameters
-    var params = {
-      clusterName: App.get('clusterName')
-    };
+    var opt = {},
+      params = {};
 
     if (config.data) {
       jQuery.extend(params, config.data);
@@ -319,17 +223,6 @@ var ajax = Em.Object.extend({
 
     opt.success = function (data) {
       console.log("TRACE: The url is: " + opt.url);
-
-      // validate response if needed
-      if (urls[config.name].schema) {
-        var result = tv4.validateMultiple(data, urls[config.name].schema);
-        if (!result.valid) {
-          result.errors.forEach(function (error) {
-            console.warn('Request: ' + config.name, 'WARNING: ', error.message, error.dataPath);
-          });
-        }
-      }
-
       if (config.success) {
         config.sender[config.success](data, opt, params);
       }
@@ -338,8 +231,6 @@ var ajax = Em.Object.extend({
     opt.error = function (request, ajaxOptions, error) {
       if (config.error) {
         config.sender[config.error](request, ajaxOptions, error, opt, params);
-      } else if (config.sender.defaultErrorHandler) {
-        config.sender.defaultErrorHandler.call(config.sender, request, opt.url, opt.type, opt.showErrorPopup);
       }
     };
 

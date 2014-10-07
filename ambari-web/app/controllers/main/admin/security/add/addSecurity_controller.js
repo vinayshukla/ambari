@@ -28,12 +28,7 @@ App.AddSecurityController = App.WizardController.extend({
     services: [],
     isNnHa: 'false',
     serviceConfigProperties: null,
-    controllerName: 'addSecurityController',
-    isATSInstalled: function() {
-      // Because the ATS component can be installed/removed at will, the check has to happen every time that security is added.
-      var yarnService = App.Service.find().findProperty('serviceName','YARN');
-      return !!yarnService && yarnService.get('hostComponents').someProperty('componentName', 'APP_TIMELINE_SERVER');
-    }.property('App.router.clusterController.isLoaded')
+    controllerName: 'addSecurityController'
   }),
 
   /**
@@ -148,13 +143,6 @@ App.AddSecurityController = App.WizardController.extend({
    */
   loadServiceConfigs: function () {
     this.set('content.serviceConfigProperties', App.db.getSecureConfigProperties());
-  },
-
-  /**
-   * Clear all local storage data for Add security wizard namespace
-   */
-  finish: function () {
-    this.resetDbNamespace();
   }
 });
 

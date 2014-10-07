@@ -17,36 +17,31 @@
 }}
 <div id="step2">
   <p>
-    {{newApp.appType.displayName}}{{t wizard.step2.header}}
+    {{t wizard.step2.header}}
   </p>
   <div class="table-container">
     <table class="components-table">
       <thead>
       <tr>
         <th></th>
-        <th>{{t wizard.step2.table.instances}}</th>
-        <th>{{t wizard.step2.table.memory}}</th>
-        <th>{{t wizard.step2.table.cpu}}</th>
-        <th colspan="2">{{t wizard.step2.table.yarnLabels}}</th>
+        <th>
+          {{t wizard.step2.table.instances}}
+        </th>
+        <th>
+          {{t wizard.step2.table.memory}}
+        </th>
+        <th>
+          {{t wizard.step2.table.cpu}}
+        </th>
       </tr>
       </thead>
       <tbody>
       {{#each}}
         <tr>
           <td>{{displayName}}</td>
-          <td>{{input class="cell-narrow" valueBinding="numInstances"}}</td>
-          <td>{{input class="cell-wide" valueBinding="yarnMemory"}}</td>
-          <td>{{input class="cell-narrow" valueBinding="yarnCPU"}}</td>
-          <td>
-            <div {{bs-bind-tooltip content=view.checkBoxPopover}}>
-              {{input type="checkbox" checkedBinding="yarnLabelChecked" class="checkbox-inline"}}
-            </div>
-          </td>
-          <td class="cell-auto">
-            <div {{bs-bind-tooltip content=view.yarnLabelPopover}}>
-              {{input valueBinding="yarnLabel" disabledBinding="yarnLabelNotChecked"}}
-            </div>
-          </td>
+          <td>{{input valueBinding="numInstances"}}</td>
+          <td>{{input valueBinding="yarnMemory"}}</td>
+          <td>{{input valueBinding="yarnCPU"}}</td>
         </tr>
       {{/each}}
       </tbody>
@@ -55,8 +50,6 @@
   {{#if controller.isError}}
     <div class="alert alert-danger">{{t wizard.step2.error.numbers}}</div>
   {{/if}}
-  <div class="btn-area">
-    <button class="btn btn-success pull-right next-btn" {{bind-attr disabled="controller.isSubmitDisabled"}} {{action submit target="controller"}}>{{t common.next}} &rarr;</button>
-    <button class="btn" {{action prevStep}}>&larr; {{t common.back}}</button>
-  </div>
+  <button class="btn btn-success pull-right next-btn" {{bind-attr disabled="controller.isSubmitDisabled"}} {{action submit target="controller"}}>{{t common.next}}</button>
+  <button class="btn pull-right" {{action prevStep}}>{{t common.back}}</button>
 </div>

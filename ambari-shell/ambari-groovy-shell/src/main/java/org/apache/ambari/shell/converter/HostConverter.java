@@ -18,28 +18,41 @@
 package org.apache.ambari.shell.converter;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.ambari.groovy.client.AmbariClient;
 import org.apache.ambari.shell.completion.Host;
 import org.springframework.shell.core.Completion;
+import org.springframework.shell.core.Converter;
 import org.springframework.shell.core.MethodTarget;
 
 /**
  * Converter used to complete host names.
  */
-public class HostConverter extends AbstractConverter<Host> {
+public class HostConverter implements Converter<Host> {
+
+  private AmbariClient client;
 
   public HostConverter(AmbariClient client) {
-    super(client);
+    this.client = client;
   }
 
   @Override
-  public boolean supports(Class<?> type, String s) {
+  public boolean supports(Class<?> type, String optionContext) {
     return Host.class.isAssignableFrom(type);
   }
 
   @Override
+  public Host convertFromText(String value, Class<?> targetType, String optionContext) {
+    return new Host(value);
+  }
+
+  @Override
   public boolean getAllPossibleValues(List<Completion> completions, Class<?> targetType, String existingData, String optionContext, MethodTarget target) {
-    return getAllPossibleValues(completions, getClient().getHostNames().keySet());
+    Set<String> hosts = client.getHostNames().keySet();
+    for (String host : hosts) {
+      completions.add(new Completion(host));
+    }
+    return true;
   }
 }

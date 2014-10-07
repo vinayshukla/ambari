@@ -24,7 +24,6 @@
   <property>
     <name>storm_user</name>
     <value>storm</value>
-    <property-type>USER</property-type>
     <description></description>
   </property>
   <property>
@@ -41,14 +40,14 @@
   <!-- storm-env.sh -->
   <property>
     <name>content</name>
-    <description>This is the jinja template for storm-env.sh file</description>
+    <description>storm-env.sh content</description>
     <value>
 #!/bin/bash
 
 # Set Storm specific environment variables here.
 
 # The java implementation to use.
-export JAVA_HOME={{java64_home}}
+export JAVA_HOME={{java_home}}
 
 # export STORM_CONF_DIR=""
     </value>

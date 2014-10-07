@@ -211,6 +211,8 @@ public abstract class SqlSink implements MetricsSink {
     if (conn == null) {
       try {
         if (databaseUrl != null) {
+          //Handle username+password connections
+          //conn = DriverManager.getConnection(databaseUrl, username, password);
           conn = DriverManager.getConnection(databaseUrl);
         }
       } catch (Exception e) {

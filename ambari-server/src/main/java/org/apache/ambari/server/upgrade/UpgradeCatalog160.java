@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.DBAccessor;
 
 import com.google.inject.Inject;
@@ -34,7 +35,7 @@ import com.google.inject.Injector;
  */
 public class UpgradeCatalog160 extends AbstractUpgradeCatalog {
 
-  //SourceVersion is only for book-keeping purpos
+  //SourceVersion is only for book-keeping purpos  
   @Override
   public String getSourceVersion() {
     return "1.5.1";
@@ -98,12 +99,19 @@ public class UpgradeCatalog160 extends AbstractUpgradeCatalog {
 
   @Override
   protected void executeDMLUpdates() throws AmbariException, SQLException {
+    String dbType = getDbType();
+
     //add new sequences for view entity
-    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, sequence_value) " +
+    String valueColumnName = "\"value\"";
+    if (Configuration.ORACLE_DB_NAME.equals(dbType) || Configuration.MYSQL_DB_NAME.equals(dbType)) {
+      valueColumnName = "value";
+    }
+
+    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, " + valueColumnName + ") " +
         "VALUES('viewentity_id_seq', 0)", true);
 
     // Add missing property for YARN
-    updateConfigurationProperties("global", Collections.singletonMap("jobhistory_heapsize", "900"), false, false);
+    updateConfigurationProperties("global", Collections.singletonMap("jobhistory_heapsize", "900"), false);
   }
 
   @Override

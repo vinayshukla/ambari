@@ -27,94 +27,8 @@
  *  testInProduction - can this request be executed on production tests (used only in tests)
  *
  * @type {Object}
- *
- * Any property inside {braces} is substituted dynamically by the formatUrl function provided that the property is passed into the "data" dictionary
- * by the ajax call.
- * E.g.,
-   App.ajax.send({
-     name: 'key_foo',
-     data: {
-          property1: value1,
-          property2: value2
-     }
-   });
-
-   Where the "urls" dictionary contains 'key_foo': {real: 'some_value_with_{property1}_and_{property2}' }
  */
-var urls = {
-
-  'load_jobs': {
-    real: '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/HIVE_QUERY_ID{filtersLink}',
-    mock: '/scripts/assets/hive-queries.json',
-    apiPrefix: ''
-  },
-
-  'jobs_lastID': {
-    real: '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/HIVE_QUERY_ID?limit=1&secondaryFilter=tez:true',
-    mock: '/scripts/assets/hive-queries.json',
-    apiPrefix: ''
-  },
-
-  'job_details': {
-    real: '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/HIVE_QUERY_ID/{job_id}?fields=events,otherinfo',
-    mock: '/scripts/assets/hive-query-2.json',
-    apiPrefix: ''
-  },
-
-  'jobs.tezDag.NametoID': {
-    'real': '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/TEZ_DAG_ID?primaryFilter=dagName:{tezDagName}',
-    'mock': '/scripts/assets/tezDag-name-to-id.json',
-    'apiPrefix': ''
-  },
-
-  'jobs.tezDag.tezDagId': {
-    'real': '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/TEZ_DAG_ID/{tezDagId}?fields=relatedentities,otherinfo',
-    'mock': '/scripts/assets/tezDag.json',
-    'apiPrefix': ''
-  },
-
-  'jobs.tezDag.tezDagVertexId': {
-    'real': '/views/{view}/{version}/{instanceName}/proxy?url={atsURL}/ws/v1/timeline/TEZ_VERTEX_ID/{tezDagVertexId}?fields=otherinfo',
-    'mock': '/scripts/assets/tezDagVertex.json',
-    'apiPrefix': ''
-  },
-
-  'cluster_name': {
-    real: 'clusters',
-    mock: '/scripts/assets/clusters.json'
-  },
-
-  'services': {
-    real: 'clusters/{clusterName}/services?fields=ServiceInfo/state,ServiceInfo/maintenance_state&minimal_response=true',
-    mock: '/scripts/assets/services.json'
-  },
-
-  'components': {
-    real: 'clusters/{clusterName}/components/?fields=ServiceComponentInfo/state&minimal_response=true',
-    mock: '/scripts/assets/components.json'
-  },
-
-  'components_hosts': {
-    real: 'clusters/{clusterName}/hosts?host_components/HostRoles/component_name={componentName}&minimal_response=true',
-    mock: '/scripts/assets/components_hosts.json'
-  },
-
-  'config_tags': {
-    real: 'clusters/{clusterName}/?fields=Clusters/desired_configs',
-    mock: '/scripts/assets/desired_configs.json'
-  },
-
-  'configurations': {
-    real: 'clusters/{clusterName}/configurations?{params}',
-    mock: '/scripts/assets/configurations.json'
-  },
-
-  'instance_parameters': {
-    real: 'views/{view}/versions/{version}/instances/{instanceName}',
-    mock: ''
-  }
-
-};
+var urls = {};
 /**
  * Replace data-placeholders to its values
  *
@@ -151,14 +65,14 @@ var formatRequest = function (data) {
     type: this.type || 'GET',
     dataType: 'json',
     async: true,
-    headers: this.headers
+    headers: this.headers || {Accept: "application/json; charset=utf-8"}
   };
   if (App.get('testMode')) {
     opt.url = formatUrl(this.mock ? this.mock : '', data);
     opt.type = 'GET';
   }
   else {
-    var prefix = this.apiPrefix != null ? this.apiPrefix : App.get('urlPrefix');
+    var prefix = App.get('urlPrefix');
     opt.url = prefix + formatUrl(this.real, data);
   }
 
@@ -194,7 +108,7 @@ var ajax = Em.Object.extend({
     Ember.assert('Invalid config.name provided - ' + config.name, urls[config.name]);
 
     var opt = {},
-      params = {clusterName: App.get('clusterName')};
+      params = {};
 
     if (config.data) {
       jQuery.extend(params, config.data);

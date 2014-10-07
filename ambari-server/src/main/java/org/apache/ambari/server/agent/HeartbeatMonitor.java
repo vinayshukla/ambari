@@ -62,7 +62,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.google.inject.Injector;
-import java.util.HashSet;
 
 /**
  * Monitors the node state and heartbeats.
@@ -240,10 +239,10 @@ public class HeartbeatMonitor implements Runnable {
             stackId.getStackVersion());
 
     Map<String, Map<String, String>> configurations = new TreeMap<String, Map<String, String>>();
-    Map<String, Map<String,  Map<String, String>>> configurationAttributes = new TreeMap<String, Map<String, Map<String, String>>>();
 
     // get the cluster config for type '*-env'
     // apply config group overrides
+
     //Config clusterConfig = cluster.getDesiredConfigByType(GLOBAL);
     Collection<Config> clusterConfigs = cluster.getAllConfigs();
     
@@ -278,16 +277,6 @@ public class HeartbeatMonitor implements Runnable {
         }
   
         configurations.put(clusterConfig.getType(), props);
-
-        Map<String, Map<String, String>> attrs = new TreeMap<String, Map<String, String>>();
-        configHelper.cloneAttributesMap(clusterConfig.getPropertiesAttributes(), attrs);
-
-        Map<String, Map<String, Map<String, String>>> attributes = configHelper
-            .getEffectiveConfigAttributes(cluster, configTags);
-        for (Map<String, Map<String, String>> attributesMap : attributes.values()) {
-          configHelper.cloneAttributesMap(attributesMap, attrs);
-        }
-        configurationAttributes.put(clusterConfig.getType(), attrs);
       }
     }
 
@@ -295,12 +284,8 @@ public class HeartbeatMonitor implements Runnable {
     if (sch.getServiceComponentName().equals("NAGIOS_SERVER")) {
       // this requires special treatment
 
-      Collection<Alert> clusterAlerts = cluster.getAlerts();
-      Collection<Alert> alerts = new HashSet<Alert>();
-      for (Alert alert : clusterAlerts) {
-        if (!alert.getName().equals("host_alert")) alerts.add(alert);
-      }
-      if (alerts.size() > 0) {
+      Collection<Alert> alerts = cluster.getAlerts();
+      if (null != alerts && alerts.size() > 0) {
         statusCmd = new NagiosAlertCommand();
         ((NagiosAlertCommand) statusCmd).setAlerts(alerts);
       }
@@ -310,8 +295,6 @@ public class HeartbeatMonitor implements Runnable {
     statusCmd.setServiceName(serviceName);
     statusCmd.setComponentName(componentName);
     statusCmd.setConfigurations(configurations);
-    statusCmd.setConfigurationAttributes(configurationAttributes);
-    statusCmd.setHostname(hostname);
 
     // Fill command params
     Map<String, String> commandParams = statusCmd.getCommandParams();

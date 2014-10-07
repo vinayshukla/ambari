@@ -20,7 +20,6 @@ package org.apache.ambari.server.api.services;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
-import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
@@ -49,11 +48,6 @@ public class ConfigurationService extends BaseService {
    */
   public ConfigurationService(String clusterName) {
     m_clusterName = clusterName;
-  }
-
-  @Path("service_config_versions")
-  public ServiceConfigVersionService getServiceConfigVersionService() {
-    return new ServiceConfigVersionService(m_clusterName);
   }
 
   /**

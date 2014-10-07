@@ -21,9 +21,7 @@ var App = require('app');
 App.MainAdminHighAvailabilityController = Em.Controller.extend({
   name: 'mainAdminHighAvailabilityController',
 
-  securityEnabled: function () {
-    return App.router.get('mainAdminSecurityController.securityEnabled');
-  }.property('App.router.mainAdminSecurityController.securityEnabled'),
+  securityEnabled: false,
 
   tag: null,
 
@@ -41,7 +39,7 @@ App.MainAdminHighAvailabilityController = Em.Controller.extend({
       this.showErrorPopup(Em.I18n.t('admin.highAvailability.error.security'));
       return false;
     } else {
-      if (hostComponents.findProperty('componentName', 'NAMENODE').get('workStatus') !== 'STARTED') {
+     if (hostComponents.findProperty('componentName', 'NAMENODE').get('workStatus') !== 'STARTED') {
         message.push(Em.I18n.t('admin.highAvailability.error.namenodeStarted'));
       }
       if (hostComponents.filterProperty('componentName', 'ZOOKEEPER_SERVER').length < 3) {
@@ -56,7 +54,7 @@ App.MainAdminHighAvailabilityController = Em.Controller.extend({
         return false;
       }
     }
-    App.router.transitionTo('main.services.enableHighAvailability');
+    App.router.transitionTo('main.admin.enableHighAvailability');
     return true;
   },
 
@@ -82,10 +80,58 @@ App.MainAdminHighAvailabilityController = Em.Controller.extend({
       this.showErrorPopup(message);
       return false;
     }
-    App.router.transitionTo('main.services.enableRMHighAvailability');
+    App.router.transitionTo('main.admin.enableRMHighAvailability');
     return true;
   },
 
+  setSecurityStatus: function () {
+    if (App.testMode) {
+      this.set('securityEnabled', !App.testEnableSecurity);
+      this.set('dataIsLoaded', true);
+    } else {
+      //get Security Status From Server
+      App.ajax.send({
+        name: 'admin.security_status',
+        sender: this,
+        success: 'getSecurityStatusFromServerSuccessCallback',
+        error: 'errorCallback'
+      });
+    }
+  },
+
+  errorCallback: function () {
+    this.showErrorPopup(Em.I18n.t('admin.security.status.error'));
+  },
+
+  getSecurityStatusFromServerSuccessCallback: function (data) {
+    var configs = data.Clusters.desired_configs;
+    if ('hadoop-env' in configs) {
+      this.set('tag', configs['hadoop-env'].tag);
+      this.getServiceConfigsFromServer();
+    } else {
+      this.showErrorPopup(Em.I18n.t('admin.security.status.error'));
+    }
+  },
+
+  /**
+   * get service configs from server and
+   * indicate whether security is enabled
+   */
+  getServiceConfigsFromServer: function () {
+    var self = this;
+    var tags = [
+      {
+        siteName: "hadoop-env",
+        tagName: this.get('tag')
+      }
+    ];
+    App.router.get('configurationController').getConfigsByTags(tags).done(function (data) {
+      var configs = data.findProperty('tag', self.get('tag')).properties;
+      var securityEnabled = !!(configs && (configs['security_enabled'] === 'true' || configs['security_enabled'] === true));
+      self.set('securityEnabled', securityEnabled);
+      self.set('dataIsLoaded', true);
+    });
+  },
   /**
    * join or wrap message depending on whether it is array or string
    * @param message

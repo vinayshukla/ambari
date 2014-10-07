@@ -99,7 +99,6 @@ class HttpClient(object):
                     (path,))
                 payload = None
 
-	self.c.unsetopt(pycurl.CUSTOMREQUEST)
         buf = cStringIO.StringIO()
         self.c.setopt(pycurl.WRITEFUNCTION, buf.write)
         self.c.setopt(pycurl.SSL_VERIFYPEER, 0)

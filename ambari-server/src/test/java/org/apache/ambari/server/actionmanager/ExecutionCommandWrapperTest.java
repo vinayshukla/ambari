@@ -129,22 +129,22 @@ public class ExecutionCommandWrapperTest {
     
     //Cluster level global config
     Config globalConfig = configFactory.createNew(cluster1, GLOBAL_CONFIG, GLOBAL_CLUSTER, CONFIG_ATTRIBUTES);
-    globalConfig.setTag(CLUSTER_VERSION_TAG);
+    globalConfig.setVersionTag(CLUSTER_VERSION_TAG);
     cluster1.addConfig(globalConfig);
 
     //Cluster level service config
     Config serviceSiteConfigCluster = configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, SERVICE_SITE_CLUSTER, CONFIG_ATTRIBUTES);
-    serviceSiteConfigCluster.setTag(CLUSTER_VERSION_TAG);
+    serviceSiteConfigCluster.setVersionTag(CLUSTER_VERSION_TAG);
     cluster1.addConfig(serviceSiteConfigCluster);
     
     //Service level service config
     Config serviceSiteConfigService = configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, SERVICE_SITE_SERVICE, CONFIG_ATTRIBUTES);
-    serviceSiteConfigService.setTag(SERVICE_VERSION_TAG);
+    serviceSiteConfigService.setVersionTag(SERVICE_VERSION_TAG);
     cluster1.addConfig(serviceSiteConfigService);
     
     //Host level service config
     Config serviceSiteConfigHost = configFactory.createNew(cluster1, SERVICE_SITE_CONFIG, SERVICE_SITE_HOST, CONFIG_ATTRIBUTES);
-    serviceSiteConfigHost.setTag(HOST_VERSION_TAG);
+    serviceSiteConfigHost.setVersionTag(HOST_VERSION_TAG);
     cluster1.addConfig(serviceSiteConfigHost);
     
     ActionDBAccessor db = injector.getInstance(ActionDBAccessorImpl.class);
@@ -153,9 +153,9 @@ public class ExecutionCommandWrapperTest {
     
   }
   
-  private static void createTask(ActionDBAccessor db, long requestId, long stageId, String hostName, String clusterName) throws AmbariException {
+  private static void createTask(ActionDBAccessor db, long requestId, long stageId, String hostName, String clusterName) {
     
-    Stage s = new Stage(requestId, "/var/log", clusterName, 1L, "execution command wrapper test", "clusterHostInfo", "commandParamsStage", "hostParamsStage");
+    Stage s = new Stage(requestId, "/var/log", clusterName, 1L, "execution command wrapper test", "clusterHostInfo");
     s.setStageId(stageId);
     s.addHostRoleExecutionCommand(hostName, Role.NAMENODE,
         RoleCommand.START,

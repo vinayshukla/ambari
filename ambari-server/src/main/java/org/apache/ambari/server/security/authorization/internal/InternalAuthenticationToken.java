@@ -18,52 +18,24 @@
 
 package org.apache.ambari.server.security.authorization.internal;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+
 import java.util.Collection;
 import java.util.Collections;
 
-import org.apache.ambari.server.orm.entities.PermissionEntity;
-import org.apache.ambari.server.orm.entities.PrivilegeEntity;
-import org.apache.ambari.server.orm.entities.ResourceEntity;
-import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
-import org.apache.ambari.server.security.authorization.AmbariGrantedAuthority;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-
 public class InternalAuthenticationToken implements Authentication {
-  private static final long serialVersionUID = 1L;
-  
-  private static final String INTERNAL_NAME = "internal";
-  private static final PrivilegeEntity ADMIN_PRIV_ENTITY = new PrivilegeEntity();
-  static{
-    createAdminPrivilegeEntity(ADMIN_PRIV_ENTITY);
-  }
 
-  // used in ClustersImpl, checkPermissions
+  private static final String INTERNAL_NAME = "internal";
   private static final Collection<? extends GrantedAuthority> AUTHORITIES =
-    Collections.singleton(new AmbariGrantedAuthority(ADMIN_PRIV_ENTITY));
+      Collections.singleton(new SimpleGrantedAuthority("ADMIN"));
   private static final User INTERNAL_USER = new User(INTERNAL_NAME, "empty", AUTHORITIES);
 
   private String token;
   private boolean authenticated = false;
 
-
-  private static void createAdminPrivilegeEntity(PrivilegeEntity entity) {
-    PermissionEntity pe = new PermissionEntity();
-    pe.setId(PermissionEntity.AMBARI_ADMIN_PERMISSION);
-    pe.setPermissionName(PermissionEntity.AMBARI_ADMIN_PERMISSION_NAME);
-    
-    entity.setPermission(pe);
-    
-    ResourceEntity resource = new ResourceEntity();
-    resource.setId(1L);
-    
-    ResourceTypeEntity rte = new ResourceTypeEntity();
-    rte.setId(ResourceTypeEntity.CLUSTER_RESOURCE_TYPE);
-    rte.setName(ResourceTypeEntity.CLUSTER_RESOURCE_TYPE_NAME);
-    resource.setResourceType(rte);
-    entity.setResource(resource);
-  }
 
   public InternalAuthenticationToken(String tokenString) {
     this.token = tokenString;
@@ -98,6 +70,7 @@ public class InternalAuthenticationToken implements Authentication {
   public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
     this.authenticated = isAuthenticated;
   }
+
   @Override
   public String getName() {
     return INTERNAL_NAME;

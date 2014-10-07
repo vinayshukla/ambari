@@ -75,10 +75,8 @@ public class SliderAppTypesResourceProvider implements
 		Set<SliderAppType> appSet = new HashSet<SliderAppType>();
 			List<SliderAppType> sliderAppTypes = sliderController.getSliderAppTypes(request
 			    .getPropertyIds());
-            if (sliderAppTypes != null) {
-              for (SliderAppType app : sliderAppTypes)
-                appSet.add(app);
-            }
+			for (SliderAppType app : sliderAppTypes)
+				appSet.add(app);
 		return appSet;
 	}
 

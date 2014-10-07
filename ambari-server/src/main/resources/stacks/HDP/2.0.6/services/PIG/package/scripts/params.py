@@ -23,35 +23,32 @@ from resource_management import *
 
 # server configurations
 config = Script.get_config()
-tmp_dir = Script.get_tmp_dir()
 
-#RPM versioning support
-rpm_version = default("/configurations/cluster-env/rpm_version", None)
-
-#hadoop params
-if rpm_version:
-  hadoop_bin_dir = "/usr/hdp/current/hadoop/bin"
-  hadoop_home = '/usr/hdp/current/hadoop'
-  pig_bin_dir = '/usr/hdp/current/pig/bin'
-else:
-  hadoop_bin_dir = "/usr/bin"
-  hadoop_home = '/usr'
-  pig_bin_dir = ""
-
-hadoop_conf_dir = "/etc/hadoop/conf"
 pig_conf_dir = "/etc/pig/conf"
+hadoop_conf_dir = "/etc/hadoop/conf"
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
-smokeuser = config['configurations']['cluster-env']['smokeuser']
-user_group = config['configurations']['cluster-env']['user_group']
-security_enabled = config['configurations']['cluster-env']['security_enabled']
-smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+smokeuser = config['configurations']['hadoop-env']['smokeuser']
+user_group = config['configurations']['hadoop-env']['user_group']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 pig_env_sh_template = config['configurations']['pig-env']['content']
 
 # not supporting 32 bit jdk.
 java64_home = config['hostLevelParams']['java_home']
+hadoop_home = "/usr"
 
-pig_properties = config['configurations']['pig-properties']['content']
+# pig.properties - if not in the JSON command, then we need to esnure some 
+# basic properties are set; this is a safety mechanism
+if (('pig-properties' in config['configurations']) and ('pig-content' in config['configurations']['pig-properties'])):
+  pig_properties = config['configurations']['pig-properties']['pig-content']
+else:
+  pig_properties = """hcat.bin=/usr/bin/hcat
+pig.location.check.strict=false"""
 
-log4j_props = config['configurations']['pig-log4j']['content']
+# log4j.properties
+if (('pig-log4j' in config['configurations']) and ('content' in config['configurations']['pig-log4j'])):
+  log4j_props = config['configurations']['pig-log4j']['content']
+else:
+  log4j_props = None

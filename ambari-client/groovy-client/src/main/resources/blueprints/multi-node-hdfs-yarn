@@ -1,9 +1,9 @@
 {
   "configurations": [
     {
-        "nagios-env" : {
-            "nagios_contact" : "admin@localhost"
-        }
+      "global": {
+        "nagios_contact": "me@my-awesome-domain.example"
+      }
     }
   ],
   "host_groups": [
@@ -32,7 +32,7 @@
       "cardinality": "1"
     },
     {
-      "name": "slave_1",
+      "name": "slaves",
       "components": [
         {
           "name": "DATANODE"

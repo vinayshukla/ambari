@@ -65,7 +65,7 @@ class TestStatusModel(unittest.TestCase):
     self.assertTrue(error_model.is_error())
     self.assertFalse(ok_model.is_error())
 
-  def ADisabledtest_get_bootstrap_path(self):
+  def test_get_bootstrap_path(self):
     http_client_mock = MagicMock()
 
     ssh_key = 'abc!@#$%^&*()_:"|<>?[];\'\\./'

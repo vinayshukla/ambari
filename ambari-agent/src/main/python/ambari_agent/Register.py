@@ -28,7 +28,7 @@ from HostInfo import HostInfo
 
 firstContact = True
 class Register:
-  """ Registering with the server. Get the hardware profile and
+  """ Registering with the server. Get the hardware profile and 
   declare success for now """
   def __init__(self, config):
     self.hardware = Hardware()
@@ -37,23 +37,22 @@ class Register:
   def build(self, id='-1'):
     global clusterId, clusterDefinitionRevision, firstContact
     timestamp = int(time.time()*1000)
-
+   
     hostInfo = HostInfo(self.config)
     agentEnv = { }
     hostInfo.register(agentEnv, False, False)
 
     version = self.read_agent_version()
     current_ping_port = self.config.get('agent','current_ping_port')
-
+    
     register = { 'responseId'        : int(id),
                  'timestamp'         : timestamp,
-                 'hostname'          : hostname.hostname(self.config),
+                 'hostname'          : hostname.hostname(),
                  'currentPingPort'   : int(current_ping_port),
-                 'publicHostname'    : hostname.public_hostname(self.config),
+                 'publicHostname'    : hostname.public_hostname(),
                  'hardwareProfile'   : self.hardware.get(),
                  'agentEnv'          : agentEnv,
-                 'agentVersion'      : version,
-                 'prefix'            : self.config.get('agent', 'prefix')
+                 'agentVersion'      : version
                }
     return register
 
@@ -64,3 +63,4 @@ class Register:
     version = f.read().strip()
     f.close()
     return version
+  

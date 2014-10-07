@@ -218,8 +218,4 @@ public class URLStreamProvider implements StreamProvider {
  
     return connection;
   }
-
-  public AppCookieManager getAppCookieManager() {
-    return appCookieManager;
-  }
 }

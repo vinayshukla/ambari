@@ -17,8 +17,6 @@
  */
 package org.apache.ambari.server.controller.internal;
 
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
 import org.apache.ambari.server.ConfigGroupNotFoundException;
@@ -46,7 +44,6 @@ import org.apache.ambari.server.state.ConfigImpl;
 import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.state.configgroup.ConfigGroup;
 import org.apache.ambari.server.state.configgroup.ConfigGroupFactory;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,12 +71,8 @@ public class ConfigGroupResourceProvider extends
     .getPropertyId("ConfigGroup", "tag");
   protected static final String CONFIGGROUP_DESC_PROPERTY_ID = PropertyHelper
     .getPropertyId("ConfigGroup", "description");
-  protected static final String CONFIGGROUP_SCV_NOTE_ID = PropertyHelper
-      .getPropertyId("ConfigGroup", "service_config_version_note");
   protected static final String CONFIGGROUP_HOSTNAME_PROPERTY_ID =
     PropertyHelper.getPropertyId(null, "host_name");
-  protected static final String CONFIGGROUP_HOSTS_HOSTNAME_PROPERTY_ID =
-    PropertyHelper.getPropertyId("ConfigGroup", "hosts/host_name");
   public static final String CONFIGGROUP_HOSTS_PROPERTY_ID = PropertyHelper
     .getPropertyId("ConfigGroup", "hosts");
   public static final String CONFIGGROUP_CONFIGS_PROPERTY_ID =
@@ -139,10 +132,6 @@ public class ConfigGroupResourceProvider extends
 
     Set<String>   requestedIds = getRequestPropertyIds(request, predicate);
     Set<Resource> resources    = new HashSet<Resource>();
-
-    if (requestedIds.contains(CONFIGGROUP_HOSTS_HOSTNAME_PROPERTY_ID)) {
-      requestedIds.add(CONFIGGROUP_HOSTS_PROPERTY_ID);
-    }
 
     for (ConfigGroupResponse response : responses) {
       Resource resource = new ResourceImpl(Resource.Type.ConfigGroup);
@@ -215,20 +204,6 @@ public class ConfigGroupResourceProvider extends
     notifyDelete(Resource.Type.ConfigGroup, predicate);
 
     return getRequestStatus(null);
-  }
-
-  @Override
-  public Set<String> checkPropertyIds(Set<String> propertyIds) {
-    //allow providing service_config_version_note, but we should not return it for config group
-    Set<String> unsupportedPropertyIds = super.checkPropertyIds(propertyIds);
-    for (Iterator<String> iterator = unsupportedPropertyIds.iterator(); iterator.hasNext(); ) {
-      String next = iterator.next();
-      next = PropertyHelper.getPropertyName(next);
-      if (next.equals("service_config_version_note") || next.equals("/service_config_version_note")) {
-        iterator.remove();
-      }
-    }
-    return unsupportedPropertyIds;
   }
 
   /**
@@ -481,12 +456,6 @@ public class ConfigGroupResourceProvider extends
         request.getTag(), request.getDescription(),
         request.getConfigs(), hosts);
 
-      String serviceName = null;
-      if (request.getConfigs() != null && !request.getConfigs().isEmpty()) {
-        serviceName = cluster.getServiceForConfigTypes(request.getConfigs().keySet());
-      }
-      configGroup.setServiceName(serviceName);
-
       // Persist before add, since id is auto-generated
       configLogger.info("Persisting new Config group"
         + ", clusterName = " + cluster.getClusterName()
@@ -496,13 +465,6 @@ public class ConfigGroupResourceProvider extends
 
       configGroup.persist();
       cluster.addConfigGroup(configGroup);
-      if (serviceName != null) {
-        cluster.createServiceConfigVersion(serviceName, getManagementController().getAuthName(),
-          request.getServiceConfigVersionNote(), configGroup);
-      } else {
-        LOG.warn("Could not determine service name for config group {}, service config version not created",
-            configGroup.getId());
-      }
 
       ConfigGroupResponse response = new ConfigGroupResponse(configGroup
         .getId(), configGroup.getClusterName(), configGroup.getName(),
@@ -547,16 +509,6 @@ public class ConfigGroupResourceProvider extends
                                  + ", clusterName = " + request.getClusterName()
                                  + ", groupId = " + request.getId());
       }
-      String serviceName = configGroup.getServiceName();
-      String requestServiceName = cluster.getServiceForConfigTypes(request.getConfigs().keySet());
-      if (serviceName != null && requestServiceName !=null && !StringUtils.equals(serviceName, requestServiceName)) {
-        throw new IllegalArgumentException("Config group " + configGroup.getId() +
-            " is mapped to service " + serviceName + ", " +
-            "but request contain configs from service " + requestServiceName);
-      } else if (serviceName == null && requestServiceName != null) {
-        configGroup.setServiceName(requestServiceName);
-        serviceName = requestServiceName;
-      }
 
       // Update hosts
       Map<String, Host> hosts = new HashMap<String, Host>();
@@ -582,27 +534,20 @@ public class ConfigGroupResourceProvider extends
       configGroup.setDescription(request.getDescription());
       configGroup.setTag(request.getTag());
 
-      configLogger.info("Persisting updated Config group"
+      configLogger.info("Persisting updated Config group, "
         + ", clusterName = " + configGroup.getClusterName()
         + ", id = " + configGroup.getId()
         + ", tag = " + configGroup.getTag()
         + ", user = " + getManagementController().getAuthName());
 
       configGroup.persist();
-      if (serviceName != null) {
-        cluster.createServiceConfigVersion(serviceName, getManagementController().getAuthName(),
-          request.getServiceConfigVersionNote(), configGroup);
-      } else {
-        LOG.warn("Could not determine service name for config group {}, service config version not created",
-            configGroup.getId());
-      }
     }
 
     getManagementController().getConfigHelper().invalidateStaleConfigsCache();
   }
 
   @SuppressWarnings("unchecked")
-  ConfigGroupRequest getConfigGroupRequest(Map<String, Object> properties) {
+  private ConfigGroupRequest getConfigGroupRequest(Map<String, Object> properties) {
     Object groupIdObj = properties.get(CONFIGGROUP_ID_PROPERTY_ID);
     Long groupId = null;
     if (groupIdObj != null)  {
@@ -619,24 +564,17 @@ public class ConfigGroupResourceProvider extends
       null,
       null);
 
-    request.setServiceConfigVersionNote((String) properties.get(CONFIGGROUP_SCV_NOTE_ID));
-
     Map<String, Config> configurations = new HashMap<String, Config>();
     Set<String> hosts = new HashSet<String>();
 
-    String hostnameKey = CONFIGGROUP_HOSTNAME_PROPERTY_ID;
     Object hostObj = properties.get(CONFIGGROUP_HOSTS_PROPERTY_ID);
-    if (hostObj == null) {
-      hostnameKey = CONFIGGROUP_HOSTS_HOSTNAME_PROPERTY_ID;
-      hostObj = properties.get(CONFIGGROUP_HOSTS_HOSTNAME_PROPERTY_ID);
-    }
     if (hostObj != null) {
       if (hostObj instanceof HashSet<?>) {
         try {
           Set<Map<String, String>> hostsSet = (Set<Map<String, String>>) hostObj;
           for (Map<String, String> hostMap : hostsSet) {
-            if (hostMap.containsKey(hostnameKey)) {
-              String hostname = hostMap.get(hostnameKey);
+            if (hostMap.containsKey(CONFIGGROUP_HOSTNAME_PROPERTY_ID)) {
+              String hostname = hostMap.get(CONFIGGROUP_HOSTNAME_PROPERTY_ID);
               hosts.add(hostname);
             }
           }
@@ -661,31 +599,20 @@ public class ConfigGroupResourceProvider extends
             .CONFIGURATION_CONFIG_TAG_PROPERTY_ID);
 
           Map<String, String> configProperties = new HashMap<String, String>();
-          Map<String, Map<String, String>> configAttributes = new HashMap<String, Map<String, String>>();
 
           for (Map.Entry<String, Object> entry : configMap.entrySet()) {
             String propertyCategory = PropertyHelper.getPropertyCategory(entry.getKey());
-            if (propertyCategory != null && entry.getValue() != null) {
-              if ("properties".equals(propertyCategory)) {
-                configProperties.put(PropertyHelper.getPropertyName(entry.getKey()),
-                    entry.getValue().toString());
-              } else if ("properties_attributes".equals(PropertyHelper.getPropertyCategory(propertyCategory))) {
-                String attributeName = PropertyHelper.getPropertyName(propertyCategory);
-                if (!configAttributes.containsKey(attributeName)) {
-                  configAttributes.put(attributeName, new HashMap<String, String>());
-                }
-                Map<String, String> attributeValues
-                    = configAttributes.get(attributeName);
-                attributeValues.put(PropertyHelper.getPropertyName(entry.getKey()),
-                    entry.getValue().toString());
-              }
+            if (propertyCategory != null
+                && propertyCategory.equals("properties")
+                  && null != entry.getValue()) {
+              configProperties.put(PropertyHelper.getPropertyName(entry.getKey()),
+                entry.getValue().toString());
             }
           }
 
           Config config = new ConfigImpl(type);
-          config.setTag(tag);
+          config.setVersionTag(tag);
           config.setProperties(configProperties);
-          config.setPropertiesAttributes(configAttributes);
 
           configurations.put(config.getType(), config);
         }

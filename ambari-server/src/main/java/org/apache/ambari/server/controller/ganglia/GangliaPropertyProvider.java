@@ -552,7 +552,7 @@ public abstract class GangliaPropertyProvider extends AbstractPropertyProvider {
         }
       } catch (IOException e) {
         if (LOG.isErrorEnabled()) {
-          LOG.error("Caught exception getting Ganglia metrics : spec=" + spec);
+          LOG.error("Caught exception getting Ganglia metrics : spec=" + spec, e);
         }
       } finally {
         if (reader != null) {

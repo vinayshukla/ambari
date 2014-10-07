@@ -35,7 +35,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 public class SecurityFilter implements Filter {
-
+  
   //Allowed pathes for one way auth https
   private static String CA = "/ca";
 
@@ -82,10 +82,6 @@ public class SecurityFilter implements Filter {
 
       if (Pattern.matches("/cert/ca(/?)", url.getPath())) {
         return true;
-      }
-
-      if (Pattern.matches("/connection_info", url.getPath())) {
-          return true;
       }
 
       if (Pattern.matches("/certs/[^/0-9][^/]*", url.getPath())) {

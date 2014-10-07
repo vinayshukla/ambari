@@ -23,29 +23,16 @@ from status_params import *
 
 config = Script.get_config()
 
-#RPM versioning support
-rpm_version = default("/configurations/cluster-env/rpm_version", None)
-
-#hadoop params
-if rpm_version:
-  hadoop_bin_dir = "/usr/hdp/current/hadoop/bin"
-  falcon_webapp_dir = "/usr/hdp/current/falcon/webapp"
-  falcon_home = "/usr/hdp/current/falcon"
-else:
-  hadoop_bin_dir = "/usr/bin"
-  falcon_webapp_dir = '/var/lib/falcon/webapp'
-  falcon_home = '/usr/lib/falcon'
-
-hadoop_conf_dir = "/etc/hadoop/conf"
-falcon_conf_dir = '/etc/falcon/conf'
 oozie_user = config['configurations']['oozie-env']['oozie_user']
 falcon_user = config['configurations']['falcon-env']['falcon_user']
-smoke_user =  config['configurations']['cluster-env']['smokeuser']
+smoke_user =  config['configurations']['hadoop-env']['smokeuser']
 
-user_group = config['configurations']['cluster-env']['user_group']
+user_group = config['configurations']['hadoop-env']['user_group']
 proxyuser_group =  config['configurations']['hadoop-env']['proxyuser_group']
 
 java_home = config['hostLevelParams']['java_home']
+falcon_home = '/usr/lib/falcon'
+falcon_conf_dir = '/etc/falcon/conf'
 falcon_local_dir = config['configurations']['falcon-env']['falcon_local_dir']
 falcon_log_dir = config['configurations']['falcon-env']['falcon_log_dir']
 store_uri = config['configurations']['falcon-startup.properties']['*.config.store.uri']
@@ -58,16 +45,18 @@ falcon_host = config['clusterHostInfo']['falcon_server_hosts'][0]
 falcon_port = config['configurations']['falcon-env']['falcon_port']
 falcon_runtime_properties = config['configurations']['falcon-runtime.properties']
 falcon_startup_properties = config['configurations']['falcon-startup.properties']
-smokeuser_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+smokeuser_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
 falcon_env_sh_template = config['configurations']['falcon-env']['content']
 
+falcon_webapp_dir = '/var/lib/falcon/webapp'
 flacon_apps_dir = '/apps/falcon'
 #for create_hdfs_directory
-security_enabled = config['configurations']['cluster-env']['security_enabled']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
 hostname = config["hostname"]
+hadoop_conf_dir = "/etc/hadoop/conf"
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 import functools
 #create partial functions with common arguments for every HdfsDirectory call
@@ -78,6 +67,5 @@ HdfsDirectory = functools.partial(
   hdfs_user=hdfs_user,
   security_enabled = security_enabled,
   keytab = hdfs_user_keytab,
-  kinit_path_local = kinit_path_local,
-  bin_dir = hadoop_bin_dir
+  kinit_path_local = kinit_path_local
 )

@@ -22,6 +22,7 @@ import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 
+import org.apache.ambari.server.orm.RequiresSession;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
 
 import com.google.inject.Inject;
@@ -48,44 +49,30 @@ public class AlertDefinitionDAO {
   DaoUtils daoUtils;
 
   /**
-   * Alert history DAO.
-   */
-  @Inject
-  AlertsDAO alertsDao;
-
-  /**
-   * Alert dispatch DAO.
-   */
-  @Inject
-  AlertDispatchDAO dispatchDao;
-
-  /**
    * Gets an alert definition with the specified ID.
    * 
    * @param definitionId
    *          the ID of the definition to retrieve.
    * @return the alert definition or {@code null} if none exists.
    */
+  @RequiresSession
   public AlertDefinitionEntity findById(long definitionId) {
     return entityManagerProvider.get().find(AlertDefinitionEntity.class,
         definitionId);
   }
 
   /**
-   * Gets an alert definition with the specified name. Alert definition names
-   * are unique within a cluster.
+   * Gets an alert definition with the specified name.
    * 
-   * @param clusterId
-   *          the ID of the cluster.
    * @param definitionName
    *          the name of the definition (not {@code null}).
    * @return the alert definition or {@code null} if none exists.
    */
-  public AlertDefinitionEntity findByName(long clusterId, String definitionName) {
+  @RequiresSession
+  public AlertDefinitionEntity findByName(String definitionName) {
     TypedQuery<AlertDefinitionEntity> query = entityManagerProvider.get().createNamedQuery(
         "AlertDefinitionEntity.findByName", AlertDefinitionEntity.class);
 
-    query.setParameter("clusterId", clusterId);
     query.setParameter("definitionName", definitionName);
 
     return daoUtils.selectSingle(query);
@@ -94,27 +81,12 @@ public class AlertDefinitionDAO {
   /**
    * Gets all alert definitions stored in the database.
    * 
-   * @return all alert definitions or an empty list if none exist (never
-   *         {@code null}).
+   * @return all alert definitions or {@code null} if none exist.
    */
+  @RequiresSession
   public List<AlertDefinitionEntity> findAll() {
     TypedQuery<AlertDefinitionEntity> query = entityManagerProvider.get().createNamedQuery(
         "AlertDefinitionEntity.findAll", AlertDefinitionEntity.class);
-
-    return daoUtils.selectList(query);
-  }
-
-  /**
-   * Gets all alert definitions stored in the database.
-   * 
-   * @return all alert definitions or empty list if none exist (never
-   *         {@code null}).
-   */
-  public List<AlertDefinitionEntity> findAll(long clusterId) {
-    TypedQuery<AlertDefinitionEntity> query = entityManagerProvider.get().createNamedQuery(
-        "AlertDefinitionEntity.findAllInCluster", AlertDefinitionEntity.class);
-
-    query.setParameter("clusterId", clusterId);
 
     return daoUtils.selectList(query);
   }
@@ -155,22 +127,13 @@ public class AlertDefinitionDAO {
   }
 
   /**
-   * Removes the specified alert definition and all related history and
-   * associations from the database.
+   * Removes the specified alert definition from the database.
    * 
    * @param alertDefinition
    *          the definition to remove.
    */
   @Transactional
   public void remove(AlertDefinitionEntity alertDefinition) {
-    alertDefinition = merge(alertDefinition);
-    dispatchDao.removeNoticeByDefinitionId(alertDefinition.getDefinitionId());
-    alertsDao.removeByDefinitionId(alertDefinition.getDefinitionId());
-
-    EntityManager entityManager = entityManagerProvider.get();
-
-    alertDefinition = findById(alertDefinition.getDefinitionId());
-    if (null != alertDefinition)
-      entityManager.remove(alertDefinition);
+    entityManagerProvider.get().remove(merge(alertDefinition));
   }
 }

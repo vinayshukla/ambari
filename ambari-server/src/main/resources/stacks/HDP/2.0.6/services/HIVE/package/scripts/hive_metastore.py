@@ -28,8 +28,7 @@ from mysql_service import mysql_service
 class HiveMetastore(Script):
 
   def install(self, env):
-    import params
-    self.install_packages(env, exclude_packages=params.hive_exclude_packages)
+    self.install_packages(env)
 
   def configure(self, env):
     import params

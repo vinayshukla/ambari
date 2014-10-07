@@ -83,19 +83,15 @@ public class RequestResourceDefinition extends BaseResourceDefinition {
         sb.append(href);
         sb.append('/').append(requestId);
       } else {
-        // split the href up into its parts, intercepting "clusters" in order
+        // split the href up into its parts, intercepting "clusers" in order
         // to rewrite the href to be scoped for requests
         String[] tokens = href.split("/");
 
-        Integer tokenCount = tokens.length;
-        for (int i = 0; i < tokenCount; ++i) {
+        for (int i = 0; i < tokens.length; ++i) {
           String fragment = tokens[i];
-          sb.append(fragment);
-          if (i < tokenCount - 1 ) {
-            sb.append('/');
-          }
+          sb.append(fragment).append('/');
 
-          if ("clusters".equals(fragment) && i + 1 < tokenCount) {
+          if ("clusters".equals(fragment) && i + 1 < tokens.length) {
             String clusterName = tokens[i + 1];
             sb.append(clusterName).append("/");
             sb.append("requests/").append(requestId);

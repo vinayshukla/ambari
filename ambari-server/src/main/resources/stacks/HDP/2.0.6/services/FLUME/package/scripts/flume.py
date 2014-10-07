@@ -30,7 +30,7 @@ def flume(action = None):
     for n in find_expected_agent_names():
       os.unlink(os.path.join(params.flume_conf_dir, n, 'ambari-meta.json'))
 
-    Directory(params.flume_conf_dir, recursive=True)
+    Directory(params.flume_conf_dir)
     Directory(params.flume_log_dir, owner=params.flume_user)
 
     flume_agents = {}
@@ -58,12 +58,11 @@ def flume(action = None):
         mode = 0644)
 
   elif action == 'start':
-    # desired state for service should be STARTED
-    if len(params.flume_command_targets) == 0:
-      _set_desired_state('STARTED')
-      
-    flume_base = format('su -s /bin/bash {flume_user} -c "export JAVA_HOME={java_home}; '
-      '{flume_bin} agent --name {{0}} --conf {{1}} --conf-file {{2}} {{3}}"')
+    flume_base = format('env JAVA_HOME={java_home} /usr/bin/flume-ng agent '
+      '--name {{0}} '
+      '--conf {{1}} '
+      '--conf-file {{2}} '
+      '{{3}}')
 
     for agent in cmd_target_names():
       flume_agent_conf_dir = params.flume_conf_dir + os.sep + agent
@@ -86,15 +85,12 @@ def flume(action = None):
         Execute(flume_cmd, wait_for_finish=False)
 
         # sometimes startup spawns a couple of threads - so only the first line may count
-        pid_cmd = format('pgrep -o -u {flume_user} -f ^{java_home}.*{agent}.* > {flume_agent_pid_file}')
-        Execute(pid_cmd, logoutput=True, tries=10, try_sleep=6)
+        pid_cmd = format('pgrep -o -f {flume_agent_conf_file} > {flume_agent_pid_file}')
+
+        Execute(pid_cmd, logoutput=True, tries=5, try_sleep=10)
 
     pass
   elif action == 'stop':
-    # desired state for service should be INSTALLED
-    if len(params.flume_command_targets) == 0:
-      _set_desired_state('INSTALLED')
-
     pid_files = glob.glob(params.flume_run_dir + os.sep + "*.pid")
 
     if 0 == len(pid_files):
@@ -102,13 +98,18 @@ def flume(action = None):
 
     agent_names = cmd_target_names()
 
-
-    for agent in agent_names:
-      pid_file = params.flume_run_dir + os.sep + agent + '.pid'
-      pid = format('`cat {pid_file}` > /dev/null 2>&1')
-      Execute(format('kill {pid}'), ignore_failures=True)
-      File(pid_file, action = 'delete')
-
+    if len(agent_names) > 0:
+      for agent in agent_names:
+        pid_file = params.flume_run_dir + os.sep + agent + '.pid'
+        pid = format('`cat {pid_file}` > /dev/null 2>&1')
+        Execute(format('kill {pid}'), ignore_failures=True)
+        File(pid_file, action = 'delete')
+    else:
+      for pid_file in pid_files:
+        pid = format('`cat {pid_file}` > /dev/null 2>&1')
+        Execute(format('kill {pid}'), ignore_failures=True)
+        File(pid_file, action = 'delete')
+    
 
 def ambari_meta(agent_name, agent_conf):
   res = {}
@@ -231,20 +232,3 @@ def cmd_target_names():
   else:
     return find_expected_agent_names()
 
-def _set_desired_state(state):
-  import params
-  try:
-    with open(os.path.join(params.flume_run_dir, 'ambari-state.txt'), 'w') as fp:
-      fp.write(state)
-  except:
-    pass
-
-def get_desired_state():
-  import params
-
-  try:
-    with open(os.path.join(params.flume_run_dir, 'ambari-state.txt'), 'r') as fp:
-      return fp.read()
-  except:
-    return 'INSTALLED'
-  

@@ -34,18 +34,10 @@ from ambari_commons import OSCheck
 AMBARI_PASSPHRASE_VAR = "AMBARI_PASSPHRASE"
 
 
-def execOsCommand(osCommand, tries=1, try_sleep=0):
-  for i in range(0, tries):
-    if i>0:
-      time.sleep(try_sleep)
-    
-    osStat = subprocess.Popen(osCommand, stdout=subprocess.PIPE)
-    log = osStat.communicate(0)
-    ret = {"exitstatus": osStat.returncode, "log": log}
-    
-    if ret['exitstatus'] == 0:
-      break
-      
+def execOsCommand(osCommand):
+  osStat = subprocess.Popen(osCommand, stdout=subprocess.PIPE)
+  log = osStat.communicate(0)
+  ret = {"exitstatus": osStat.returncode, "log": log}
   return ret
 
 
@@ -53,13 +45,13 @@ def installAgent(projectVersion):
   """ Run install and make sure the agent install alright """
   # The command doesn't work with file mask ambari-agent*.rpm, so rename it on agent host
   if OSCheck.is_suse_family():
-    Command = ["zypper", "--no-gpg-checks", "install", "-y", "ambari-agent-" + projectVersion]
-  elif OSCheck.is_ubuntu_family():
+    Command = ["zypper", "install", "-y", "ambari-agent-" + projectVersion]
+  elif OSCheck.is_debian_family():
     # add * to end of version in case of some test releases
     Command = ["apt-get", "install", "-y", "--allow-unauthenticated", "ambari-agent=" + projectVersion + "*"]
   else:
     Command = ["yum", "-y", "install", "--nogpgcheck", "ambari-agent-" + projectVersion]
-  return execOsCommand(Command, tries=3, try_sleep=10)
+  return execOsCommand(Command)
 
 
 def configureAgent(server_hostname):
@@ -109,14 +101,14 @@ def findNearestAgentPackageVersion(projectVersion):
   if projectVersion == "":
     projectVersion = "  "
   if OSCheck.is_suse_family():
-    Command = ["bash", "-c", "zypper --no-gpg-checks -q search -s --match-exact ambari-agent | grep '" + projectVersion +
+    Command = ["bash", "-c", "zypper -q search -s --match-exact ambari-agent | grep '" + projectVersion +
                                  "' | cut -d '|' -f 4 | head -n1 | sed -e 's/-\w[^:]*//1' "]
-  elif OSCheck.is_ubuntu_family():
+  elif OSCheck.is_debian_family():
     if projectVersion == "  ":
       Command = ["bash", "-c", "apt-cache -q show ambari-agent |grep 'Version\:'|cut -d ' ' -f 2|tr -d '\\n'|sed -s 's/[-|~][A-Za-z0-9]*//'"]
     else:
       Command = ["bash", "-c", "apt-cache -q show ambari-agent |grep 'Version\:'|cut -d ' ' -f 2|grep '" +
-               projectVersion + "'|tr -d '\\n'|sed -s 's/[-|~][A-Za-z0-9]*//'"]
+               projectVersion + "'|tr -d '\\n'|sed -s 's/[-|~][A-Za-z\d]*//'"]
   else:
     Command = ["bash", "-c", "yum -q list all ambari-agent | grep '" + projectVersion +
                               "' | sed -re 's/\s+/ /g' | cut -d ' ' -f 2 | head -n1 | sed -e 's/-\w[^:]*//1' "]
@@ -124,8 +116,8 @@ def findNearestAgentPackageVersion(projectVersion):
 
 
 def isAgentPackageAlreadyInstalled(projectVersion):
-    if OSCheck.is_ubuntu_family():
-      Command = ["bash", "-c", "dpkg-query -W -f='${Status} ${Version}\n' ambari-agent | grep -v deinstall | grep " + projectVersion]
+    if OSCheck.is_debian_family():
+      Command = ["bash", "-c", "dpkg -s ambari-agent  2>&1|grep 'Version\:'|grep " + projectVersion]
     else:
       Command = ["bash", "-c", "rpm -qa | grep ambari-agent-"+projectVersion]
     ret = execOsCommand(Command)
@@ -138,8 +130,8 @@ def isAgentPackageAlreadyInstalled(projectVersion):
 def getAvaliableAgentPackageVersions():
   if OSCheck.is_suse_family():
     Command = ["bash", "-c",
-        "zypper --no-gpg-checks -q search -s --match-exact ambari-agent | grep ambari-agent | sed -re 's/\s+/ /g' | cut -d '|' -f 4 | tr '\\n' ', ' | sed -s 's/[-|~][A-Za-z0-9]*//g'"]
-  elif OSCheck.is_ubuntu_family():
+        "zypper -q search -s --match-exact ambari-agent | grep ambari-agent | sed -re 's/\s+/ /g' | cut -d '|' -f 4 | tr '\\n' ', ' | sed -s 's/[-|~][A-Za-z0-9]*//g'"]
+  elif OSCheck.is_debian_family():
     Command = ["bash", "-c",
         "apt-cache -q show ambari-agent|grep 'Version\:'|cut -d ' ' -f 2| tr '\\n' ', '|sed -s 's/[-|~][A-Za-z0-9]*//g'"]
   else:

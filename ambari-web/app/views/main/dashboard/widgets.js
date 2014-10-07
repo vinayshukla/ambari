@@ -45,12 +45,6 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
   isDataLoaded: false,
 
   /**
-   * Define if some widget is currently moving
-   * @type {bool}
-   */
-  isMoving: false,
-
-  /**
    * Make widgets' list sortable on New Dashboard style
    */
   makeSortable: function () {
@@ -59,10 +53,8 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
       items: "> div",
       //placeholder: "sortable-placeholder",
       cursor: "move",
-      tolerance: "pointer",
-      scroll: false,
       update: function (event, ui) {
-        if (!App.get('testMode')) {
+        if (!App.testMode) {
           // update persist then translate to real
           var widgetsArray = $('div[viewid]'); // get all in DOM
           self.getUserPref(self.get('persistKey')).complete(function () {
@@ -84,12 +76,6 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
             //self.translateToReal(newValue);
           });
         }
-      },
-      activate: function(event, ui) {
-        self.set('isMoving', true);
-      },
-      deactivate: function(event, ui) {
-        self.set('isMoving', false);
       }
     }).disableSelection();
   },
@@ -140,6 +126,15 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
       '29' // flume
     ]; // all in order
     var hiddenFull = [['22','Region In Transition']];
+
+    // Display widgets for host metrics if the stack definition has a host metrics service to display it.
+    if(App.get('services.hostMetrics').length == 0) {
+      var hostMetrics = ['11', '12', '13', '14'];
+      hostMetrics.forEach ( function (item) {
+        visibleFull = visibleFull.without(item);
+      }, this);
+    }
+
     if (this.get('hdfs_model') == null) {
       var hdfs= ['1', '2', '3', '4', '5', '15', '17'];
       hdfs.forEach ( function (item) {
@@ -217,13 +212,11 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
       hiddenWidgetsBinding: 'parentView.hiddenWidgets',
       visibleWidgetsBinding: 'parentView.visibleWidgets',
       valueBinding: '',
-      widgetCheckbox: Em.Checkbox.extend({
-        didInsertElement: function() {
-          $('.checkbox').click(function(event) {
-            event.stopPropagation();
-          });
-        }
-      }),
+      didInsertElement: function() {
+        $(".add-widgets-dropdown-list").click(function( event ) {
+          event.stopPropagation();
+        });
+      },
       closeFilter:function () {
       },
       applyFilter:function() {
@@ -232,7 +225,7 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
         var hiddenWidgets = this.get('hiddenWidgets');
         var checkedWidgets = hiddenWidgets.filterProperty('checked', true);
 
-        if (App.get('testMode')) {
+        if (App.testMode) {
           var visibleWidgets = this.get('visibleWidgets');
           checkedWidgets.forEach(function(item){
             var newObj = parent.widgetsMapper(item.id);
@@ -307,7 +300,7 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
    */
   setOnLoadVisibleWidgets: function () {
     var self = this;
-    if (App.get('testMode')) {
+    if (App.testMode) {
       this.translateToReal(this.get('initPrefObject'));
     } else {
       // called when first load/refresh/jump back page
@@ -378,17 +371,25 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
 
     // check each service, find out the newly added service and already deleted service
     if (this.get('hdfs_model') != null) {
-      var hdfsAndMetrics= ['1', '2', '3', '4', '5', '15', '17', '11', '12', '13', '14'];
-      hdfsAndMetrics.forEach ( function (item) {
+      var hdfs = ['1', '2', '3', '4', '5', '15', '17'];
+      hdfs.forEach ( function (item) {
         toDelete = self.removeWidget(toDelete, item);
       }, this);
     }
-    else {
-      var graphs = ['11', '12', '13', '14'];
-      graphs.forEach ( function (item) {
-        toDelete = self.removeWidget(toDelete, item);
-      }, this);
+
+    // Display widgets for host metrics if the stack definition has a host metrics service to display it.
+    if(App.get('services.hostMetrics').length) {
+      var hostMetrics = ['11', '12', '13', '14'];
+      var flag = self.containsWidget(toDelete, hostMetrics[0]);
+      if (flag) {
+        hostMetrics.forEach ( function (item) {
+          toDelete = self.removeWidget(toDelete, item);
+        }, this);
+      } else {
+        toAdd = toAdd.concat(hostMetrics);
+      }
     }
+
     if (this.get('mapreduce_model') != null) {
       var map = ['6', '7', '8', '9', '10', '16', '18'];
       var flag = self.containsWidget(toDelete, map[0]);
@@ -548,7 +549,7 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
   resetAllWidgets: function() {
     var self = this;
     App.showConfirmationPopup(function() {
-      if(!App.get('testMode')) {
+      if(!App.testMode) {
         self.postUserPref(self.get('persistKey'), self.get('initPrefObject'));
         self.setDBProperty(self.get('persistKey'), self.get('initPrefObject'));
       }

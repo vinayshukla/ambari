@@ -20,15 +20,13 @@
   <services>
     <service>
       <name>FLUME</name>
-      <displayName>Flume</displayName>
       <comment>Data management and processing platform</comment>
-      <version>1.4.0.2.0</version>
+      <version>1.4.0.2.1.1.0</version>
       <components>
         <component>
           <name>FLUME_HANDLER</name>
-          <displayName>Flume</displayName>
           <category>SLAVE</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality>
           <commandScript>
             <script>scripts/flume_handler.py</script>
             <scriptType>PYTHON</scriptType>
@@ -53,10 +51,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>HDFS</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>flume-env</config-type>

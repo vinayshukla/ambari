@@ -30,12 +30,9 @@ public class ConfigurationRequest {
   private String clusterName;
   private String type;
   private String tag;
-  private Long version;
-  private String serviceConfigVersionNote;
   private Map<String, String> configs;
   private boolean selected = true;
   private Map<String, Map<String, String>> configsAttributes;
-  private boolean includeProperties;
 
   public ConfigurationRequest() {
     configs = new HashMap<String, String>();
@@ -54,7 +51,6 @@ public class ConfigurationRequest {
     this.tag = tag;
     this.configs = configs;
     this.configsAttributes = configsAttributes;
-    this.includeProperties = (type != null && tag != null);
   }
 
   /**
@@ -131,24 +127,6 @@ public class ConfigurationRequest {
   }
 
   /**
-   * Set whether properties should be included.
-   *
-   * @param includeProperties whether properties should be included
-   */
-  public void setIncludeProperties(boolean includeProperties) {
-    this.includeProperties = includeProperties;
-  }
-
-  /**
-   * Determine whether properties should be included.
-   *
-   * @return  true if properties should be included; false otherwise
-   */
-  public boolean includeProperties()  {
-    return this.includeProperties;
-  }
-
-  /**
    * @return Attributes of configs
    */
   public Map<String, Map<String, String>> getPropertiesAttributes() {
@@ -158,21 +136,5 @@ public class ConfigurationRequest {
   public void setPropertiesAttributes(
       Map<String, Map<String, String>> configsAttributes) {
     this.configsAttributes = configsAttributes;
-  }
-
-  public Long getVersion() {
-    return version;
-  }
-
-  public void setVersion(Long version) {
-    this.version = version;
-  }
-
-  public String getServiceConfigVersionNote() {
-    return serviceConfigVersionNote;
-  }
-
-  public void setServiceConfigVersionNote(String serviceConfigVersionNote) {
-    this.serviceConfigVersionNote = serviceConfigVersionNote;
   }
 }

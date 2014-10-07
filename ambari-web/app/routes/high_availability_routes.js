@@ -52,28 +52,32 @@ module.exports = App.WizardRoute.extend({
         }.observes('App.router.highAvailabilityWizardController.currentStep'),
 
         onClose: function () {
-          var self = this;
           var currStep = App.router.get('highAvailabilityWizardController.currentStep');
           var highAvailabilityProgressPageController = App.router.get('highAvailabilityProgressPageController');
+
           if(parseInt(currStep) > 4){
             if(!App.supports.autoRollbackHA){
               highAvailabilityProgressPageController.manualRollback();
-            } else{
+            }else{
               this.hide();
               App.router.get('highAvailabilityWizardController').setCurrentStep('1');
               App.router.transitionTo('rollbackHighAvailability');
             }
-          } else {
+          }else {
             var controller = App.router.get('highAvailabilityWizardController');
-            controller.clearTasksData();
-            controller.finish();
+            controller.clearStorageData();
+            controller.setCurrentStep('1');
             App.router.get('updateController').set('isWorking', true);
             App.clusterStatus.setClusterStatus({
-              clusterName: controller.get('content.cluster.name'),
+              clusterName: App.router.get('content.cluster.name'),
               clusterState: 'DEFAULT',
+              wizardControllerName: App.router.get('highAvailabilityWizardController.name'),
               localdb: App.db.data
-            },{alwaysCallback: function() {self.hide();App.router.transitionTo('main.services.index');location.reload();}});
+            });
+            this.hide();
+            App.router.transitionTo('main.admin.adminHighAvailability');
           }
+
         },
         didInsertElement: function () {
           this.fitHeight();
@@ -143,7 +147,12 @@ module.exports = App.WizardRoute.extend({
       if(sNN){
         App.db.setRollBackHighAvailabilityWizardSNNHost(sNN);
       }
-
+      App.clusterStatus.setClusterStatus({
+        clusterName: this.get('content.cluster.name'),
+        clusterState: 'HIGH_AVAILABILITY_DEPLOY',
+        wizardControllerName: this.get('content.controllerName'),
+        localdb: App.db.data
+      });
       controller.saveMasterComponentHosts(highAvailabilityWizardStep2Controller);
       controller.get('content').set('serviceConfigProperties', null);
       controller.setDBProperty('serviceConfigProperties', null);
@@ -302,11 +311,15 @@ module.exports = App.WizardRoute.extend({
       var controller = router.get('highAvailabilityWizardController');
       controller.clearTasksData();
       controller.finish();
+      controller.get('popup').hide();
       App.clusterStatus.setClusterStatus({
         clusterName: controller.get('content.cluster.name'),
         clusterState: 'DEFAULT',
+        wizardControllerName: 'highAvailabilityWizardController',
         localdb: App.db.data
-      },{alwaysCallback: function() {controller.get('popup').hide();router.transitionTo('main.services.index');location.reload();}});
+      });
+      router.transitionTo('main.index');
+      location.reload();
     }
   }),
 

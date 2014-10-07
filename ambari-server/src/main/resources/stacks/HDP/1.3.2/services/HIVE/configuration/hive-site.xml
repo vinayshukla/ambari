@@ -52,7 +52,7 @@ limitations under the License.
   <property require-input="true">
     <name>javax.jdo.option.ConnectionPassword</name>
     <value> </value>
-    <property-type>PASSWORD</property-type>
+    <type>PASSWORD</type>
     <description>password to use against metastore database</description>
   </property>
 
@@ -254,25 +254,6 @@ limitations under the License.
     <value>10000</value>
     <description>
       TCP port number to listen on, default 10000.
-    </description>
-  </property>
-
-  <property>
-    <name>hive.server2.support.dynamic.service.discovery</name>
-    <value>false</value>
-    <description>Whether HiveServer2 supports dynamic service discovery for its
-      clients. To support this, each instance of HiveServer2 currently uses
-      ZooKeeper to register itself, when it is brought up. JDBC/ODBC clients
-      should use the ZooKeeper ensemble: hive.zookeeper.quorum in their
-      connection string.
-    </description>
-  </property>
-
-  <property>
-    <name>hive.server2.zookeeper.namespace</name>
-    <value>hiveserver2</value>
-    <description>The parent node in ZooKeeper used by HiveServer2 when
-      supporting dynamic service discovery.
     </description>
   </property>
 

@@ -21,6 +21,7 @@ package org.apache.ambari.server.controller.internal;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.AmbariServer;
 import org.apache.ambari.server.controller.HostRequest;
 import org.apache.ambari.server.controller.HostResponse;
@@ -33,9 +34,11 @@ import org.apache.ambari.server.controller.ganglia.GangliaReportPropertyProvider
 import org.apache.ambari.server.controller.ganglia.GangliaHostProvider;
 import org.apache.ambari.server.controller.jmx.JMXHostProvider;
 import org.apache.ambari.server.controller.jmx.JMXPropertyProvider;
-import org.apache.ambari.server.controller.metrics.MetricsHostProvider;
 import org.apache.ambari.server.controller.nagios.NagiosPropertyProvider;
 import org.apache.ambari.server.controller.spi.*;
+import org.apache.ambari.server.controller.sql.HostInfoProvider;
+import org.apache.ambari.server.controller.sql.SQLPropertyProvider;
+import org.apache.ambari.server.controller.sql.SinkConnectionFactory;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.controller.AmbariManagementController;
@@ -47,18 +50,19 @@ import org.apache.ambari.server.state.DesiredConfig;
 import org.apache.ambari.server.state.HostState;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.State;
-import org.apache.ambari.server.state.Cluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.lang.System;
 
 /**
  * An abstract provider module implementation.
  */
-public abstract class AbstractProviderModule implements ProviderModule, ResourceProviderObserver, JMXHostProvider, GangliaHostProvider, MetricsHostProvider {
+public abstract class AbstractProviderModule implements ProviderModule, ResourceProviderObserver, JMXHostProvider, GangliaHostProvider, HostInfoProvider {
 
   private static final int PROPERTY_REQUEST_CONNECT_TIMEOUT = 5000;
   private static final int PROPERTY_REQUEST_READ_TIMEOUT    = 10000;
@@ -135,7 +139,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
   private final Map<Resource.Type,List<PropertyProvider>> propertyProviders = new HashMap<Resource.Type, List<PropertyProvider>>();
 
   @Inject
-  AmbariManagementController managementController;
+  private AmbariManagementController managementController;
 
   /**
    * The map of host components.
@@ -205,28 +209,13 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
   }
 
 
-  // ----- MetricsHostProvider ---------------------------------------------------
+  // ----- JMXHostProvider ---------------------------------------------------
 
   @Override
   public String getHostName(String clusterName, String componentName) throws SystemException {
     checkInit();
     return clusterHostComponentMap.get(clusterName).get(componentName);
   }
-
-  @Override
-  public Set<String> getHostNames(String clusterName, String componentName) {
-    Set<String> hosts = null;
-    try {
-      Cluster cluster = managementController.getClusters().getCluster(clusterName);
-      String serviceName = managementController.findServiceName(cluster, componentName);
-      hosts = cluster.getService(serviceName).getServiceComponent(componentName).getServiceComponentHosts().keySet();
-    } catch (Exception e) {
-      LOG.warn("Exception in getting host names for jmx metrics: ", e);
-    }
-    return hosts;
-  }
-
-  // ----- JMXHostProvider ---------------------------------------------------
 
   @Override
   public String getPort(String clusterName, String componentName) throws SystemException {
@@ -311,8 +300,47 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
           properties.put(key, value);
     }
     return value;
-  } 
-  
+  }
+
+
+  // ----- HostInfoProvider -----------------------------------------------
+
+  @Override
+  public String getHostName(String id) throws SystemException {
+    return getClusterNodeName(id);
+  }
+
+  @Override
+  public String getHostAddress(String id) throws SystemException {
+    return getClusterHostAddress(id);
+  }
+
+
+  // get the hostname
+  private String getClusterNodeName(String hostname) throws SystemException {
+    try {
+      if (hostname.equalsIgnoreCase("localhost")) {
+        return InetAddress.getLocalHost().getCanonicalHostName();
+      }
+      return InetAddress.getByName(hostname).getCanonicalHostName();
+    } catch (Exception e) {
+      throw new SystemException("Error getting hostname.", e);
+    }
+  }
+
+  // get the hostname
+  private String getClusterHostAddress(String hostname) throws SystemException {
+    try {
+      if (hostname.equalsIgnoreCase("localhost")) {
+        return InetAddress.getLocalHost().getHostAddress();
+      }
+      return InetAddress.getByName(hostname).getHostAddress();
+    } catch (Exception e) {
+      throw new SystemException("Error getting ip address.", e);
+    }
+  }
+
+
   // ----- GangliaHostProvider -----------------------------------------------
 
   @Override
@@ -456,23 +484,31 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
               type,
               streamProvider,
               this,
-              this,
               PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
               null,
               PropertyHelper.getPropertyId("ServiceComponentInfo", "component_name"),
-              PropertyHelper.getPropertyId("ServiceComponentInfo", "state"));
-
-          PropertyProvider gpp = createGangliaComponentPropertyProvider(
-              type,
-              streamProvider,
-              ComponentSSLConfiguration.instance(),
-              this,
-              PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
-              PropertyHelper.getPropertyId("ServiceComponentInfo", "component_name"));
-
+              PropertyHelper.getPropertyId("ServiceComponentInfo", "state"),
+              Collections.singleton("STARTED"));
+          PropertyProvider gpp = null;
+          if (System.getProperty("os.name").contains("Windows")) {
+            gpp = createSQLComponentPropertyProvider(
+                type,
+                this,
+                PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
+                PropertyHelper.getPropertyId("ServiceComponentInfo", "component_name"),
+                PropertyHelper.getPropertyId("ServiceComponentInfo", "service_name"));
+          }
+          else {
+            gpp = createGangliaComponentPropertyProvider(
+                type,
+                streamProvider,
+                ComponentSSLConfiguration.instance(),
+                this,
+                PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
+                PropertyHelper.getPropertyId("ServiceComponentInfo", "component_name"));
+          }
           providers.add(new StackDefinedPropertyProvider(
               type,
-              this,
               this,
               this,
               streamProvider,
@@ -490,24 +526,33 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
               type,
               streamProvider,
               this,
-              this,
               PropertyHelper.getPropertyId("HostRoles", "cluster_name"),
               PropertyHelper.getPropertyId("HostRoles", "host_name"),
               PropertyHelper.getPropertyId("HostRoles", "component_name"),
-              PropertyHelper.getPropertyId("HostRoles", "state"));
-
-          PropertyProvider gpp = createGangliaHostComponentPropertyProvider(
-              type,
-              streamProvider,
-              ComponentSSLConfiguration.instance(),
-              this,
-              PropertyHelper.getPropertyId("HostRoles", "cluster_name"),
-              PropertyHelper.getPropertyId("HostRoles", "host_name"),
-              PropertyHelper.getPropertyId("HostRoles", "component_name"));
-
+              PropertyHelper.getPropertyId("HostRoles", "state"),
+              Collections.singleton("STARTED"));
+          PropertyProvider gpp = null;
+          if (System.getProperty("os.name").contains("Windows")) {
+            gpp = createSQLHostComponentPropertyProvider(
+                type,
+                this,
+                PropertyHelper.getPropertyId("HostRoles", "cluster_name"),
+                PropertyHelper.getPropertyId("HostRoles", "host_name"),
+                PropertyHelper.getPropertyId("HostRoles", "component_name"),
+                PropertyHelper.getPropertyId("HostRoles", "service_name"));
+          }
+          else {
+            gpp = createGangliaHostComponentPropertyProvider(
+                type,
+                streamProvider,
+                ComponentSSLConfiguration.instance(),
+                this,
+                PropertyHelper.getPropertyId("HostRoles", "cluster_name"),
+                PropertyHelper.getPropertyId("HostRoles", "host_name"),
+                PropertyHelper.getPropertyId("HostRoles", "component_name"));
+          }
           providers.add(new StackDefinedPropertyProvider(
               type,
-              this,
               this,
               this,
               streamProvider,
@@ -547,14 +592,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
 
   private void initProviderMaps() throws SystemException {
     ResourceProvider provider = getResourceProvider(Resource.Type.Cluster);
-
-    Set<String> propertyIds = new HashSet<String>();
-    propertyIds.add(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID);
-
-    Map<String, String> requestInfoProperties = new HashMap<String, String>();
-    requestInfoProperties.put(ClusterResourceProvider.GET_IGNORE_PERMISSIONS_PROPERTY_ID, "true");
-
-    Request request = PropertyHelper.getReadRequest(propertyIds, requestInfoProperties, null);
+    Request          request  = PropertyHelper.getReadRequest(CLUSTER_NAME_PROPERTY_ID);
 
     try {
       jmxPortMap.clear();
@@ -633,17 +671,9 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
 
     Set<Resource> clusterResource = null;
     try {
-
-      Set<String> propertyIds = new HashSet<String>();
-      propertyIds.add(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID);
-      propertyIds.add(ClusterResourceProvider.CLUSTER_DESIRED_CONFIGS_PROPERTY_ID);
-
-      Map<String, String> requestInfoProperties = new HashMap<String, String>();
-      requestInfoProperties.put(ClusterResourceProvider.GET_IGNORE_PERMISSIONS_PROPERTY_ID, "true");
-
-      Request readRequest = PropertyHelper.getReadRequest(propertyIds, requestInfoProperties, null);
-
-      clusterResource = clusterResourceProvider.getResources(readRequest, basePredicate);
+      clusterResource = clusterResourceProvider.getResources(
+        PropertyHelper.getReadRequest(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID,
+          ClusterResourceProvider.CLUSTER_DESIRED_CONFIGS_PROPERTY_ID), basePredicate);
     } catch (NoSuchResourceException e) {
       LOG.error("Resource for the desired config not found. " + e);
     }
@@ -657,7 +687,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
         if (configs != null) {
           DesiredConfig config = (DesiredConfig) configs.get(configType);
           if (config != null) {
-            versionTag = config.getTag();
+            versionTag = config.getVersion();
           }
         }
       }
@@ -733,15 +763,14 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
    */
   private PropertyProvider createJMXPropertyProvider(Resource.Type type, StreamProvider streamProvider,
                                                      JMXHostProvider jmxHostProvider,
-                                                     MetricsHostProvider metricsHostProvider,
                                                      String clusterNamePropertyId,
                                                      String hostNamePropertyId,
                                                      String componentNamePropertyId,
-                                                     String statePropertyId) {
+                                                     String statePropertyId,
+                                                     Set<String> healthyStates) {
     
     return new JMXPropertyProvider(PropertyHelper.getJMXPropertyIds(type), streamProvider,
-        jmxHostProvider, metricsHostProvider, clusterNamePropertyId, hostNamePropertyId,
-                    componentNamePropertyId, statePropertyId);
+          jmxHostProvider, clusterNamePropertyId, hostNamePropertyId, componentNamePropertyId, statePropertyId, healthyStates);
   }
 
   /**
@@ -794,6 +823,46 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
     return new GangliaHostComponentPropertyProvider(PropertyHelper.getGangliaPropertyIds(type), streamProvider,
           configuration, hostProvider, clusterNamePropertyId, hostNamePropertyId, componentNamePropertyId);
   }
+
+  /**
+   * Create the SQL component property provider for the given type.
+   */
+  private PropertyProvider createSQLComponentPropertyProvider( Resource.Type type,
+                                                                   HostInfoProvider hostProvider,
+                                                                   String clusterNamePropertyId,
+                                                                   String componentNamePropertyId,
+                                                                   String serviceNamePropertyId) {
+    return new SQLPropertyProvider(
+        PropertyHelper.getSQLServerPropertyIds(type),
+        hostProvider,
+        clusterNamePropertyId,
+        null,
+        componentNamePropertyId,
+        serviceNamePropertyId,
+        SinkConnectionFactory.instance());
+  }
+
+
+  /**
+   * Create the SQL host component property provider for the given type.
+   */
+  private PropertyProvider createSQLHostComponentPropertyProvider( Resource.Type type,
+                                                                       HostInfoProvider hostProvider,
+                                                                       String clusterNamePropertyId,
+                                                                       String hostNamePropertyId,
+                                                                       String componentNamePropertyId,
+                                                                       String serviceNamePropertyId) {
+
+    return new SQLPropertyProvider(
+        PropertyHelper.getSQLServerPropertyIds(type),
+        hostProvider,
+        clusterNamePropertyId,
+        hostNamePropertyId,
+        componentNamePropertyId,
+        serviceNamePropertyId,
+        SinkConnectionFactory.instance());
+  }
+
   
   @Override
   public String getJMXProtocol(String clusterName, String componentName) {

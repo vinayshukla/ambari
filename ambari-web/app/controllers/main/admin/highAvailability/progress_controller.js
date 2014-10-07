@@ -33,7 +33,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   POLL_INTERVAL: 4000,
   isSubmitDisabled: true,
   isRollback: false,
-  tasksMessagesPrefix: 'admin.highAvailability.wizard.step',
 
   loadStep: function () {
     console.warn('func: loadStep');
@@ -54,18 +53,17 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   initializeTasks: function () {
     console.warn('func: initializeTasks');
     var commands = this.get('commands');
-    var currentStep = App.router.get(this.get('content.controllerName') + '.currentStep');
-    var tasksMessagesPrefix = this.get('tasksMessagesPrefix');
+    var currentStep = App.router.get('highAvailabilityWizardController.currentStep');
     for (var i = 0; i < commands.length; i++) {
       this.get('tasks').pushObject(Ember.Object.create({
-        title: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
+        title: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
         status: 'PENDING',
         id: i,
         command: commands[i],
         showRetry: false,
         showRollback: false,
-        name: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
-        displayName: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
+        name: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
+        displayName: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
         progress: 0,
         isRunning: false,
         requestIds: []
@@ -120,17 +118,20 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
       primary: Em.I18n.t('yes'),
       showCloseButton: false,
       onPrimary: function () {
-        var self = this;
         var controller = App.router.get('highAvailabilityWizardController');
         controller.clearTasksData();
         controller.clearStorageData();
-        controller.finish();
+        controller.setCurrentStep('1');
         App.router.get('updateController').set('isWorking', true);
         App.clusterStatus.setClusterStatus({
           clusterName: App.router.get('content.cluster.name'),
           clusterState: 'DEFAULT',
+          wizardControllerName: App.router.get('highAvailabilityRollbackController.name'),
           localdb: App.db.data
-        },{alwaysCallback: function() {self.hide();App.router.transitionTo('main.index');location.reload();}});
+        });
+        this.hide();
+        App.router.transitionTo('main.admin.index');
+        location.reload();
       },
       secondary: Em.I18n.t('no'),
       onSecondary: function () {
@@ -177,7 +178,7 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
       clusterState: this.get('clusterDeployState'),
       wizardControllerName: this.get('content.controllerName'),
       localdb: App.db.data
-    }, {successCallback: this.statusChangeCallback, sender: this});
+    }, {success: 'statusChangeCallback', sender: this });
   },
   /**
    * Method that called after saving persist data to server.
@@ -399,7 +400,7 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
     var popupTitle = event.contexts[0].title;
     var requestIds = event.contexts[0].requestIds;
     var hostProgressPopupController = App.router.get('highAvailabilityProgressPopupController');
-    hostProgressPopupController.initPopup(popupTitle, requestIds, this, true);
+    hostProgressPopupController.initPopup(popupTitle, requestIds, this);
   },
 
   done: function () {
@@ -407,34 +408,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
       this.removeObserver('tasks.@each.status', this, 'onTaskStatusChange');
       App.router.send('next');
     }
-  },
-  /**
-   *
-   * @param siteNames Array
-   */
-  reconfigureSites: function(siteNames, data) {
-    var tagName = App.get('testMode') ? 'version1' : 'version' + (new Date).getTime();
-    var componentName;
-    switch (this.get('content.controllerName')) {
-      case 'rMHighAvailabilityWizardController':
-        componentName =  'RESOURCEMANAGER';
-        break;
-      default:
-        componentName =  'NAMENODE';
-    }
-    return siteNames.map(function(_siteName) {
-      var config = data.items.findProperty('type', _siteName);
-      var configToSave = {
-        type: _siteName,
-        tag: tagName,
-        properties: config && config.properties,
-        service_config_version_note: Em.I18n.t('admin.highAvailability.step4.save.configuration.note').format(App.format.role(componentName))
-      }
-      if (config && config.properties_attributes) {
-        configToSave.properties_attributes = config.properties_attributes;
-      }
-      return configToSave;
-    });
   }
 });
 

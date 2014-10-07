@@ -32,5 +32,5 @@ setup(
         "console_scripts": [
             "ambari-agent = ambari_agent.main:main",
         ],
-    }
+    }, requires=['jinja2']
 )

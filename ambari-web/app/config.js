@@ -27,7 +27,9 @@ App.alwaysGoToInstaller = false;
 App.testEnableSecurity = true; // By default enable security is tested; turning it false tests disable security
 App.testNameNodeHA = true;
 App.apiPrefix = '/api/v1';
-App.defaultStackVersion = 'HDP-2.1';
+App.defaultStackVersion = 'HDP-2.0.5';
+App.defaultWindowsStackVersion = 'HDPWIN-2.1';
+App.defaultLocalStackVersion = 'HDPLocal-2.0.5';
 App.defaultJavaHome = '/usr/jdk/jdk1.6.0_31';
 App.timeout = 180000; // default AJAX timeout
 App.maxRetries = 3; // max number of retries for certain AJAX calls
@@ -70,18 +72,15 @@ App.supports = {
   ldapGroupMapping: false,
   localRepositories: true,
   highAvailability: true,
-  resourceManagerHighAvailability: true,
+  resourceManagerHighAvailability: false,
   deleteHost: true,
   autoRollbackHA: false,
   appTimelineServer: true,
+  jobs: true,
   ubuntu: true,
-  views: true,
-  flume: true,
-  databaseConnection: true,
-  configHistory: true,
-  serverRecommendValidate: true,
-  downloadClientConfigs: true,
-  abortRequests: true
+  views: false,
+  flume: false,
+  databaseConnection: true
 };
 
 if (App.enableExperimental) {

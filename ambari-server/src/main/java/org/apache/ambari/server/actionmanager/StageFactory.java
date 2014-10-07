@@ -29,9 +29,7 @@ public interface StageFactory {
       @Assisted("clusterName") String clusterName,
       @Assisted("clusterId") long clusterId,
       @Assisted("requestContext") String requestContext,
-      @Assisted("clusterHostInfo") String clusterHostInfo,
-      @Assisted("commandParamsStage") String commandParamsStage,
-      @Assisted("hostParamsStage") String hostParamsStage);
+      @Assisted("clusterHostInfo") String clusterHostInfo);
 
   Stage createExisting(StageEntity stageEntity);
 }

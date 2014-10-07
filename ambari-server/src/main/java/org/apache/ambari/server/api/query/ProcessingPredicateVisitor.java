@@ -129,20 +129,7 @@ public class ProcessingPredicateVisitor implements PredicateVisitor {
 
   @Override
   public void acceptUnaryPredicate(UnaryPredicate predicate) {
-    String propertyId = predicate.getPropertyIds().iterator().next();
-    int    index      = propertyId.indexOf("/");
-    String category   = index == -1 ? propertyId : propertyId.substring(0, index);
-
-    Map<String, QueryImpl> subResources = query.ensureSubResources();
-
-    if (subResources.containsKey(category)) {
-      subResourceCategories.add(category);
-      subResourceProperties.add(propertyId);
-      lastVisited = AlwaysPredicate.INSTANCE;
-    }
-    else {
-      lastVisited = predicate;
-    }
+    lastVisited = predicate;
   }
 
   @Override

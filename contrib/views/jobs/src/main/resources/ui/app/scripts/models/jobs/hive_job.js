@@ -17,13 +17,15 @@
 
 App.HiveJob = App.AbstractJob.extend({
 
-  jobType: App.JobType.HIVE,
+  jobType : App.JobType.HIVE,
 
-  queryText: DS.attr('string'),
+  queryText : DS.attr('string'),
+
+  stages : DS.attr('array'),
 
   hasTezDag: DS.attr('boolean'),
 
-  tezDag: DS.belongsTo('tezDag'),
+  tezDag : DS.belongsTo('tezDag', {async:true}),
 
   failed: DS.attr('boolean')
 

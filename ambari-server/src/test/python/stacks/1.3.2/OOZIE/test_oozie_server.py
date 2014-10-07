@@ -44,7 +44,6 @@ class TestOozieServer(RMFTestCase):
       mode = 0664,
       conf_dir = '/etc/oozie/conf',
       configurations = self.getConfig()['configurations']['oozie-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
     )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
       owner = 'oozie',
@@ -188,7 +187,6 @@ class TestOozieServer(RMFTestCase):
       mode = 0664,
       conf_dir = '/etc/oozie/conf',
       configurations = self.getConfig()['configurations']['oozie-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
     )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
       owner = 'oozie',
@@ -325,7 +323,6 @@ class TestOozieServer(RMFTestCase):
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
                               configurations = self.getConfig()['configurations']['oozie-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
                               owner = 'oozie',
@@ -426,7 +423,6 @@ class TestOozieServer(RMFTestCase):
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
                               configurations = self.getConfig()['configurations']['oozie-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
                               owner = 'oozie',

@@ -166,19 +166,6 @@ public class ViewVersionService extends BaseService {
     return new ViewInstanceService(viewName, version);
   }
 
-  /**
-   * Get the permissions sub-resource
-   *
-   * @param version  the version
-   *
-   * @return the permission service
-   */
-  @Path("{version}/permissions")
-  public ViewPermissionService getPermissionHandler(@PathParam("version") String version) {
-
-    return new ViewPermissionService(viewName, version);
-  }
-
 
   // ----- helper methods ----------------------------------------------------
 

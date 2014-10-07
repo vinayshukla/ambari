@@ -55,19 +55,5 @@ public class SubResourcePredicateVisitorTest {
     subResourcePredicate = visitor.getSubResourcePredicate();
 
     Assert.assertEquals(new AndPredicate(), subResourcePredicate);
-
-
-    Predicate notPredicate = new PredicateBuilder().not().property("host_components/HostRoles/component_name").
-            equals("ZOOKEEPER_SERVER").toPredicate();
-
-    Predicate expectedNotPredicate = new PredicateBuilder().not().property("HostRoles/component_name").
-            equals("ZOOKEEPER_SERVER").toPredicate();
-
-    visitor = new SubResourcePredicateVisitor("host_components");
-    PredicateHelper.visit(notPredicate, visitor);
-
-    subResourcePredicate = visitor.getSubResourcePredicate();
-
-    Assert.assertEquals(expectedNotPredicate, subResourcePredicate);
   }
 }

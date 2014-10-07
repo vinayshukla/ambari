@@ -20,16 +20,14 @@
   <services>
     <service>
       <name>HDFS</name>
-      <displayName>HDFS</displayName>
       <comment>Apache Hadoop Distributed File System</comment>
       <version>2.1.0.2.0</version>
 
       <components>
         <component>
           <name>NAMENODE</name>
-          <displayName>NameNode</displayName>
           <category>MASTER</category>
-          <cardinality>1-2</cardinality>
+          <cardinality>1</cardinality>
           <commandScript>
             <script>scripts/namenode.py</script>
             <scriptType>PYTHON</scriptType>
@@ -44,20 +42,11 @@
                 <timeout>600</timeout>
               </commandScript>
             </customCommand>
-            <customCommand>
-              <name>REBALANCEHDFS</name>
-              <background>true</background>
-              <commandScript>
-                <script>scripts/namenode.py</script>
-                <scriptType>PYTHON</scriptType>
-              </commandScript>
-            </customCommand>
           </customCommands>
         </component>
 
         <component>
           <name>DATANODE</name>
-          <displayName>DataNode</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -69,7 +58,6 @@
 
         <component>
           <name>SECONDARY_NAMENODE</name>
-          <displayName>SNameNode</displayName>
           <!-- TODO:  cardinality is conditional on HA usage -->
           <cardinality>1</cardinality>
           <category>MASTER</category>
@@ -82,41 +70,17 @@
 
         <component>
           <name>HDFS_CLIENT</name>
-          <displayName>HDFS Client</displayName>
           <category>CLIENT</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality>
           <commandScript>
             <script>scripts/hdfs_client.py</script>
             <scriptType>PYTHON</scriptType>
             <timeout>600</timeout>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>hdfs-site.xml</fileName>
-              <dictionaryName>hdfs-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>xml</type>
-              <fileName>core-site.xml</fileName>
-              <dictionaryName>core-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>log4j.properties</fileName>
-              <dictionaryName>hdfs-log4j,yarn-log4j</dictionaryName>
-            </configFile>                          
-            <configFile>
-              <type>env</type>
-              <fileName>hadoop-env.sh</fileName>
-              <dictionaryName>hadoop-env</dictionaryName>
-            </configFile>
-          </configFiles>
         </component>
 
         <component>
           <name>JOURNALNODE</name>
-          <displayName>JournalNode</displayName>
           <category>SLAVE</category>
           <cardinality>0+</cardinality>
           <commandScript>
@@ -128,7 +92,6 @@
 
         <component>
           <name>ZKFC</name>
-          <displayName>ZKFailoverController</displayName>
           <category>SLAVE</category>
           <!-- TODO: cardinality is conditional on HA topology -->
           <cardinality>0+</cardinality>
@@ -178,7 +141,7 @@
         </osSpecific>
         
         <osSpecific>
-          <osFamily>ubuntu12</osFamily>
+          <osFamily>debian12</osFamily>
           <packages>
             <package>
               <name>libsnappy1</name>
@@ -208,10 +171,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>ZOOKEEPER</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>core-site</config-type>

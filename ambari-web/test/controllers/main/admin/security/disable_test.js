@@ -150,6 +150,11 @@ describe('App.MainAdminSecurityDisableController', function () {
   });
 
   describe('#syncStopServicesCommand()', function () {
+    App.router = Em.Object.create({
+      backgroundOperationsController: Em.Object.create({
+        services: []
+      })
+    });
 
     it('No background operations', function () {
       controller.set('commands', [Em.Object.create({
@@ -193,9 +198,11 @@ describe('App.MainAdminSecurityDisableController', function () {
   describe('#manageSecureConfigs()', function () {
 
     beforeEach(function () {
+      sinon.spy(controller, "deleteDisabledGlobalConfigs");
       sinon.stub(controller, "modifySiteConfigs", Em.K);
     });
     afterEach(function () {
+      controller.deleteDisabledGlobalConfigs.restore();
       controller.modifySiteConfigs.restore();
     });
 
@@ -255,16 +262,17 @@ describe('App.MainAdminSecurityDisableController', function () {
 
       expect(controller.manageSecureConfigs()).to.be.true;
     });
-    it('serviceConfigTags has cluster-env site', function () {
+    it('serviceConfigTags has global site', function () {
       controller.set('serviceConfigTags', [
         {
-          siteName: 'cluster-env',
+          siteName: 'global',
           configs: {}
         }
       ]);
 
       expect(controller.manageSecureConfigs()).to.be.true;
-      expect(controller.get('serviceConfigTags').findProperty('siteName', 'cluster-env').configs.security_enabled).to.equal('false');
+      expect(controller.deleteDisabledGlobalConfigs.calledOnce).to.be.true;
+      expect(controller.get('serviceConfigTags').findProperty('siteName', 'global').configs.security_enabled).to.equal('false');
     });
     it('serviceConfigTags has site.xml', function () {
       controller.set('serviceConfigTags', [
@@ -274,6 +282,73 @@ describe('App.MainAdminSecurityDisableController', function () {
       ]);
       expect(controller.manageSecureConfigs()).to.be.true;
       expect(controller.modifySiteConfigs.calledOnce).to.be.true;
+    });
+  });
+
+  describe('#deleteDisabledGlobalConfigs()', function () {
+    var testCases = [
+      {
+        title: '_serviceConfigTags and secureProperties are null',
+        content: {
+          secureProperties: null,
+          _serviceConfigTags: null
+        },
+        result: false
+      },
+      {
+        title: '_serviceConfigTags is null',
+        content: {
+          secureProperties: [],
+          _serviceConfigTags: null
+        },
+        result: false
+      },
+      {
+        title: 'secureProperties is null',
+        content: {
+          secureProperties: null,
+          _serviceConfigTags: {}
+        },
+        result: false
+      },
+      {
+        title: 'secureProperties and _serviceConfigTags are empty',
+        content: {
+          secureProperties: [],
+          _serviceConfigTags: {}
+        },
+        result: true
+      }
+    ];
+
+    testCases.forEach(function (test) {
+      it(test.title, function () {
+        expect(controller.deleteDisabledGlobalConfigs(test.content.secureProperties, test.content._serviceConfigTags)).to.equal(test.result);
+      });
+    });
+    it('_serviceConfigTags doesn\'t contain secureProperties', function () {
+      var secureProperties = [
+        {name: 'config1'}
+      ];
+      var _serviceConfigTags = {
+        configs: {
+          'config2': true
+        }
+      };
+      expect(controller.deleteDisabledGlobalConfigs(secureProperties, _serviceConfigTags)).to.be.true;
+      expect(_serviceConfigTags.configs.config2).to.be.true;
+    });
+    it('_serviceConfigTags contains secureProperties', function () {
+      var secureProperties = [
+        {name: 'config1'}
+      ];
+      var _serviceConfigTags = {
+        configs: {
+          'config1': true
+        }
+      };
+      expect(controller.deleteDisabledGlobalConfigs(secureProperties, _serviceConfigTags)).to.be.true;
+      expect(_serviceConfigTags.configs.config1).to.be.undefined;
     });
   });
 

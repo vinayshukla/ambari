@@ -84,10 +84,6 @@ public class RequestEntity {
   @Column(name = "end_time", nullable = false)
   private Long endTime = -1L;
 
-  @Basic
-  @Column(name = "exclusive_execution", insertable = true, updatable = true, nullable = false)
-  private Integer exclusive = 0;
-
   @OneToMany(mappedBy = "request")
   private Collection<StageEntity> stages;
 
@@ -147,14 +143,6 @@ public class RequestEntity {
 
   public void setEndTime(Long endTime) {
     this.endTime = endTime;
-  }
-
-  public Boolean isExclusive() {
-    return exclusive == 0 ? false : true;
-  }
-
-  public void setExclusive(Boolean exclusive) {
-    this.exclusive = (exclusive == false ? 0 : 1);
   }
 
   public String getInputs() {

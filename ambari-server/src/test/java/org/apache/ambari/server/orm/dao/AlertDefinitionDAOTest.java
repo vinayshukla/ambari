@@ -18,215 +18,184 @@
 
 package org.apache.ambari.server.orm.dao;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertSame;
 
-import java.util.Calendar;
-import java.util.Date;
+import java.util.Collections;
 import java.util.List;
-import java.util.TimeZone;
-import java.util.UUID;
+
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
 
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
-import org.apache.ambari.server.orm.OrmTestHelper;
-import org.apache.ambari.server.orm.entities.AlertCurrentEntity;
 import org.apache.ambari.server.orm.entities.AlertDefinitionEntity;
-import org.apache.ambari.server.orm.entities.AlertGroupEntity;
-import org.apache.ambari.server.orm.entities.AlertHistoryEntity;
-import org.apache.ambari.server.orm.entities.AlertNoticeEntity;
-import org.apache.ambari.server.state.AlertState;
-import org.apache.ambari.server.state.MaintenanceState;
-import org.apache.ambari.server.state.NotificationState;
-import org.apache.ambari.server.state.alert.Scope;
-import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.persist.PersistService;
+import com.google.inject.Provider;
 
 /**
  * Tests {@link AlertDefinitionDAO} for interacting with
  * {@link AlertDefinitionEntity}.
  */
+@SuppressWarnings("unchecked")
 public class AlertDefinitionDAOTest {
 
-  static Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-
-  Injector injector;
-  Long clusterId;
   AlertDefinitionDAO dao;
-  AlertsDAO alertsDao;
-  AlertDispatchDAO dispatchDao;
-  OrmTestHelper helper;
+  Provider<EntityManager> entityManagerProvider = createStrictMock(Provider.class);
+  EntityManager entityManager = createStrictMock(EntityManager.class);
+
+  private Injector injector;
 
   /**
-   *
+   * 
    */
   @Before
-  public void setup() {
+  public void init() {
     injector = Guice.createInjector(new InMemoryDefaultTestModule());
     injector.getInstance(GuiceJpaInitializer.class);
+    injector.injectMembers(this);
 
-    dao = injector.getInstance(AlertDefinitionDAO.class);
-    alertsDao = injector.getInstance(AlertsDAO.class);
-    dispatchDao = injector.getInstance(AlertDispatchDAO.class);
-    helper = injector.getInstance(OrmTestHelper.class);
-    clusterId = helper.createCluster();
+    reset(entityManagerProvider);
+    expect(entityManagerProvider.get()).andReturn(entityManager).atLeastOnce();
+    replay(entityManagerProvider);
 
-    for (int i = 0; i < 8; i++) {
-      AlertDefinitionEntity definition = new AlertDefinitionEntity();
-      definition.setDefinitionName("Alert Definition " + i);
-      definition.setServiceName("HDFS");
-      definition.setComponentName(null);
-      definition.setClusterId(clusterId);
-      definition.setHash(UUID.randomUUID().toString());
-      definition.setScheduleInterval(60);
-      definition.setScope(Scope.SERVICE);
-      definition.setSource("Source " + i);
-      definition.setSourceType("SCRIPT");
-      dao.create(definition);
-    }
-  }
+    dao = new AlertDefinitionDAO();
+    injector.injectMembers(dao);
 
-  @After
-  public void teardown() {
-    injector.getInstance(PersistService.class).stop();
-    injector = null;
+    dao.entityManagerProvider = entityManagerProvider;
   }
 
   /**
-   *
+   * 
    */
   @Test
   public void testFindByName() {
-    List<AlertDefinitionEntity> definitions = dao.findAll();
-    Assert.assertNotNull(definitions);
-    AlertDefinitionEntity definition = definitions.get(2);
-    AlertDefinitionEntity retrieved = dao.findByName(
-        definition.getClusterId(), definition.getDefinitionName());
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+    TypedQuery<AlertDefinitionEntity> query = createStrictMock(TypedQuery.class);
+    
+    expect(query.setParameter("definitionName", "alert-definition-1")).andReturn(
+        query);
 
-    Assert.assertEquals(definition, retrieved);
+    expect(query.getSingleResult()).andReturn(entity);
+
+    expect(
+        entityManager.createNamedQuery(eq("AlertDefinitionEntity.findByName"),
+            eq(AlertDefinitionEntity.class))).andReturn(query);
+
+    replay(query, entityManager);
+
+    AlertDefinitionEntity result = dao.findByName("alert-definition-1");
+
+    assertSame(result, entity);
+    verify(entityManagerProvider, entityManager);
   }
 
   /**
-   *
+   * 
    */
   @Test
   public void testFindAll() {
-    List<AlertDefinitionEntity> definitions = dao.findAll();
-    Assert.assertNotNull(definitions);
-    Assert.assertEquals(8, definitions.size());
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+    TypedQuery<AlertDefinitionEntity> query = createStrictMock(TypedQuery.class);
+
+    expect(query.getResultList()).andReturn(Collections.singletonList(entity));
+
+    expect(
+        entityManager.createNamedQuery(eq("AlertDefinitionEntity.findAll"),
+            eq(AlertDefinitionEntity.class))).andReturn(query);
+
+    replay(query, entityManager);
+
+    List<AlertDefinitionEntity> entities = dao.findAll();
+
+    assertSame(1, entities.size());
+    assertSame(entity, entities.get(0));
+    verify(entityManagerProvider, entityManager);
   }
 
   /**
-   *
+   * 
    */
   @Test
   public void findById() {
-    List<AlertDefinitionEntity> definitions = dao.findAll();
-    Assert.assertNotNull(definitions);
-    AlertDefinitionEntity definition = definitions.get(2);
-    AlertDefinitionEntity retrieved = dao.findById(definition.getDefinitionId());
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
 
-    Assert.assertEquals(definition, retrieved);
+    expect(entityManager.find(eq(AlertDefinitionEntity.class), eq(12345L))).andReturn(
+        entity);
+
+    replay(entityManager);
+
+    AlertDefinitionEntity result = dao.findById(12345L);
+
+    assertSame(result, entity);
+    verify(entityManagerProvider, entityManager);
   }
 
   @Test
   public void testRefresh() {
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+
+    // set expectations
+    entityManager.refresh(eq(entity));
+    replay(entityManager);
+
+    dao.entityManagerProvider = entityManagerProvider;
+    dao.refresh(entity);
+
+    verify(entityManagerProvider, entityManager);
   }
 
   @Test
   public void testCreate() {
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+
+    // set expectations
+    entityManager.persist(eq(entity));
+    replay(entityManager);
+
+    dao.entityManagerProvider = entityManagerProvider;
+    dao.create(entity);
+
+    verify(entityManagerProvider, entityManager);
   }
 
   @Test
   public void testMerge() {
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+    AlertDefinitionEntity entity2 = new AlertDefinitionEntity();
+
+    // set expectations
+    expect(entityManager.merge(eq(entity))).andReturn(entity2);
+    replay(entityManager);
+
+    dao.entityManagerProvider = entityManagerProvider;
+    assertSame(entity2, dao.merge(entity));
+
+    verify(entityManagerProvider, entityManager);
   }
 
   @Test
-  public void testRemove() throws Exception {
-    AlertDefinitionEntity definition = helper.createAlertDefinition(clusterId);
-    definition = dao.findById(definition.getDefinitionId());
-    assertNotNull(definition);
-    dao.remove(definition);
-    definition = dao.findById(definition.getDefinitionId());
-    assertNull(definition);
-  }
+  public void testRemove() {
+    AlertDefinitionEntity entity = new AlertDefinitionEntity();
+    AlertDefinitionEntity entity2 = new AlertDefinitionEntity();
 
-  /**
-   * @throws Exception
-   */
-  @Test
-  public void testCascadeDelete() throws Exception {
-    AlertDefinitionEntity definition = helper.createAlertDefinition(clusterId);
+    // set expectations
+    expect(entityManager.merge(eq(entity))).andReturn(entity2);
+    entityManager.remove(eq(entity2));
+    replay(entityManager);
 
-    AlertGroupEntity group = helper.createAlertGroup(clusterId, null);
-    group.getAlertDefinitions().add(definition);
-    dispatchDao.merge(group);
+    dao.entityManagerProvider = entityManagerProvider;
+    dao.remove(entity);
 
-    AlertHistoryEntity history = new AlertHistoryEntity();
-    history.setServiceName(definition.getServiceName());
-    history.setClusterId(clusterId);
-    history.setAlertDefinition(definition);
-    history.setAlertLabel("Label");
-    history.setAlertState(AlertState.OK);
-    history.setAlertText("Alert Text");
-    history.setAlertTimestamp(calendar.getTimeInMillis());
-    alertsDao.create(history);
-
-    AlertCurrentEntity current = new AlertCurrentEntity();
-    current.setAlertHistory(history);
-    current.setLatestTimestamp(new Date().getTime());
-    current.setOriginalTimestamp(new Date().getTime() - 10800000);
-    current.setMaintenanceState(MaintenanceState.OFF);
-    alertsDao.create(current);
-
-    AlertNoticeEntity notice = new AlertNoticeEntity();
-    notice.setAlertHistory(history);
-    notice.setAlertTarget(helper.createAlertTarget());
-    notice.setNotifyState(NotificationState.PENDING);
-    notice.setUuid(UUID.randomUUID().toString());
-    dispatchDao.create(notice);
-
-    group = dispatchDao.findGroupById(group.getGroupId());
-    assertNotNull(group);
-    assertNotNull(group.getAlertDefinitions());
-    assertEquals(1, group.getAlertDefinitions().size());
-
-    history = alertsDao.findById(history.getAlertId());
-    assertNotNull(history);
-
-    current = alertsDao.findCurrentById(current.getAlertId());
-    assertNotNull(current);
-    assertNotNull(current.getAlertHistory());
-
-    notice = dispatchDao.findNoticeById(notice.getNotificationId());
-    assertNotNull(notice);
-    assertNotNull(notice.getAlertHistory());
-    assertNotNull(notice.getAlertTarget());
-
-    // delete the definition
-    definition = dao.findById(definition.getDefinitionId());
-    dao.refresh(definition);
-    dao.remove(definition);
-
-    notice = dispatchDao.findNoticeById(notice.getNotificationId());
-    assertNull(notice);
-
-    current = alertsDao.findCurrentById(current.getAlertId());
-    assertNull(current);
-
-    history = alertsDao.findById(history.getAlertId());
-    assertNull(history);
-
-    group = dispatchDao.findGroupById(group.getGroupId());
-    assertNotNull(group);
-    assertNotNull(group.getAlertDefinitions());
-    assertEquals(0, group.getAlertDefinitions().size());
+    verify(entityManagerProvider, entityManager);
   }
 }

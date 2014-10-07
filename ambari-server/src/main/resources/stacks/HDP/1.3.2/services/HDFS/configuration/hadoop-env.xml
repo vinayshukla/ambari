@@ -32,11 +32,6 @@
     <description>Hadoop PID Dir Prefix</description>
   </property>
   <property>
-    <name>hadoop_root_logger</name>
-    <value>INFO,RFA</value>
-    <description>Hadoop Root Logger</description>
-  </property>
-  <property>
     <name>hadoop_heapsize</name>
     <value>1024</value>
     <description>Hadoop maximum Java heap size</description>
@@ -64,25 +59,45 @@
   <property>
     <name>proxyuser_group</name>
     <value>users</value>
-    <property-type>GROUP</property-type>
     <description>Proxy user group.</description>
   </property>
+
+  <property>
+    <name>security_enabled</name>
+    <value>false</value>
+    <description>Hadoop Security</description>
+  </property>
+  <property>
+    <name>kerberos_domain</name>
+    <value>EXAMPLE.COM</value>
+    <description>Kerberos realm.</description>
+  </property>
+
   <property>
     <name>hdfs_user</name>
     <value>hdfs</value>
-    <property-type>USER</property-type>
-    <description>User to run HDFS as</description>
+    <description>User and Groups.</description>
   </property>
   <property>
-    <name>dfs.datanode.data.dir.mount.file</name>
-    <value>/etc/hadoop/conf/dfs_data_dir_mount.hist</value>
-    <description>File path that contains the last known mount point for each data dir. This file is used to avoid creating a DFS data dir on the root drive (and filling it up) if a path was previously mounted on a drive.</description>
+    <name>ignore_groupsusers_create</name>
+    <value>false</value>
+    <description>Whether to ignores failures on users and group creation</description>
   </property>
-
+  <property>
+    <name>smokeuser</name>
+    <value>ambari-qa</value>
+    <description>User executing service checks</description>
+  </property>
+  <property>
+    <name>user_group</name>
+    <value>hadoop</value>
+    <description>Proxy user group.</description>
+  </property>
+  
   <!-- hadoop-env.sh -->
   <property>
     <name>content</name>
-    <description>This is the jinja template for hadoop-env.sh file</description>
+    <description>hadoop-env.sh content</description>
     <value>
 # Set Hadoop-specific environment variables here.
 
@@ -190,9 +205,6 @@ export HADOOP_LIBEXEC_DIR={{hadoop_libexec_dir}}
 
 #Mostly required for hadoop 2.0
 export JAVA_LIBRARY_PATH=${JAVA_LIBRARY_PATH}:/usr/lib/hadoop/lib/native/Linux-amd64-64
-
-#Hadoop logging options
-export HADOOP_ROOT_LOGGER={{hadoop_root_logger}}
     </value>
   </property>
   

@@ -21,14 +21,12 @@
   <services>
     <service>
       <name>YARN</name>
-      <displayName>YARN</displayName>
       <comment>Apache Hadoop NextGen MapReduce (YARN)</comment>
       <version>2.1.0.2.0.6.0</version>
       <components>
 
         <component>
           <name>RESOURCEMANAGER</name>
-          <displayName>ResourceManager</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -54,14 +52,10 @@
               </commandScript>
             </customCommand>
           </customCommands>
-          <configuration-dependencies>
-            <config-type>capacity-scheduler</config-type>
-          </configuration-dependencies>
         </component>
 
         <component>
           <name>NODEMANAGER</name>
-          <displayName>NodeManager</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -70,9 +64,9 @@
             <timeout>600</timeout>
           </commandScript>
         </component>
+
         <component>
           <name>YARN_CLIENT</name>
-          <displayName>Yarn Client</displayName>
           <category>CLIENT</category>
           <deleted>true</deleted>
           <cardinality>0+</cardinality>
@@ -110,6 +104,7 @@
 
       <configuration-dependencies>
         <config-type>yarn-site</config-type>
+        <config-type>capacity-scheduler</config-type>
         <config-type>core-site</config-type>
         <config-type>global</config-type>
         <config-type>mapred-site</config-type>

@@ -23,7 +23,10 @@ import com.google.inject.Injector;
 import com.google.inject.persist.PersistService;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
+import org.apache.ambari.server.orm.dao.RoleDAO;
 import org.apache.ambari.server.orm.dao.UserDAO;
+import org.apache.ambari.server.orm.entities.RoleEntity;
+import org.apache.ambari.server.orm.entities.UserEntity;
 import org.apache.ambari.server.security.ClientSecurityType;
 import org.junit.*;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -33,7 +36,7 @@ import org.springframework.security.ldap.server.ApacheDSContainer;
 
 import static org.junit.Assert.*;
 
-public class AmbariLdapAuthenticationProviderForDNWithSpaceTest extends AmbariLdapAuthenticationProviderBaseTest{
+public class AmbariLdapAuthenticationProviderForDNWithSpaceTest {
   private static ApacheDSContainer apacheDSContainer;
   private static Injector injector;
 
@@ -42,11 +45,12 @@ public class AmbariLdapAuthenticationProviderForDNWithSpaceTest extends AmbariLd
   @Inject
   private UserDAO userDAO;
   @Inject
+  private RoleDAO roleDAO;
+  @Inject
   Configuration configuration;
 
   @BeforeClass
   public static void beforeClass() throws Exception{
-    createCleanApacheDSContainerWorkDir();
     apacheDSContainer = new ApacheDSContainer("dc=ambari,dc=the apache,dc=org", "classpath:/users_for_dn_with_space.ldif");
     apacheDSContainer.setPort(33389);
     apacheDSContainer.afterPropertiesSet();
@@ -77,6 +81,7 @@ public class AmbariLdapAuthenticationProviderForDNWithSpaceTest extends AmbariLd
     Authentication authentication = new UsernamePasswordAuthenticationToken("the allowedUser", "password");
     Authentication result = authenticationProvider.authenticate(authentication);
     assertTrue(result.isAuthenticated());
+    assertNotNull("User was not created", userDAO.findLdapUserByName("the allowedUser"));
     result = authenticationProvider.authenticate(authentication);
     assertTrue(result.isAuthenticated());
   }
@@ -87,6 +92,39 @@ public class AmbariLdapAuthenticationProviderForDNWithSpaceTest extends AmbariLd
     Authentication authentication = new UsernamePasswordAuthenticationToken("the allowedUser", "password");
     Authentication auth = authenticationProvider.authenticate(authentication);
     assertTrue(auth == null);
+  }
+
+  @Test
+  public void testLdapAdminGroupToRolesMapping() throws Exception {
+
+    Authentication authentication;
+
+    authentication =
+        new UsernamePasswordAuthenticationToken("allowedAdmin", "password");
+    Authentication result = authenticationProvider.authenticate(authentication);
+    assertTrue(result.isAuthenticated());
+
+    UserEntity allowedAdminEntity = userDAO.findLdapUserByName("allowedAdmin");
+
+    authentication =
+        new UsernamePasswordAuthenticationToken("the allowedUser", "password");
+    authenticationProvider.authenticate(authentication);
+    UserEntity allowedUserEntity = userDAO.findLdapUserByName("the allowedUser");
+
+
+    RoleEntity adminRole = roleDAO.findByName(
+        configuration.getConfigsMap().get(Configuration.ADMIN_ROLE_NAME_KEY));
+    RoleEntity userRole = roleDAO.findByName(
+        configuration.getConfigsMap().get(Configuration.USER_ROLE_NAME_KEY));
+
+
+    assertTrue(allowedAdminEntity.getRoleEntities().contains(userRole));
+    assertTrue(allowedAdminEntity.getRoleEntities().contains(adminRole));
+
+    assertTrue(allowedUserEntity.getRoleEntities().contains(userRole));
+    assertFalse(allowedUserEntity.getRoleEntities().contains(adminRole));
+
+
   }
 
   @AfterClass

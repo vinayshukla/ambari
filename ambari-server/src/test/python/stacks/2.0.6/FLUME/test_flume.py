@@ -36,40 +36,36 @@ class TestFlumeHandler(RMFTestCase):
 
   @patch("os.path.isfile")
   @patch("flume.cmd_target_names")
-  @patch("flume._set_desired_state")
-  def test_start_default(self, set_desired_mock, cmd_target_names_mock, os_path_isfile_mock):
+  def test_start_default(self, cmd_target_names_mock, os_path_isfile_mock):
     # 1st call is to check if the conf file is there - that should be True
     # 2nd call is to check if the process is live - that should be False
     os_path_isfile_mock.side_effect = [True, False]
     cmd_target_names_mock.return_value = ["a1"]
 
     self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler", command = "start",
+                       classname = "FlumeHandler",
+                       command = "start",
                        config_file="default.json")
 
     self.assert_configure_default()
 
-    self.assertTrue(set_desired_mock.called)
-    self.assertTrue(set_desired_mock.call_args[0][0] == 'STARTED')
-
-    self.assertResourceCalled('Execute', format('su -s /bin/bash flume -c "export JAVA_HOME=/usr/jdk64/jdk1.7.0_45; /usr/bin/flume-ng agent '
+    self.assertResourceCalled('Execute', format('env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/bin/flume-ng agent '
       '--name a1 '
       '--conf /etc/flume/conf/a1 '
       '--conf-file /etc/flume/conf/a1/flume.conf '
       '-Dflume.monitoring.type=ganglia '
-      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655"'),
+      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655'),
       wait_for_finish = False)
 
-    self.assertResourceCalled('Execute', 'pgrep -o -u flume -f ^/usr/jdk64/jdk1.7.0_45.*a1.* > /var/run/flume/a1.pid',
+    self.assertResourceCalled('Execute', 'pgrep -o -f /etc/flume/conf/a1/flume.conf > /var/run/flume/a1.pid',
       logoutput = True,
-      tries = 10,
-      try_sleep = 6)
+      tries = 5,
+      try_sleep = 10)
 
     self.assertNoMoreResources()
 
   @patch("glob.glob")
-  @patch("flume._set_desired_state")
-  def test_stop_default(self, set_desired_mock, glob_mock):
+  def test_stop_default(self, glob_mock):
     glob_mock.side_effect = [['/var/run/flume/a1/pid'], ['/etc/flume/conf/a1/ambari-meta.json']]
 
     self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
@@ -78,9 +74,6 @@ class TestFlumeHandler(RMFTestCase):
                        config_file="default.json")
 
     self.assertTrue(glob_mock.called)
-
-    self.assertTrue(set_desired_mock.called)
-    self.assertTrue(set_desired_mock.call_args[0][0] == 'INSTALLED')
 
     self.assertResourceCalled('Execute', 'kill `cat /var/run/flume/a1.pid` > /dev/null 2>&1',
       ignore_failures = True)
@@ -104,8 +97,8 @@ class TestFlumeHandler(RMFTestCase):
     
     # test that the method was called with empty processes
     self.assertTrue(structured_out_mock.called)
-    structured_out_mock.assert_called_with({'processes': [],
-      'alerts': [{'text': 'No agents defined on c6401.ambari.apache.org', 'state': 'OK', 'name': 'flume_agent', 'label': 'Flume Agent process'}]})
+    structured_out_mock.assert_called_with({'processes': [], 'alerts': []})
+
     self.assertNoMoreResources()
 
   @patch("resource_management.libraries.script.Script.put_structured_out")
@@ -131,33 +124,10 @@ class TestFlumeHandler(RMFTestCase):
     self.assertTrue(struct_out.has_key('alerts'))
 
     self.assertNoMoreResources()
-    
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("glob.glob")
-  @patch("sys.exit")
-  def test_status_no_agents(self, sys_exit_mock, glob_mock, structured_out_mock):
-    glob_mock.return_value = []
-
-    try:
-      self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-       classname = "FlumeHandler",
-       command = "status",
-       config_file="default.json")
-    except:
-      # expected since ComponentIsNotRunning gets raised
-      pass
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertNoMoreResources()    
 
   def assert_configure_default(self):
 
-    self.assertResourceCalled('Directory', '/etc/flume/conf', recursive=True)
+    self.assertResourceCalled('Directory', '/etc/flume/conf')
 
     self.assertResourceCalled('Directory', '/var/log/flume', owner = 'flume')
 
@@ -180,7 +150,7 @@ class TestFlumeHandler(RMFTestCase):
 
   def assert_configure_many(self):
 
-    self.assertResourceCalled('Directory', '/etc/flume/conf', recursive=True)
+    self.assertResourceCalled('Directory', '/etc/flume/conf')
 
     self.assertResourceCalled('Directory', '/var/log/flume', owner = 'flume')
 
@@ -227,18 +197,18 @@ class TestFlumeHandler(RMFTestCase):
 
     self.assert_configure_many()
 
-    self.assertResourceCalled('Execute', format('su -s /bin/bash flume -c "export JAVA_HOME=/usr/jdk64/jdk1.7.0_45; /usr/bin/flume-ng agent '
+    self.assertResourceCalled('Execute', format('env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/bin/flume-ng agent '
       '--name b1 '
       '--conf /etc/flume/conf/b1 '
       '--conf-file /etc/flume/conf/b1/flume.conf '
       '-Dflume.monitoring.type=ganglia '
-      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655"'),
+      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655'),
       wait_for_finish = False)
 
-    self.assertResourceCalled('Execute', 'pgrep -o -u flume -f ^/usr/jdk64/jdk1.7.0_45.*b1.* > /var/run/flume/b1.pid',
+    self.assertResourceCalled('Execute', 'pgrep -o -f /etc/flume/conf/b1/flume.conf > /var/run/flume/b1.pid',
       logoutput = True,
-      tries = 10,
-      try_sleep = 6)
+      tries = 5,
+      try_sleep = 10)
 
     self.assertNoMoreResources()
 
@@ -255,18 +225,18 @@ class TestFlumeHandler(RMFTestCase):
 
     self.assert_configure_many()
 
-    self.assertResourceCalled('Execute', format('su -s /bin/bash flume -c "export JAVA_HOME=/usr/jdk64/jdk1.7.0_45; /usr/bin/flume-ng agent '
+    self.assertResourceCalled('Execute', format('env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /usr/bin/flume-ng agent '
       '--name b1 '
       '--conf /etc/flume/conf/b1 '
       '--conf-file /etc/flume/conf/b1/flume.conf '
       '-Dflume.monitoring.type=ganglia '
-      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655"'),
+      '-Dflume.monitoring.hosts=c6401.ambari.apache.org:8655'),
       wait_for_finish = False)
 
-    self.assertResourceCalled('Execute', 'pgrep -o -u flume -f ^/usr/jdk64/jdk1.7.0_45.*b1.* > /var/run/flume/b1.pid',
+    self.assertResourceCalled('Execute', 'pgrep -o -f /etc/flume/conf/b1/flume.conf > /var/run/flume/b1.pid',
       logoutput = True,
-      tries = 10,
-      try_sleep = 6)
+      tries = 5,
+      try_sleep = 10)
 
     self.assertNoMoreResources()
 
@@ -302,129 +272,6 @@ class TestFlumeHandler(RMFTestCase):
     os_unlink_mock.assert_called_with('/etc/flume/conf/x1/ambari-meta.json')
 
     self.assert_configure_default()
-    self.assertNoMoreResources()
-
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("flume.find_expected_agent_names")
-  @patch("flume.flume_status")
-  def test_status_many_mixed(self, status_mock, expected_names_mock, structured_out_mock):
-    expected_names_mock.return_value = ["a1", "a2"]
-    status_mock.return_value = [{'name': 'a1', 'status': 'RUNNING'}, {'name': 'a2', 'status': 'NOT_RUNNING'}]
-
-    try:
-      self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler",
-                       command = "status",
-                       config_file="default.json")
-    except:
-      # expected since ComponentIsNotRunning gets raised
-      pass
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertTrue('Agent a2 is NOT running and a1 is running on c6401.ambari.apache.org' == struct_out['alerts'][0]['text'])
-    self.assertTrue('CRITICAL' == struct_out['alerts'][0]['state'])
-    self.assertNoMoreResources()
-
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("flume.find_expected_agent_names")
-  @patch("flume.flume_status")
-  def test_status_many_ok(self, status_mock, expected_names_mock, structured_out_mock):
-    expected_names_mock.return_value = ["a1", "a2"]
-    status_mock.return_value = [{'name': 'a1', 'status': 'RUNNING'}, {'name': 'a2', 'status': 'RUNNING'}]
-
-    self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler",
-                       command = "status",
-                       config_file="default.json")
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertTrue('Agents a1, a2 are running on c6401.ambari.apache.org' == struct_out['alerts'][0]['text'])
-    self.assertTrue('OK' == struct_out['alerts'][0]['state'])
-    self.assertNoMoreResources()
-
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("flume.find_expected_agent_names")
-  @patch("flume.flume_status")
-  def test_status_many_critical(self, status_mock, expected_names_mock, structured_out_mock):
-    expected_names_mock.return_value = ["a1", "a2"]
-    status_mock.return_value = [{'name': 'a1', 'status': 'NOT_RUNNING'}, {'name': 'a2', 'status': 'NOT_RUNNING'}]
-
-    try:
-      self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler",
-                       command = "status",
-                       config_file="default.json")
-    except:
-      # expected since ComponentIsNotRunning gets raised
-      pass
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertTrue('Agents a1, a2 are NOT running on c6401.ambari.apache.org' == struct_out['alerts'][0]['text'])
-    self.assertTrue('CRITICAL' == struct_out['alerts'][0]['state'])
-    self.assertNoMoreResources()
-
-
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("flume.find_expected_agent_names")
-  @patch("flume.flume_status")
-  def test_status_single_ok(self, status_mock, expected_names_mock, structured_out_mock):
-    expected_names_mock.return_value = ["a1"]
-    status_mock.return_value = [{'name': 'a1', 'status': 'RUNNING'}]
-
-    self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler",
-                       command = "status",
-                       config_file="default.json")
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertTrue('Agent a1 is running on c6401.ambari.apache.org' == struct_out['alerts'][0]['text'])
-    self.assertTrue('OK' == struct_out['alerts'][0]['state'])
-    self.assertNoMoreResources()
-
-  @patch("resource_management.libraries.script.Script.put_structured_out")
-  @patch("flume.find_expected_agent_names")
-  @patch("flume.flume_status")
-  def test_status_single_critical(self, status_mock, expected_names_mock, structured_out_mock):
-    expected_names_mock.return_value = ['a1']
-    status_mock.return_value = [{'name': 'a1', 'status': 'NOT_RUNNING'}]
-
-    try:
-      self.executeScript("2.0.6/services/FLUME/package/scripts/flume_handler.py",
-                       classname = "FlumeHandler",
-                       command = "status",
-                       config_file="default.json")
-    except:
-      # expected since ComponentIsNotRunning gets raised
-      pass
-      
-    self.assertTrue(structured_out_mock.called)
-
-    # call_args[0] is a tuple, whose first element is the actual call argument
-    struct_out = structured_out_mock.call_args[0][0]
-    self.assertTrue(struct_out.has_key('processes'))
-    self.assertTrue(struct_out.has_key('alerts'))
-    self.assertTrue('Agent a1 is NOT running on c6401.ambari.apache.org' == struct_out['alerts'][0]['text'])
-    self.assertTrue('CRITICAL' == struct_out['alerts'][0]['state'])
     self.assertNoMoreResources()
 
 def build_flume(content):

@@ -41,20 +41,13 @@ import random
 import pwd
 from ambari_server.resourceFilesKeeper import ResourceFilesKeeper, KeeperException
 import json
-import base64
-from threading import Thread
-from ambari_commons import OSCheck, OSConst, Firewall
+from ambari_commons import OSCheck, OSConst
 from ambari_server import utils
 
 # debug settings
 VERBOSE = False
 SILENT = False
 SERVER_START_DEBUG = False
-
-# ldap settings
-LDAP_SYNC_EXISTING = False
-LDAP_SYNC_USERS = None
-LDAP_SYNC_GROUPS = None
 
 # OS info
 OS_VERSION = OSCheck().get_os_major_version()
@@ -71,7 +64,6 @@ UPGRADE_STACK_ACTION = "upgradestack"
 STATUS_ACTION = "status"
 SETUP_HTTPS_ACTION = "setup-https"
 LDAP_SETUP_ACTION = "setup-ldap"
-LDAP_SYNC_ACTION = "sync-ldap"
 SETUP_GANGLIA_HTTPS_ACTION = "setup-ganglia-https"
 SETUP_NAGIOS_HTTPS_ACTION = "setup-nagios-https"
 ENCRYPT_PASSWORDS_ACTION = "encrypt-passwords"
@@ -126,12 +118,6 @@ SERVER_OUT_FILE = "/var/log/ambari-server/ambari-server.out"
 SERVER_LOG_FILE = "/var/log/ambari-server/ambari-server.log"
 BLIND_PASSWORD = "*****"
 ROOT_FS_PATH = "/"
-
-# api properties
-SERVER_API_HOST = '127.0.0.1'
-SERVER_API_PROTOCOL = 'http'
-SERVER_API_PORT = '8080'
-SERVER_API_LDAP_URL = '/api/v1/ldap_sync_events'
 
 # terminal styles
 BOLD_ON = '\033[1m'
@@ -199,14 +185,6 @@ STACK_UPGRADE_HELPER_CMD = "{0}" + os.sep + "bin" + os.sep + "java -cp {1}" +\
                           os.pathsep + "{2} " +\
                           "org.apache.ambari.server.upgrade.StackUpgradeHelper" +\
                           " {3} {4} > " + SERVER_OUT_FILE + " 2>&1"
-
-
-VIEW_EXTRACT_CMD = "{0}" + os.sep + "bin" + os.sep + "java -cp {1}" +\
-                          os.pathsep + "{2} " +\
-                          "org.apache.ambari.server.view.ViewRegistry extract {3} " +\
-                          "> " + SERVER_OUT_FILE + " 2>&1"
-
-
 ULIMIT_CMD = "ulimit -n"
 SERVER_INIT_TIMEOUT = 5
 SERVER_START_TIMEOUT = 10
@@ -237,10 +215,8 @@ NAGIOS_HTTPS = 'nagios.https'
 JDBC_RCA_PASSWORD_ALIAS = "ambari.db.password"
 CLIENT_SECURITY_KEY = "client.security"
 
-IS_LDAP_CONFIGURED = "ambari.ldap.isConfigured"
 LDAP_MGR_PASSWORD_ALIAS = "ambari.ldap.manager.password"
 LDAP_MGR_PASSWORD_PROPERTY = "authentication.ldap.managerPassword"
-LDAP_MGR_PASSWORD_FILENAME = "ldap-password.dat"
 LDAP_MGR_USERNAME_PROPERTY = "authentication.ldap.managerDn"
 
 SSL_TRUSTSTORE_PASSWORD_ALIAS = "ambari.ssl.trustStore.password"
@@ -274,7 +250,7 @@ PG_STATUS_RUNNING = utils.get_postgre_running_status(OS_TYPE)
 PG_DEFAULT_PASSWORD = "bigdata"
 SERVICE_CMD = "/usr/bin/env service"
 PG_SERVICE_NAME = "postgresql"
-PG_HBA_DIR = utils.get_postgre_hba_dir(OS_FAMILY)
+PG_HBA_DIR = utils.get_postgre_hba_dir(OS_TYPE)
 
 PG_ST_CMD = "%s %s status" % (SERVICE_CMD, PG_SERVICE_NAME)
 if os.path.isfile("/usr/bin/postgresql-setup"):
@@ -292,14 +268,12 @@ POSTGRESQL_CONF_FILE = os.path.join(PG_HBA_DIR, "postgresql.conf")
 
 SERVER_VERSION_FILE_PATH = "server.version.file"
 
-JDBC_DATABASE_PROPERTY = "server.jdbc.database"             # E.g., embedded|oracle|mysql|postgres
-JDBC_DATABASE_NAME_PROPERTY = "server.jdbc.database_name"   # E.g., ambari
+#TODO property used incorrectly in local case, it was meant to be dbms name, not postgres database name,
+# has workaround for now, as we don't need dbms name if persistence_type=local
+JDBC_DATABASE_PROPERTY = "server.jdbc.database"
 JDBC_HOSTNAME_PROPERTY = "server.jdbc.hostname"
 JDBC_PORT_PROPERTY = "server.jdbc.port"
-JDBC_POSTGRES_SCHEMA_PROPERTY = "server.jdbc.postgres.schema"   # Only for postgres, defaults to same value as DB name
-
-VIEWS_DIR_PROPERTY = "views.dir"
-DEFAULT_VIEWS_DIR = "/var/lib/ambari-server/resources/views"
+JDBC_SCHEMA_PROPERTY = "server.jdbc.schema"
 
 JDBC_USER_NAME_PROPERTY = "server.jdbc.user.name"
 JDBC_PASSWORD_PROPERTY = "server.jdbc.user.passwd"
@@ -319,6 +293,11 @@ PERSISTENCE_TYPE_PROPERTY = "server.persistence.type"
 JDBC_DRIVER_PROPERTY = "server.jdbc.driver"
 JDBC_URL_PROPERTY = "server.jdbc.url"
 
+JDBC_RCA_DATABASE_PROPERTY = "server.jdbc.database"
+JDBC_RCA_HOSTNAME_PROPERTY = "server.jdbc.hostname"
+JDBC_RCA_PORT_PROPERTY = "server.jdbc.port"
+JDBC_RCA_SCHEMA_PROPERTY = "server.jdbc.schema"
+
 JDBC_RCA_DRIVER_PROPERTY = "server.jdbc.rca.driver"
 JDBC_RCA_URL_PROPERTY = "server.jdbc.rca.url"
 JDBC_RCA_USER_NAME_PROPERTY = "server.jdbc.rca.user.name"
@@ -330,7 +309,7 @@ DATABASE_INDEX = 0
 PROMPT_DATABASE_OPTIONS = False
 USERNAME_PATTERN = "^[a-zA-Z_][a-zA-Z0-9_\-]*$"
 PASSWORD_PATTERN = "^[a-zA-Z0-9_-]*$"
-DATABASE_TYPES = ["postgres", "oracle", "mysql"]
+DATABASE_NAMES = ["postgres", "oracle", "mysql"]
 DATABASE_STORAGE_NAMES = ["Database", "Service", "Database"]
 DATABASE_PORTS = ["5432", "1521", "3306"]
 DATABASE_DRIVER_NAMES = ["org.postgresql.Driver", "oracle.jdbc.driver.OracleDriver", "com.mysql.jdbc.Driver"]
@@ -395,7 +374,7 @@ ORACLE_DB_ID_TYPES = ["Service Name", "SID"]
 
 
 # jdk commands
-JDK_NAMES = ["jdk-7u67-linux-x64.tar.gz", "jdk-6u31-linux-x64.bin"]
+JDK_NAMES = ["jdk-7u45-linux-x64.tar.gz", "jdk-6u31-linux-x64.bin"]
 JDK_URL_PROPERTIES = ["jdk1.7.url", "jdk1.6.url"]
 JCE_URL_PROPERTIES = ["jce_policy1.7.url", "jce_policy1.6.url"]
 DEFAULT_JDK16_LOCATION = "/usr/jdk64/jdk1.6.0_31"
@@ -453,6 +432,100 @@ ASF_LICENSE_HEADER = '''
 # See the License for the specific language governing permissions and
 # limitations under the License.
 '''
+
+
+class FirewallChecks(object):
+  def __init__(self):
+
+    self.FIREWALL_SERVICE_NAME = "iptables"
+    self.SERVICE_CMD = SERVICE_CMD
+    self.SERVICE_SUBCMD = "status"
+
+  def get_command(self):
+    return "%s %s %s" % (self.SERVICE_CMD, self.FIREWALL_SERVICE_NAME, self.SERVICE_SUBCMD)
+
+  def check_result(self, retcode, out, err):
+      return retcode == 0
+
+  def check_iptables(self):
+    retcode, out, err = run_os_command(self.get_command())
+    if err and len(err) > 0:
+      print err
+    if self.check_result(retcode, out, err):
+      print_warning_msg("%s is running. Confirm the necessary Ambari ports are accessible. " %
+                        self.FIREWALL_SERVICE_NAME +
+                        "Refer to the Ambari documentation for more details on ports.")
+      ok = get_YN_input("OK to continue [y/n] (y)? ", True)
+      if not ok:
+        raise FatalException(1, None)
+
+  def get_running_result(self):
+    # To support test code.  Expected ouput from run_os_command.
+    return (0, "", "")
+
+  def get_stopped_result(self):
+    # To support test code.  Expected output from run_os_command.
+    return (3, "", "")
+
+
+class UbuntuFirewallChecks(FirewallChecks):
+  def __init__(self):
+    super(UbuntuFirewallChecks, self).__init__()
+
+    self.FIREWALL_SERVICE_NAME = "ufw"
+    self.SERVICE_CMD = utils.locate_file('service', '/usr/sbin')
+
+  def check_result(self, retcode, out, err):
+    # On ubuntu, the status command returns 0 whether running or not
+    return out and len(out) > 0 and out.strip() != "ufw stop/waiting"
+
+  def get_running_result(self):
+    # To support test code.  Expected ouput from run_os_command.
+    return (0, "ufw start/running", "")
+
+  def get_stopped_result(self):
+    # To support test code.  Expected output from run_os_command.
+    return (0, "ufw stop/waiting", "")
+
+
+class Fedora18FirewallChecks(FirewallChecks):
+  def __init__(self):
+    self.FIREWALL_SERVICE_NAME = "firewalld.service"
+
+  def get_command(self):
+    return "systemctl is-active firewalld.service"
+
+
+class OpenSuseFirewallChecks(FirewallChecks):
+  def __init__(self):
+    self.FIREWALL_SERVICE_NAME = "SuSEfirewall2"
+
+  def get_command(self):
+    return "/sbin/SuSEfirewall2 status"
+
+
+def get_firewall_object():
+  if OS_TYPE == OSConst.OS_UBUNTU:
+    return UbuntuFirewallChecks()
+  elif OS_TYPE == OSConst.OS_FEDORA and int(OS_VERSION) >= 18:
+    return Fedora18FirewallChecks()
+  elif OS_TYPE == OSConst.OS_OPENSUSE:
+    return OpenSuseFirewallChecks()
+  else:
+    return FirewallChecks()
+
+
+def get_firewall_object_types():
+  # To support test code, so tests can loop through the types
+  return (FirewallChecks,
+          UbuntuFirewallChecks,
+          Fedora18FirewallChecks,
+          OpenSuseFirewallChecks)
+
+
+def check_iptables():
+  return get_firewall_object().check_iptables()
+
 
 def get_conf_dir():
   try:
@@ -555,7 +628,6 @@ NR_ADJUST_OWNERSHIP_LIST = [
   ("/etc/ambari-server/conf", "644", "{0}", True),
   ("/etc/ambari-server/conf", "755", "{0}", False),
   ("/etc/ambari-server/conf/password.dat", "640", "{0}", False),
-  ("/etc/ambari-server/conf/ldap-password.dat", "640", "{0}", False),
   # Also, /etc/ambari-server/conf/password.dat
   # is generated later at store_password_file
 ]
@@ -745,9 +817,9 @@ def check_reverse_lookup():
   Check if host fqdn resolves to current host ip
   """
   try:
-    host_name = socket.gethostname()
+    host_name = socket.gethostname().lower()
     host_ip = socket.gethostbyname(host_name)
-    host_fqdn = socket.getfqdn()
+    host_fqdn = socket.getfqdn().lower()
     fqdn_ip = socket.gethostbyname(host_fqdn)
     return host_ip == fqdn_ip
   except socket.herror:
@@ -864,6 +936,8 @@ def restart_postgres():
       return retcode, out, err
   return 0, "", ""
 
+
+# todo: check if the scheme is already exist
 
 def write_property(key, value):
   conf_file = find_properties_file()
@@ -1054,14 +1128,6 @@ def get_validated_db_name(database_name):
         False
         )
 
-def get_validated_db_schema(postgres_schema):
-    return get_validated_string_input(
-        "Postgres schema (" + postgres_schema + "): ",
-        postgres_schema,
-        "^[a-zA-Z0-9_\-]*$",
-        "Invalid schema name.",
-        False, allowEmpty=True
-    )
 
 def get_validated_service_name(service_name, index):
   return get_validated_string_input(
@@ -1112,11 +1178,10 @@ def get_pass_file_path(conf_file):
 # Set database properties to default values
 def load_default_db_properties(args):
   args.persistence_type = 'local'
-  args.dbms = DATABASE_TYPES[DATABASE_INDEX]
+  args.dbms = DATABASE_NAMES[DATABASE_INDEX]
   args.database_host = "localhost"
   args.database_port = DATABASE_PORTS[DATABASE_INDEX]
   args.database_name = DEFAULT_DB_NAME
-  args.postgres_schema = DEFAULT_DB_NAME
   args.database_username = "ambari"
   args.database_password = "bigdata"
   args.sid_or_sname = "sname"
@@ -1166,7 +1231,7 @@ def prompt_db_properties(args):
       pass
 
       DATABASE_INDEX = args.database_index
-      args.dbms = DATABASE_TYPES[args.database_index]
+      args.dbms = DATABASE_NAMES[args.database_index]
 
       if args.persistence_type != 'local':
         args.database_host = get_validated_string_input(
@@ -1207,8 +1272,6 @@ def prompt_db_properties(args):
         elif args.dbms in ["mysql", "postgres"]:
           args.database_name = get_validated_db_name(args.database_name)
 
-          if args.dbms in ["postgres", ]:
-              args.postgres_schema = get_validated_db_schema(args.postgres_schema)
         else:
           # other DB types
           pass
@@ -1218,8 +1281,7 @@ def prompt_db_properties(args):
         args.database_port = DATABASE_PORTS[DATABASE_INDEX]
 
         args.database_name = get_validated_db_name(args.database_name)
-        if args.dbms in ["postgres", ]:
-            args.postgres_schema = get_validated_db_schema(args.postgres_schema)
+        pass
 
       # Username is common for Oracle/MySQL/Postgres
       args.database_username = get_validated_string_input(
@@ -1232,56 +1294,15 @@ def prompt_db_properties(args):
       )
       args.database_password = configure_database_password(True)
 
-  print_info_msg('Using database options: {database},{host},{port},{name},{schema},{user},{password}'.format(
+  print_info_msg('Using database options: {database},{host},{port},{schema},{user},{password}'.format(
     database=args.dbms,
     host=args.database_host,
     port=args.database_port,
-    name=args.database_name,
-    schema=args.postgres_schema,
+    schema=args.database_name,
     user=args.database_username,
     password=args.database_password
   ))
 
-# extract the system views
-def extract_views():
-
-  jdk_path = find_jdk()
-  if jdk_path is None:
-    print_error_msg("No JDK found, please run the \"setup\" "
-                    "command to install a JDK automatically or install any "
-                    "JDK manually to " + JDK_INSTALL_DIR)
-    return 1
-
-  properties = get_ambari_properties()
-  if properties == -1:
-    print_error_msg("Error getting ambari properties")
-    return -1
-
-  if not VIEWS_DIR_PROPERTY in properties.keys():
-    vdir = DEFAULT_VIEWS_DIR
-  else:
-    vdir = properties.get_property(VIEWS_DIR_PROPERTY)
-
-  files = [f for f in os.listdir(vdir) if os.path.isfile(os.path.join(vdir,f))]
-  for f in files:
-
-    command = VIEW_EXTRACT_CMD.format(jdk_path, get_conf_dir(),
-      get_ambari_classpath(), os.path.join(vdir,f))
-
-    retcode, stdout, stderr = run_os_command(command)
-    if retcode == 0:
-      sys.stdout.write(f + "\n")
-    elif retcode == 2:
-      sys.stdout.write("Error extracting " + f + "\n")
-    else:
-      sys.stdout.write(".")
-      sys.stdout.flush()
-
-    print_info_msg("Return code from extraction of view archive " + f + ": " +
-                   str(retcode))
-
-  sys.stdout.write("\n")
-  return 0
 
 # Store set of properties for remote database connection
 def store_remote_properties(args):
@@ -1297,15 +1318,14 @@ def store_remote_properties(args):
   properties.process_pair(JDBC_DATABASE_PROPERTY, args.dbms)
   properties.process_pair(JDBC_HOSTNAME_PROPERTY, args.database_host)
   properties.process_pair(JDBC_PORT_PROPERTY, args.database_port)
-  properties.process_pair(JDBC_DATABASE_NAME_PROPERTY, args.database_name)
-  if args.dbms == "postgres":
-    properties.process_pair(JDBC_POSTGRES_SCHEMA_PROPERTY, args.postgres_schema)
+  properties.process_pair(JDBC_SCHEMA_PROPERTY, args.database_name)
+
   properties.process_pair(JDBC_DRIVER_PROPERTY, DATABASE_DRIVER_NAMES[DATABASE_INDEX])
   # fully qualify the hostname to make sure all the other hosts can connect
   # to the jdbc hostname since its passed onto the agents for RCA
   jdbc_hostname = args.database_host
   if (args.database_host == "localhost"):
-    jdbc_hostname = socket.getfqdn()
+    jdbc_hostname = socket.getfqdn().lower()
 
   connectionStringFormat = DATABASE_CONNECTION_STRINGS
   if args.sid_or_sname == "sid":
@@ -1451,76 +1471,13 @@ def configure_database_password(showDefault=True):
   return password
 
 
-def get_ambari_version(properties):
-  """
-  :param properties: Ambari properties
-  :return: Return a string of the ambari version. When comparing versions, please use "compare_versions" function.
-  """
-  version = None
-  try:
-    server_version_file_path = properties[SERVER_VERSION_FILE_PATH]
-    if server_version_file_path and os.path.exists(server_version_file_path):
-      with open(server_version_file_path, 'r') as file:
-        version = file.read().strip()
-  except:
-    print_error_msg("Error getting ambari version")
-  return version
-
-
-def get_db_type(properties):
-  db_type = None
-  if properties[JDBC_URL_PROPERTY]:
-    jdbc_url = properties[JDBC_URL_PROPERTY].lower()
-    if "postgres" in jdbc_url:
-      db_type = "postgres"
-    elif "oracle" in jdbc_url:
-      db_type = "oracle"
-    elif "mysql" in jdbc_url:
-      db_type = "mysql"
-    elif "derby" in jdbc_url:
-      db_type = "derby"
-
-  return db_type
-
-
-def check_database_name_property(args, upgrade=False):
-  """
-  :param upgrade: If Ambari is being upgraded.
-  :return:
-  """
+def check_database_name_property():
   properties = get_ambari_properties()
   if properties == -1:
     print_error_msg("Error getting ambari properties")
     return -1
 
-  version = get_ambari_version(properties)
-  if upgrade and compare_versions(version, "1.7.0") >= 0:
-
-    # This code exists for historic reasons in which property names changed from Ambari 1.6.1 to 1.7.0
-    persistence_type = properties[PERSISTENCE_TYPE_PROPERTY]
-    if persistence_type == "remote":
-      db_name = properties["server.jdbc.schema"]  # this was a property in Ambari 1.6.1, but not after 1.7.0
-      if db_name:
-        write_property(JDBC_DATABASE_NAME_PROPERTY, db_name)
-
-      # If DB type is missing, attempt to reconstruct it from the JDBC URL
-      db_type = properties[JDBC_DATABASE_PROPERTY]
-      if db_type is None or db_type.strip().lower() not in ["postgres", "oracle", "mysql", "derby"]:
-        db_type = get_db_type(properties)
-        if db_type:
-          write_property(JDBC_DATABASE_PROPERTY, db_type)
-
-      properties = get_ambari_properties()
-    elif persistence_type == "local":
-      # Ambari 1.6.1, had "server.jdbc.database" as the DB name, and the
-      # DB type was assumed to be "postgres" if was embedded ("local")
-      db_name = properties[JDBC_DATABASE_PROPERTY]
-      if db_name:
-        write_property(JDBC_DATABASE_NAME_PROPERTY, db_name)
-        write_property(JDBC_DATABASE_PROPERTY, "postgres")
-        properties = get_ambari_properties()
-
-  dbname = properties[JDBC_DATABASE_NAME_PROPERTY]
+  dbname = properties[JDBC_DATABASE_PROPERTY]
   if dbname is None or dbname == "":
     err = "DB Name property not set in config file.\n" + SETUP_OR_UPGRADE_MSG
     raise FatalException(-1, err)
@@ -1534,7 +1491,7 @@ def configure_database_username_password(args):
 
   username = properties[JDBC_USER_NAME_PROPERTY]
   passwordProp = properties[JDBC_PASSWORD_PROPERTY]
-  dbname = properties[JDBC_DATABASE_NAME_PROPERTY]
+  dbname = properties[JDBC_DATABASE_PROPERTY]
 
   if username and passwordProp and dbname:
     print_info_msg("Database username + password already configured")
@@ -1580,22 +1537,15 @@ def store_local_properties(args):
 
   isSecure = get_is_secure(properties)
 
-  properties.removeOldProp(JDBC_DATABASE_PROPERTY)
-  properties.removeOldProp(JDBC_DATABASE_NAME_PROPERTY)
-  properties.removeOldProp(JDBC_POSTGRES_SCHEMA_PROPERTY)
+  properties.removeOldProp(JDBC_SCHEMA_PROPERTY)
   properties.removeOldProp(JDBC_HOSTNAME_PROPERTY)
   properties.removeOldProp(JDBC_RCA_DRIVER_PROPERTY)
   properties.removeOldProp(JDBC_RCA_URL_PROPERTY)
   properties.removeOldProp(JDBC_PORT_PROPERTY)
   properties.removeOldProp(JDBC_DRIVER_PROPERTY)
   properties.removeOldProp(JDBC_URL_PROPERTY)
-
-  # Store the properties
   properties.process_pair(PERSISTENCE_TYPE_PROPERTY, "local")
-  properties.process_pair(JDBC_DATABASE_PROPERTY, args.dbms)
-  properties.process_pair(JDBC_DATABASE_NAME_PROPERTY, args.database_name)
-  if args.dbms == "postgres":
-    properties.process_pair(JDBC_POSTGRES_SCHEMA_PROPERTY, args.postgres_schema)
+  properties.process_pair(JDBC_DATABASE_PROPERTY, args.database_name)
   properties.process_pair(JDBC_USER_NAME_PROPERTY, args.database_username)
   properties.process_pair(JDBC_PASSWORD_PROPERTY,
       store_password_file(args.database_password, JDBC_PASSWORD_FILENAME))
@@ -1642,22 +1592,23 @@ def parse_properties_file(args):
   args.persistence_type = properties[PERSISTENCE_TYPE_PROPERTY]
   args.jdbc_url = properties[JDBC_URL_PROPERTY]
 
-  args.dbms = properties[JDBC_DATABASE_PROPERTY]
   if not args.persistence_type:
     args.persistence_type = "local"
 
   if args.persistence_type == 'remote':
+    args.dbms = properties[JDBC_DATABASE_PROPERTY]
     args.database_host = properties[JDBC_HOSTNAME_PROPERTY]
     args.database_port = properties[JDBC_PORT_PROPERTY]
+    args.database_name = properties[JDBC_SCHEMA_PROPERTY]
     global DATABASE_INDEX
     try:
-      DATABASE_INDEX = DATABASE_TYPES.index(args.dbms)
+      DATABASE_INDEX = DATABASE_NAMES.index(args.dbms)
     except ValueError:
       pass
+  else:
+    #TODO incorrect property used!! leads to bunch of troubles. Workaround for now
+    args.database_name = properties[JDBC_DATABASE_PROPERTY]
 
-  args.database_name = properties[JDBC_DATABASE_NAME_PROPERTY]
-  args.postgres_schema = properties[JDBC_POSTGRES_SCHEMA_PROPERTY] \
-      if JDBC_POSTGRES_SCHEMA_PROPERTY in properties.propertyNames() else None
   args.database_username = properties[JDBC_USER_NAME_PROPERTY]
   args.database_password_file = properties[JDBC_PASSWORD_PROPERTY]
   if args.database_password_file:
@@ -2265,21 +2216,8 @@ def setup(args):
     err = 'Failed to create user. Exiting.'
     raise FatalException(retcode, err)
 
-  print 'Checking firewall...'
-  firewall_obj = Firewall().getFirewallObject()
-  firewall_on = firewall_obj.check_iptables()
-  if firewall_obj.stderrdata and len(firewall_obj.stderrdata) > 0:
-    print firewall_obj.stderrdata
-  if firewall_on:
-    print_warning_msg("%s is running. Confirm the necessary Ambari ports are accessible. " %
-                      firewall_obj.FIREWALL_SERVICE_NAME +
-                      "Refer to the Ambari documentation for more details on ports.")
-    ok = get_YN_input("OK to continue [y/n] (y)? ", True)
-    if not ok:
-      raise FatalException(1, None)
-
-
-
+  print 'Checking iptables...'
+  check_iptables()
 
   # proceed jdbc properties if they were set
   if args.jdbc_driver is not None and args.jdbc_db is not None:
@@ -2351,12 +2289,6 @@ def setup(args):
       err = 'Error while configuring connection properties. Exiting'
       raise FatalException(retcode, err)
     check_jdbc_drivers(args)
-
-  print 'Extracting system views...'
-  retcode = extract_views()
-  if not retcode == 0:
-    err = 'Error while extracting system views. Exiting'
-    raise FatalException(retcode, err)
 
 
 def proceedJDBCProperties(args):
@@ -2431,7 +2363,7 @@ def reset(args):
     err = "Ambari Server 'reset' cancelled"
     raise FatalException(1, err)
 
-  check_database_name_property(args)
+  check_database_name_property()
   parse_properties_file(args)
 
   if args.persistence_type == "remote":
@@ -2504,7 +2436,7 @@ def start(args):
           "command as root, as sudo or as user \"{1}\"".format(current_user, ambari_user)
     raise FatalException(1, err)
 
-  check_database_name_property(args)
+  check_database_name_property()
   parse_properties_file(args)
 
   status, pid = is_server_runing()
@@ -2674,7 +2606,7 @@ def upgrade_stack(args, stack_id, repo_url=None, repo_url_os=None):
     err = 'Ambari-server upgradestack should be run with ' \
           'root-level privileges'
     raise FatalException(4, err)
-  check_database_name_property(args)
+  check_database_name_property()
 
   stack_name, stack_version = stack_id.split(STACK_NAME_VER_SEP)
   retcode = run_stack_upgrade(stack_name, stack_version, repo_url, repo_url_os)
@@ -2767,14 +2699,7 @@ def change_objects_owner(args):
 
   command = CHANGE_OWNER_COMMAND[:]
   command[-1] = command[-1].format(database_name, 'ambari', new_owner)
-  retcode, stdout, stderr = run_os_command(command)
-  if not retcode == 0:
-    if VERBOSE:
-      if stdout:
-        print_error_msg(stdout.strip())
-      if stderr:
-        print_error_msg(stderr.strip())
-    raise FatalException(20, 'Unable to change owner of database objects')
+  return run_os_command(command)
 
 
 def compare_versions(version1, version2):
@@ -2860,15 +2785,15 @@ def upgrade(args):
     raise FatalException(retcode, err)
 
   try:
-    check_database_name_property(args, upgrade=True)
+    check_database_name_property()
   except FatalException:
     properties = get_ambari_properties()
     if properties == -1:
       print_error_msg("Error getting ambari properties")
       return -1
-    print_warning_msg(JDBC_DATABASE_NAME_PROPERTY + " property isn't set in " +
+    print_warning_msg(JDBC_DATABASE_PROPERTY + " property isn't set in " +
     AMBARI_PROPERTIES_FILE + ". Setting it to default value - " + DEFAULT_DB_NAME)
-    properties.process_pair(JDBC_DATABASE_NAME_PROPERTY, DEFAULT_DB_NAME)
+    properties.process_pair(JDBC_DATABASE_PROPERTY, DEFAULT_DB_NAME)
     conf_file = find_properties_file()
     try:
       properties.store(open(conf_file, "w"))
@@ -2879,7 +2804,9 @@ def upgrade(args):
   parse_properties_file(args)
   #TODO check database version
   if args.persistence_type == 'local':
-    change_objects_owner(args)
+    retcode, stdout, stderr = change_objects_owner(args)
+    if not retcode == 0:
+      raise FatalException(20, 'Unable to change owner of database objects')
 
   retcode = run_schema_upgrade()
   if not retcode == 0:
@@ -3038,142 +2965,6 @@ def get_prompt_default(defaultStr=None):
     return '(' + defaultStr + ')'
 
 
-#
-# Sync users and groups with configured LDAP
-#
-def sync_ldap():
-  if not is_root():
-    err = 'Ambari-server sync-ldap should be run with ' \
-          'root-level privileges'
-    raise FatalException(4, err)
-
-  server_status, pid = is_server_runing()
-  if not server_status:
-    err = 'Ambari Server is not running.'
-    raise FatalException(1, err)
-
-  ldap_configured = get_ambari_properties().get_property(IS_LDAP_CONFIGURED)
-  if ldap_configured != 'true':
-    err = "LDAP is not configured. Run 'ambari-server setup-ldap' first."
-    raise FatalException(1, err)
-
-  admin_login = get_validated_string_input(prompt="Enter admin login: ", default=None,
-                                           pattern=None, description=None,
-                                           is_pass=False, allowEmpty=False)
-  admin_password = get_validated_string_input(prompt="Enter admin password: ", default=None,
-                                              pattern=None, description=None,
-                                              is_pass=True, allowEmpty=False)
-
-  url = '{0}://{1}:{2!s}{3}'.format(SERVER_API_PROTOCOL, SERVER_API_HOST, SERVER_API_PORT, SERVER_API_LDAP_URL)
-  admin_auth = base64.encodestring('%s:%s' % (admin_login, admin_password)).replace('\n', '')
-  request = urllib2.Request(url)
-  request.add_header('Authorization', 'Basic %s' % admin_auth)
-  request.add_header('X-Requested-By', 'ambari')
-
-  if LDAP_SYNC_EXISTING:
-    sys.stdout.write('Syncing existing.')
-    bodies = [{"Event":{"specs":[{"principal_type":"users","sync_type":"existing"},{"principal_type":"groups","sync_type":"existing"}]}}]
-  else:
-    if LDAP_SYNC_USERS is None and LDAP_SYNC_GROUPS is None:
-      sys.stdout.write('Syncing all.')
-      bodies = [{"Event":{"specs":[{"principal_type":"users","sync_type":"all"},{"principal_type":"groups","sync_type":"all"}]}}]
-    else:
-      sys.stdout.write('Syncing specified users and groups.')
-      bodies = [{"Event":{"specs":[]}}]
-      body = bodies[0]
-      events = body['Event']
-      specs = events['specs']
-
-      if LDAP_SYNC_USERS is not None:
-        new_specs = [{"principal_type":"users","sync_type":"specific","names":""}]
-        get_ldap_event_spec_names(LDAP_SYNC_USERS, specs, new_specs)
-      if LDAP_SYNC_GROUPS is not None:
-        new_specs = [{"principal_type":"groups","sync_type":"specific","names":""}]
-        get_ldap_event_spec_names(LDAP_SYNC_GROUPS, specs, new_specs)
-
-  if VERBOSE:
-    sys.stdout.write('\nCalling API ' + SERVER_API_LDAP_URL + ' : ' + str(bodies) + '\n')
-
-  request.add_data(json.dumps(bodies))
-  request.get_method = lambda: 'POST'
-
-  try:
-    response = urllib2.urlopen(request)
-  except Exception as e:
-    err = 'Sync event creation failed. Error details: %s' % e
-    raise FatalException(1, err)
-
-  response_status_code = response.getcode()
-  if response_status_code != 201:
-    err = 'Error during syncing. Http status code - ' + str(response_status_code)
-    raise FatalException(1, err)
-  response_body = json.loads(response.read())
-
-  url = response_body['resources'][0]['href']
-  request = urllib2.Request(url)
-  request.add_header('Authorization', 'Basic %s' % admin_auth)
-  request.add_header('X-Requested-By', 'ambari')
-  body = [{"LDAP":{"synced_groups":"*","synced_users":"*"}}]
-  request.add_data(json.dumps(body))
-  request.get_method = lambda: 'GET'
-  request_in_progress = True
-
-  while request_in_progress:
-
-    sys.stdout.write('.')
-    sys.stdout.flush()
-
-    try:
-      response = urllib2.urlopen(request)
-    except Exception as e:
-      request_in_progress = False
-      err = 'Sync event check failed. Error details: %s' % e
-      raise FatalException(1, err)
-
-    response_status_code = response.getcode()
-    if response_status_code != 200:
-      err = 'Error during syncing. Http status code - ' + str(response_status_code)
-      raise FatalException(1, err)
-    response_body = json.loads(response.read())
-    sync_info = response_body['Event']
-
-    if sync_info['status'] == 'ERROR':
-      raise FatalException(1, str(sync_info['status_detail']))
-    elif sync_info['status'] == 'COMPLETE':
-      print '\n\nCompleted LDAP Sync.'
-      print 'Summary:'
-      for principal_type, summary in sync_info['summary'].iteritems():
-        print '  {0}:'.format(principal_type)
-        for action, amount in summary.iteritems():
-          print '    {0} = {1!s}'.format(action, amount)
-      request_in_progress = False
-    else:
-      time.sleep(1)
-
-  sys.stdout.write('\n')
-  sys.stdout.flush()
-
-#
-# Get the principal names from the given CSV file and set them on the given LDAP event specs.
-#
-def get_ldap_event_spec_names(file, specs, new_specs):
-
-  try:
-    if os.path.exists(file):
-      new_spec = new_specs[0]
-      with open(file, 'r') as names_file:
-        names = names_file.read()
-        new_spec['names'] = ''.join(names.split())
-        names_file.close()
-        specs += new_specs
-    else:
-      err = 'Sync event creation failed. File ' + file + ' not found.'
-      raise FatalException(1, err)
-  except:
-      err = 'Caught exception reading file ' + file + ' : ' + str(exception)
-      raise FatalException(1, err)
-
-
 def setup_ldap():
   if not is_root():
     err = 'Ambari-server setup-ldap should be run with ' \
@@ -3186,11 +2977,7 @@ def setup_ldap():
   ldap_property_list_reqd = ["authentication.ldap.primaryUrl",
                         "authentication.ldap.secondaryUrl",
                         "authentication.ldap.useSSL",
-                        "authentication.ldap.userObjectClass",
                         "authentication.ldap.usernameAttribute",
-                        "authentication.ldap.groupObjectClass",
-                        "authentication.ldap.groupNamingAttr",
-                        "authentication.ldap.groupMembershipAttr",
                         "authentication.ldap.baseDn",
                         "authentication.ldap.bindAnonymously"]
 
@@ -3210,13 +2997,9 @@ def setup_ldap():
   LDAP_PRIMARY_URL_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[0])
   LDAP_SECONDARY_URL_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[1])
   LDAP_USE_SSL_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[2], "false")
-  LDAP_USER_CLASS_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[3], "posixAccount")
-  LDAP_USER_ATT_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[4], "uid")
-  LDAP_GROUP_CLASS_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[5], "posixGroup")
-  LDAP_GROUP_ATT_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[6], "cn")
-  LDAP_GROUP_MEMBER_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[7], "memberUid")
-  LDAP_BASE_DN_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[8])
-  LDAP_BIND_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[9], "false")
+  LDAP_USER_ATT_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[3], "uid")
+  LDAP_BASE_DN_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[4])
+  LDAP_BIND_DEFAULT = get_value_from_properties(properties, ldap_property_list_reqd[5], "false")
   LDAP_MGR_DN_DEFAULT = get_value_from_properties(properties, ldap_property_list_opt[0])
   SSL_TRUSTSTORE_TYPE_DEFAULT = get_value_from_properties(properties, SSL_TRUSTSTORE_TYPE_PROPERTY, "jks")
   SSL_TRUSTSTORE_PATH_DEFAULT = get_value_from_properties(properties, SSL_TRUSTSTORE_PATH_PROPERTY)
@@ -3227,20 +3010,16 @@ def setup_ldap():
     ldap_property_list_reqd[0]:(LDAP_PRIMARY_URL_DEFAULT, "Primary URL* {{host:port}} {0}: ".format(get_prompt_default(LDAP_PRIMARY_URL_DEFAULT)), False),\
     ldap_property_list_reqd[1]:(LDAP_SECONDARY_URL_DEFAULT, "Secondary URL {{host:port}} {0}: ".format(get_prompt_default(LDAP_SECONDARY_URL_DEFAULT)), True),\
     ldap_property_list_reqd[2]:(LDAP_USE_SSL_DEFAULT, "Use SSL* [true/false] {0}: ".format(get_prompt_default(LDAP_USE_SSL_DEFAULT)), False),\
-    ldap_property_list_reqd[3]:(LDAP_USER_CLASS_DEFAULT, "User object class* {0}: ".format(get_prompt_default(LDAP_USER_CLASS_DEFAULT)), False),\
-    ldap_property_list_reqd[4]:(LDAP_USER_ATT_DEFAULT, "User name attribute* {0}: ".format(get_prompt_default(LDAP_USER_ATT_DEFAULT)), False),\
-    ldap_property_list_reqd[5]:(LDAP_GROUP_CLASS_DEFAULT, "Group object class* {0}: ".format(get_prompt_default(LDAP_GROUP_CLASS_DEFAULT)), False),\
-    ldap_property_list_reqd[6]:(LDAP_GROUP_ATT_DEFAULT, "Group name attribute* {0}: ".format(get_prompt_default(LDAP_GROUP_ATT_DEFAULT)), False),\
-    ldap_property_list_reqd[7]:(LDAP_GROUP_MEMBER_DEFAULT, "Group member attribute* {0}: ".format(get_prompt_default(LDAP_GROUP_MEMBER_DEFAULT)), False),\
-    ldap_property_list_reqd[8]:(LDAP_BASE_DN_DEFAULT, "Base DN* {0}: ".format(get_prompt_default(LDAP_BASE_DN_DEFAULT)), False),\
-    ldap_property_list_reqd[9]:(LDAP_BIND_DEFAULT, "Bind anonymously* [true/false] {0}: ".format(get_prompt_default(LDAP_BIND_DEFAULT)), False),\
+    ldap_property_list_reqd[3]:(LDAP_USER_ATT_DEFAULT, "User name attribute* {0}: ".format(get_prompt_default(LDAP_USER_ATT_DEFAULT)), False),\
+    ldap_property_list_reqd[4]:(LDAP_BASE_DN_DEFAULT, "Base DN* {0}: ".format(get_prompt_default(LDAP_BASE_DN_DEFAULT)), False),\
+    ldap_property_list_reqd[5]:(LDAP_BIND_DEFAULT, "Bind anonymously* [true/false] {0}: ".format(get_prompt_default(LDAP_BIND_DEFAULT)), False)\
   }
 
   ldap_property_value_map = {}
   for idx, key in enumerate(ldap_property_list_reqd):
     if idx in [0, 1]:
       pattern = REGEX_HOSTNAME_PORT
-    elif idx in [2, 9]:
+    elif idx in [2, 5]:
       pattern = REGEX_TRUE_FALSE
     else:
       pattern = REGEX_ANYTHING
@@ -3335,9 +3114,6 @@ def setup_ldap():
     pass
 
     # Persisting values
-    ldap_property_value_map[IS_LDAP_CONFIGURED] = "true"
-    if mgr_password:
-      ldap_property_value_map[LDAP_MGR_PASSWORD_PROPERTY] = store_password_file(mgr_password, LDAP_MGR_PASSWORD_FILENAME)
     update_properties(properties, ldap_property_value_map)
     print 'Saving...done'
 
@@ -3482,19 +3258,12 @@ def setup_master_key():
   isSecure = get_is_secure(properties)
   (isPersisted, masterKeyFile) = get_is_persisted(properties)
 
-  # Read clear text DB password from file
+  # Read clear text password from file
   if not is_alias_string(db_password) and os.path.isfile(db_password):
     with open(db_password, 'r') as passwdfile:
       db_password = passwdfile.read()
 
   ldap_password = properties.get_property(LDAP_MGR_PASSWORD_PROPERTY)
-
-  if ldap_password:
-    # Read clear text LDAP password from file
-    if not is_alias_string(ldap_password) and os.path.isfile(ldap_password):
-      with open(ldap_password, 'r') as passwdfile:
-        ldap_password = passwdfile.read()
-  
   ts_password = properties.get_property(SSL_TRUSTSTORE_PASSWORD_PROPERTY)
   resetKey = False
   masterKey = None
@@ -3590,7 +3359,6 @@ def setup_master_key():
       print 'Failed to save secure LDAP password.'
     else:
       propertyMap[LDAP_MGR_PASSWORD_PROPERTY] = get_alias_string(LDAP_MGR_PASSWORD_ALIAS)
-      remove_password_file(LDAP_MGR_PASSWORD_FILENAME)
   pass
 
   if ts_password and not is_alias_string(ts_password):
@@ -4259,7 +4027,7 @@ def get_fqdn():
     handle.close()
     return str
   except Exception:
-    return socket.getfqdn()
+    return socket.getfqdn().lower()
 
 
 def get_ulimit_open_files():
@@ -4387,17 +4155,11 @@ def main():
   parser.add_option('-g', '--debug', action="store_true", dest='debug', default=False,
                     help="Start ambari-server in debug mode")
 
-  parser.add_option('--existing', action="store_true", default=False, help="LDAP sync existing Ambari users and groups only", dest="ldap_sync_existing")
-  parser.add_option('--users', default=None, help="Specifies the path to the LDAP sync users CSV file.", dest="ldap_sync_users")
-  parser.add_option('--groups', default=None, help="Specifies the path to the LDAP sync groups CSV file.", dest="ldap_sync_groups")
-
   parser.add_option('--database', default=None, help="Database to use embedded|oracle|mysql|postgres", dest="dbms")
   parser.add_option('--databasehost', default=None, help="Hostname of database server", dest="database_host")
   parser.add_option('--databaseport', default=None, help="Database port", dest="database_port")
-  parser.add_option('--databasename', default=None, help="Database/Service name or ServiceID",
+  parser.add_option('--databasename', default=None, help="Database/Schema/Service name or ServiceID",
                     dest="database_name")
-  parser.add_option('--postgresschema', default=None, help="Postgres database schema name",
-                    dest="postgres_schema")
   parser.add_option('--databaseusername', default=None, help="Database user login", dest="database_username")
   parser.add_option('--databasepassword', default=None, help="Database user password", dest="database_password")
   parser.add_option('--sidorsname', default="sname", help="Oracle database identifier type, Service ID/Service "
@@ -4420,18 +4182,6 @@ def main():
   # debug mode
   global SERVER_DEBUG_MODE
   SERVER_DEBUG_MODE = options.debug
-
-  # set ldap_sync_existing
-  global LDAP_SYNC_EXISTING
-  LDAP_SYNC_EXISTING = options.ldap_sync_existing
-
-  # set ldap_sync_users
-  global LDAP_SYNC_USERS
-  LDAP_SYNC_USERS = options.ldap_sync_users
-
-  # set ldap_sync_groups
-  global LDAP_SYNC_GROUPS
-  LDAP_SYNC_GROUPS = options.ldap_sync_groups
 
   global DATABASE_INDEX
   global PROMPT_DATABASE_OPTIONS
@@ -4466,12 +4216,12 @@ def main():
     options.database_index = 0
     DATABASE_INDEX = 0
     pass
-  elif options.dbms is not None and options.dbms not in DATABASE_TYPES:
+  elif options.dbms is not None and options.dbms not in DATABASE_NAMES:
     parser.print_help()
     parser.error("Unsupported Database " + options.dbms)
   elif options.dbms is not None:
     options.dbms = options.dbms.lower()
-    DATABASE_INDEX = DATABASE_TYPES.index(options.dbms)
+    DATABASE_INDEX = DATABASE_NAMES.index(options.dbms)
 
   #correct port
   if options.database_port is not None:
@@ -4548,8 +4298,6 @@ def main():
       upgrade_stack(options, stack_id, repo_url, repo_url_os)
     elif action == LDAP_SETUP_ACTION:
       setup_ldap()
-    elif action == LDAP_SYNC_ACTION:
-      sync_ldap()
     elif action == SETUP_SECURITY_ACTION:
       need_restart = setup_security(options)
     elif action == REFRESH_STACK_HASH_ACTION:
@@ -4637,9 +4385,6 @@ class Properties(object):
       self.process_pair(key, value)
 
   def process_pair(self, key, value):
-    """
-    Adds or overrides the property with the given key.
-    """
     oldkey = key
     oldvalue = value
     keyparts = self.bspacere.split(key)
@@ -4708,9 +4453,7 @@ class Properties(object):
 
   def store(self, out, header=""):
     """ Write the properties list to the stream 'out' along
-    with the optional 'header'
-    This function will attempt to close the file handler once it's done.
-    """
+    with the optional 'header' """
     if out.mode[0] != 'w':
       raise ValueError, 'Steam should be opened in write mode!'
     try:
@@ -4723,11 +4466,9 @@ class Properties(object):
       for prop, val in self._origprops.items():
         if val is not None:
           out.write(''.join((prop, '=', val, '\n')))
+      out.close()
     except IOError:
       raise
-    finally:
-      if out:
-        out.close()
 
 if __name__ == "__main__":
   try:

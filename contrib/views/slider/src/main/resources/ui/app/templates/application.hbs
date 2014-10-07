@@ -16,25 +16,13 @@
 * limitations under the License.
 }}
 
-<div class="slider-header">
-  {{#view view.SliderTitleView}}
-      <h3 class="pull-left" id="slider-title"><span class="slider-app-title">{{App.label}}</span></h3>
-    {{#if view.isIndexPage}}
-      <div class="box-header pull-right">
-        <div class="create-app">
-          <a href="#" class="btn btn-primary" {{action createApp}}>
-            <i class="icon-plus"></i><span>&nbsp;{{t slider.apps.create}}</span>
-          </a>
-        </div>
-      </div>
-    {{/if}}
-  {{/view}}
-  {{outlet bs-tooltip-box}}
+<div>
+  <h1>{{t slider.apps.title}}</h1>
 </div>
 {{#if App.viewEnabled}}
   {{outlet}}
 {{else}}
   {{#each error in App.viewErrors}}
-    <h3>{{{error}}}</h3>
+    <h3>{{error}}</h3>
   {{/each}}
 {{/if}}

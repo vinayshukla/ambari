@@ -43,10 +43,6 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
     return App.router.get('clusterController.isLoaded') && App.router.get('loggedIn');
   }.property('App.router.clusterController.isLoaded','App.router.loggedIn'),
 
-  isExistingClusterDataLoaded: function () {
-    return App.router.get('clusterInstallCompleted') && this.get('isClusterDataLoaded');
-  }.property('App.router.clusterInstallCompleted', 'isClusterDataLoaded'),
-
   init: function(){
     this._super();
   },
@@ -54,7 +50,7 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
   dataLoading: function () {
     var dfd = $.Deferred();
     var self = this;
-    this.getUserPref(this.persistKey()).complete(function () {
+    this.getUserPref(this.persistKey()).done(function () {
       var curPref = self.get('currentPrefObject');
       self.set('currentPrefObject', null);
       dfd.resolve(curPref);
@@ -88,10 +84,6 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
     }
   },
 
-  goToAdminView: function () {
-    App.router.route("adminView");
-  },
-
   showSettingsPopup: function() {
     // Settings only for admins
     if (!App.get('isAdmin')) return;
@@ -114,7 +106,7 @@ App.ApplicationController = Em.Controller.extend(App.UserPref, {
             curValue = initValue;
           }
           var key = self.persistKey();
-          if (!App.get('testMode')) {
+          if (!App.testMode) {
             self.postUserPref(key, curValue);
           }
           this.hide();

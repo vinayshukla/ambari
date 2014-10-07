@@ -21,9 +21,9 @@ limitations under the License.
 from mock.mock import MagicMock, call, patch
 from stacks.utils.RMFTestCase import *
 import  resource_management.core.source
-from test_storm_base import TestStormBase
 
-class TestStormDrpcServer(TestStormBase):
+@patch.object(resource_management.core.source, "InlineTemplate", new = MagicMock(return_value='InlineTemplateMock'))
+class TestStormDrpcServer(RMFTestCase):
 
   def test_configure_default(self):
     self.executeScript("2.1/services/STORM/package/scripts/drpc_server.py",
@@ -31,23 +31,21 @@ class TestStormDrpcServer(TestStormBase):
                        command = "configure",
                        config_file="default.json"
     )
-
     self.assert_configure_default()
     self.assertNoMoreResources()
 
   def test_start_default(self):
-
     self.executeScript("2.1/services/STORM/package/scripts/drpc_server.py",
                        classname = "DrpcServer",
                        command = "start",
                        config_file="default.json"
     )
+
     self.assert_configure_default()
 
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm drpc > /var/log/storm/drpc.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm drpc > /var/log/storm/drpc.out 2>&1',
       wait_for_finish = False,
       not_if = 'ls /var/run/storm/drpc.pid >/dev/null 2>&1 && ps `cat /var/run/storm/drpc.pid` >/dev/null 2>&1',
-      path = ['/usr/bin'],
       user = 'storm',
     )
 
@@ -55,7 +53,6 @@ class TestStormDrpcServer(TestStormBase):
       logoutput = True,
       tries = 6,
       user = 'storm',
-      path = ['/usr/bin'],
       try_sleep = 10,
     )
 
@@ -77,7 +74,7 @@ class TestStormDrpcServer(TestStormBase):
     self.assertResourceCalled('Execute', 'rm -f /var/run/storm/drpc.pid')
     self.assertNoMoreResources()
 
-  def test_configure_secured(self):
+  def test_configure_default(self):
     self.executeScript("2.1/services/STORM/package/scripts/drpc_server.py",
                        classname = "DrpcServer",
                        command = "configure",
@@ -95,10 +92,9 @@ class TestStormDrpcServer(TestStormBase):
 
     self.assert_configure_secured()
 
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm drpc > /var/log/storm/drpc.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm drpc > /var/log/storm/drpc.out 2>&1',
       wait_for_finish = False,
       not_if = 'ls /var/run/storm/drpc.pid >/dev/null 2>&1 && ps `cat /var/run/storm/drpc.pid` >/dev/null 2>&1',
-      path = ['/usr/bin'],
       user = 'storm',
     )
 
@@ -106,7 +102,6 @@ class TestStormDrpcServer(TestStormBase):
       logoutput = True,
       tries = 6,
       user = 'storm',
-      path = ['/usr/bin'],
       try_sleep = 10,
     )
 
@@ -127,3 +122,81 @@ class TestStormDrpcServer(TestStormBase):
     )
     self.assertResourceCalled('Execute', 'rm -f /var/run/storm/drpc.pid')
     self.assertNoMoreResources()
+
+  def assert_configure_default(self):
+
+    self.assertResourceCalled('Directory', '/var/log/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/var/run/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/hadoop/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/etc/storm/conf',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/config.yaml',
+      owner = 'storm',
+      content = Template('config.yaml.j2'),
+      group = 'hadoop',
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/storm.yaml',
+      owner = 'storm',
+      content = 'InlineTemplateMock',
+      group = 'hadoop',
+      mode = None,
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/storm-env.sh',
+                              owner = 'storm',
+                              content = 'InlineTemplate'
+                              )
+
+  def assert_configure_secured(self):
+    self.assertResourceCalled('Directory', '/var/log/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/var/run/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/hadoop/storm',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('Directory', '/etc/storm/conf',
+      owner = 'storm',
+      group = 'hadoop',
+      recursive = True,
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/config.yaml',
+      owner = 'storm',
+      content = Template('config.yaml.j2'),
+      group = 'hadoop',
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/storm.yaml',
+      owner = 'storm',
+      content = 'InlineTemplateMock',
+      group = 'hadoop',
+      mode = None,
+    )
+    self.assertResourceCalled('File', '/etc/storm/conf/storm-env.sh',
+                              owner = 'storm',
+                              content = 'InlineTemplate'
+                              )
+    self.assertResourceCalled('TemplateConfig', '/etc/storm/conf/storm_jaas.conf',
+      owner = 'storm',
+    )

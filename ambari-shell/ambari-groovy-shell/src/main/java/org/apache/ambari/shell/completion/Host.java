@@ -20,10 +20,15 @@ package org.apache.ambari.shell.completion;
 /**
  * Wrapper class for TAB completion to host names.
  */
-public class Host extends AbstractCompletion {
+public class Host {
+
+  private final String name;
 
   public Host(String name) {
-    super(name);
+    this.name = name;
   }
 
+  public String getName() {
+    return name;
+  }
 }

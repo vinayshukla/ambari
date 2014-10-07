@@ -20,7 +20,6 @@ package org.apache.ambari.server.orm.entities;
 import javax.persistence.*;
 
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Set;
 
 @Table(name = "users", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_name", "ldap_user"})})
@@ -30,10 +29,10 @@ import java.util.Set;
     @NamedQuery(name = "ldapUserByName", query = "SELECT user FROM UserEntity user where lower(user.userName)=:username AND user.ldapUser=true")
 })
 @TableGenerator(name = "user_id_generator",
-    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
+    table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "value"
     , pkColumnValue = "user_id_seq"
     , initialValue = 2
-    , allocationSize = 500
+    , allocationSize = 1
     )
 public class UserEntity {
 
@@ -60,17 +59,11 @@ public class UserEntity {
   @Column(name = "active")
   private Integer active = 1;
 
+  @ManyToMany(mappedBy = "userEntities")
+  private Set<RoleEntity> roleEntities;
+
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-  private Set<MemberEntity> memberEntities = new HashSet<MemberEntity>();
-
-  @OneToOne
-  @JoinColumns({
-      @JoinColumn(name = "principal_id", referencedColumnName = "principal_id", nullable = false),
-  })
-  private PrincipalEntity principal;
-
-
-  // ----- UserEntity --------------------------------------------------------
+  private Set<MemberEntity> memberEntities;
 
   public Integer getUserId() {
     return userId;
@@ -116,6 +109,14 @@ public class UserEntity {
     this.createTime = createTime;
   }
 
+  public Set<RoleEntity> getRoleEntities() {
+    return roleEntities;
+  }
+
+  public void setRoleEntities(Set<RoleEntity> roleEntities) {
+    this.roleEntities = roleEntities;
+  }
+
   public Set<MemberEntity> getMemberEntities() {
     return memberEntities;
   }
@@ -135,27 +136,6 @@ public class UserEntity {
       this.active = active ? 1 : 0;
     }
   }
-
-  /**
-   * Get the admin principal entity.
-   *
-   * @return the principal entity
-   */
-  public PrincipalEntity getPrincipal() {
-    return principal;
-  }
-
-  /**
-   * Set the admin principal entity.
-   *
-   * @param principal  the principal entity
-   */
-  public void setPrincipal(PrincipalEntity principal) {
-    this.principal = principal;
-  }
-
-
-  // ----- Object overrides --------------------------------------------------
 
   @Override
   public boolean equals(Object o) {

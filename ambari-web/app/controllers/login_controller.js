@@ -35,19 +35,13 @@ App.LoginController = Em.Object.extend({
     App.get('router').login();
   },
 
-  postLogin: function (isConnected, isAuthenticated, responseText) {
+  postLogin: function (isConnected, isAuthenticated) {
     if (!isConnected) {
       console.log('Failed to connect to Ambari Server');
       this.set('errorMessage', Em.I18n.t('login.error.bad.connection'));
     } else if (!isAuthenticated) {
       console.log('Failed to login as: ' + this.get('loginName'));
-      var errorMessage = "";
-      if( responseText === "User is disabled" ){
-        errorMessage = Em.I18n.t('login.error.disabled');
-      } else {
-        errorMessage = Em.I18n.t('login.error.bad.credentials');
-      }
-      this.set('errorMessage', errorMessage);
+      this.set('errorMessage', Em.I18n.t('login.error.bad.credentials'));
     }
   }
 

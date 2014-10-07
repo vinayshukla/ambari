@@ -22,13 +22,13 @@
     <name>Ambari</name>
     <description>
       Ambari is a web-based tool for performing installation, management, and monitoring of Apache Hadoop clusters. The stack of components that are currently supported by
-      Ambari includes Falcon, HBase, HCatalog, HDFS, Hive, MapReduce, Oozie, Pig, Scoop, Storm, Templeton, Tez, YARN and Zookeeper.
+      Ambari includes HBase, HCatalog, HDFS, Hive, MapReduce, Oozie, Pig, Scoop, Templeton, and Zookeeper.
     </description>
-    <url>http://ambari.apache.org</url>
+    <url>http://incubator.apache.org/ambari</url>
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.apache.ambari</groupId>
-    <version>1.6.1</version>
+    <version>1.6.0</version>
     <artifactId>ambari</artifactId>
     <packaging>pom</packaging>
 
@@ -74,7 +74,7 @@
             <unsubscribe>mailto:user-unsubscribe@ambari.apache.org
             </unsubscribe>
             <post>mailto:user@ambari.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/ambari-user/</archive>
+            <archive></archive>
         </mailingList>
         <mailingList>
             <name>Development list</name>
@@ -83,7 +83,7 @@
             <unsubscribe>mailto:dev-unsubscribe@ambari.apache.org
             </unsubscribe>
             <post>mailto:dev@ambari.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/ambari-dev/</archive>
+            <archive></archive>
         </mailingList>
         <mailingList>
             <name>Commit list</name>
@@ -92,7 +92,7 @@
             <unsubscribe>mailto:commits-unsubscribe@ambari.apache.org
             </unsubscribe>
             <post>mailto:commits@ambari.apache.org</post>
-            <archive>http://mail-archives.apache.org/mod_mbox/ambari-commits/</archive>
+            <archive></archive>
         </mailingList>
     </mailingLists>
 
@@ -114,18 +114,6 @@
             <name>Artem Baranchuk</name>
             <email>abaranchuk@apache.org</email>
             <timezone>+2</timezone>
-            <roles>
-                <role>Committer</role>
-            </roles>
-            <organization>
-                Hortonworks
-            </organization>
-        </developer>
-        <developer>
-            <id>alejandro</id>
-            <name>Alejandro Fernandez</name>
-            <email>alejandro@apache.org</email>
-            <timezone>-8</timezone>
             <roles>
                 <role>Committer</role>
             </roles>
@@ -261,19 +249,7 @@
             <organization>
                 IBM            
             </organization>            
-        </developer>
-        <developer>
-            <id>eboyd</id>
-            <name>Erin A. Boyd</name>
-            <email>eboyd@apache.org</email>
-            <timezone>-8</timezone>
-            <roles>
-                <role>Committer</role>
-            </roles>
-            <organization>
-                 Red Hat
-            </organization>
-        </developer>
+        </developer> 
         <developer>
             <id>hitesh</id>
             <name>Hitesh Shah</name>
@@ -299,18 +275,6 @@
             </organization>            
         </developer>
         <developer>
-            <id>jaoki</id>
-            <name>Jun Aoki</name>
-            <email>jaoki@apache.org</email>
-            <timezone>-8</timezone>
-            <roles>
-                <role>Committer</role>
-            </roles>
-            <organization>
-                Pivotal
-            </organization>
-        </developer>
-        <developer>
             <id>jaimin</id>
             <name>Jaimin Jetly</name>
             <email>jaimin@apache.org</email>
@@ -333,18 +297,6 @@
             <organization>
                 Hortonworks                
             </organization>            
-        </developer>
-        <developer>
-            <id>jonathanhurley</id>
-            <name>Jonathan Hurley</name>
-            <email>jonathanhurley@apache.org</email>
-            <timezone>-8</timezone>
-            <roles>
-                <role>Committer</role>
-            </roles>
-            <organization>
-                Hortonworks
-            </organization>
         </developer>
         <developer>
             <id>jspeidel</id>
@@ -523,7 +475,7 @@
                 <role>PMC</role>
             </roles>
             <organization>
-                Red Hat
+                HP
             </organization>
         </developer>
         <developer>
@@ -611,33 +563,6 @@
             </organization>
         </developer>
       </developers>
-      <contributors>
-         <contributor>
-           <name>Scott Creeley</name>
-           <organization>Red Hat</organization>
-         </contributor>
-         <contributor>
-           <name>Michael Harp</name>
-           <organization>Teradata</organization>
-         </contributor>
-         <contributor>
-           <name>Janos Matyas</name>
-           <organization>SequenceIQ</organization>
-         </contributor>
-         <contributor>
-           <name>Greg Hill</name>
-           <organization>Rackspace</organization>
-         </contributor>
-         <contributor>
-           <name>Steve Ratay</name>
-           <organization>Teradata</organization>
-         </contributor>
-         <contributor>
-           <name>Krisztian Horvath</name>
-           <organization>SequenceIQ</organization>
-         </contributor>
-       </contributors>
-
     <organization>
         <name>Apache Software Foundation</name>
         <url>http://www.apache.org/</url>

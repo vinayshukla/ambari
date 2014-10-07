@@ -148,7 +148,7 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @type {bool}
    */
   isWarningsBoxVisible: function () {
-    return (App.get('testMode')) ? true : !this.get('isRegistrationInProgress');
+    return (App.testMode) ? true : !this.get('isRegistrationInProgress');
   }.property('isRegistrationInProgress'),
 
   /**
@@ -225,7 +225,7 @@ App.WizardStep3Controller = Em.Controller.extend({
     var hostsInfo = this.get('content.hosts');
     var hosts = [];
     var bootStatus = (this.get('content.installOptions.manualInstall')) ? 'DONE' : 'PENDING';
-    if (App.get('testMode')) {
+    if (App.testMode) {
       bootStatus = 'REGISTERED';
     }
 
@@ -574,7 +574,7 @@ App.WizardStep3Controller = Em.Controller.extend({
     var stopPolling = true;
     hosts.forEach(function (_host, index) {
       // Change name of first host for test mode.
-      if (App.get('testMode')) {
+      if (App.testMode) {
         if (index == 0) {
           _host.set('name', 'localhost.localdomain');
         }
@@ -833,14 +833,14 @@ App.WizardStep3Controller = Em.Controller.extend({
       "parameters": {
         "check_execute_list": "host_resolution_check",
         "jdk_location" : jdk_location,
-        "threshold": "20",
-        "hosts": hosts
+        "hosts": hosts,
+        "threshold": "20"
       }
     };
     var resource_filters = {
       "hosts": hosts
     };
-    if (App.get('testMode')) {
+    if (App.testMode) {
       this.getHostNameResolutionSuccess();
     } else {
       return App.ajax.send({
@@ -857,7 +857,7 @@ App.WizardStep3Controller = Em.Controller.extend({
   },
 
   getHostNameResolutionSuccess: function(response) {
-    if (!App.get('testMode')) {
+    if (!App.testMode) {
       this.set("requestId", response.Requests.id);
     }
     this.getHostCheckTasks();
@@ -982,7 +982,7 @@ App.WizardStep3Controller = Em.Controller.extend({
             hostsDiskNames.push(host_name);
           }
           // "Transparent Huge Pages" check
-          context = self.checkTHP(host_name, Em.get(host, 'Hosts.last_agent_env.transparentHugePage'));
+          context = self.checkTHP(host_name, host.Hosts.last_agent_env.transparentHugePage);
           if (context) {
             thpContext.push(context);
             thpHostsNames.push(host_name);
@@ -990,15 +990,15 @@ App.WizardStep3Controller = Em.Controller.extend({
         }
       }
     });
-    if (hostsContext.length > 0) { // repository warning exist
-      repoWarnings.push({
-        name: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.name'),
-        hosts: hostsContext,
-        hostsNames: hostsRepoNames,
-        category: 'repositories',
-        onSingleHost: false
-      });
-    }
+//    if (hostsContext.length > 0) { // repository warning exist
+//      repoWarnings.push({
+//        name: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.name'),
+//        hosts: hostsContext,
+//        hostsNames: hostsRepoNames,
+//        category: 'repositories',
+//        onSingleHost: false
+//      });
+//    }
     if (hostsDiskContext.length > 0) { // disk space warning exist
       diskWarnings.push({
         name: Em.I18n.t('installer.step3.hostWarningsPopup.disk.name'),
@@ -1018,7 +1018,7 @@ App.WizardStep3Controller = Em.Controller.extend({
       });
     }
 
-    this.set('repoCategoryWarnings', repoWarnings);
+//    this.set('repoCategoryWarnings', repoWarnings);
     this.set('diskCategoryWarnings', diskWarnings);
     this.set('thpCategoryWarnings', thpWarnings);
     this.stopRegistration();
@@ -1112,10 +1112,10 @@ App.WizardStep3Controller = Em.Controller.extend({
       var selectedOS = [];
       var self = this;
       var isValid = false;
-      if (selectedStack && selectedStack.get('operatingSystems')) {
-        selectedStack.get('operatingSystems').filterProperty('isSelected', true).forEach(function (os) {
-          selectedOS.pushObject(os.get('osType'));
-          if (self.repoToAgentOsType(os.get('osType')).indexOf(osType) >= 0) {
+      if (selectedStack && selectedStack.operatingSystems) {
+        selectedStack.get('operatingSystems').filterProperty('selected', true).forEach(function (os) {
+          selectedOS.pushObject(os.osType);
+          if (self.repoToAgentOsType(os.osType).indexOf(osType) >= 0) {
             isValid = true;
           }
         });
@@ -1139,7 +1139,6 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @method repoToAgentOsType
    */
   repoToAgentOsType : function (repoType) {
-    /* istanbul ignore next */
     switch (repoType) {
       case "redhat6":
         return ["redhat6", "centos6", "oraclelinux6", "rhel6"];
@@ -1147,7 +1146,7 @@ App.WizardStep3Controller = Em.Controller.extend({
         return ["redhat5", "centos5", "oraclelinux5", "rhel5"];
       case "suse11":
         return ["suse11", "sles11", "opensuse11"];
-      case "ubuntu12":
+      case "debian12":
         return ["debian12", "ubuntu12"];
       default:
         return [];
@@ -1167,17 +1166,17 @@ App.WizardStep3Controller = Em.Controller.extend({
     var warningString = '';
 
     diskInfo.forEach(function (info) {
-      switch (info.mountpoint) {
-        case '/':
-          warningString = info.available < minFreeRootSpace ?
-            Em.I18n.t('installer.step3.hostWarningsPopup.disk.context2').format(App.minDiskSpace + 'GB', info.mountpoint) + ' ' + warningString :
-            warningString;
-          break;
-        case '/usr':
-        case '/usr/lib':
-          warningString = info.available < minFreeUsrLibSpace ?
-            Em.I18n.t('installer.step3.hostWarningsPopup.disk.context2').format(App.minDiskSpaceUsrLib + 'GB', info.mountpoint) + ' ' + warningString :
-            warningString;
+            switch (info.mountpoint) {
+                case '/':
+                    warningString = info.available < minFreeRootSpace ?
+                        Em.I18n.t('installer.step3.hostWarningsPopup.disk.context2').format(App.minDiskSpace + 'GB', info.mountpoint) + ' ' + warningString :
+                        warningString;
+                    break;
+                case '/usr':
+                case '/usr/lib':
+                    warningString = info.available < minFreeUsrLibSpace ?
+                        Em.I18n.t('installer.step3.hostWarningsPopup.disk.context2').format(App.minDiskSpaceUsrLib + 'GB', info.mountpoint) + ' ' + warningString :
+                        warningString;
           break;
         default:
           break;
@@ -1306,7 +1305,7 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @method parseWarnings
    */
   parseWarnings: function (data) {
-    data = App.get('testMode') ? data : this.filterBootHosts(data);
+    data = App.testMode ? data : this.filterBootHosts(data);
     var warnings = [];
     var warning;
     var hosts = [];

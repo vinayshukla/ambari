@@ -42,9 +42,7 @@ import org.apache.ambari.server.controller.spi.Resource;
 import org.apache.ambari.server.controller.spi.ResourceProvider;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.state.Service;
-import org.apache.ambari.server.view.ViewRegistry;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -55,11 +53,6 @@ import java.util.Set;
  * BaseResourceDefinition tests.
  */
 public class BaseResourceDefinitionTest {
-
-  @Before
-  public void before() {
-    ViewRegistry.initInstance(new ViewRegistry());
-  }
 
   @Test
   public void testGetPostProcessors() throws AmbariException {

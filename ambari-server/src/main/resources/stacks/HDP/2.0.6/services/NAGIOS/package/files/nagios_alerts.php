@@ -381,7 +381,6 @@ function hdp_mon_generate_response( $response_data )
         break;
       case "HIVE-METASTORE":
       case "HIVE-SERVER":
-      case "WEBHCAT":
         $pieces[0] = "HIVE";
         break;
       case "ZKSERVERS":
@@ -414,6 +413,7 @@ function hdp_mon_generate_response( $response_data )
       case "HBASE":
       case "ZOOKEEPER":
       case "OOZIE":
+      case "WEBHCAT":
       case "GANGLIA":
       case "STORM":
       case "FALCON":

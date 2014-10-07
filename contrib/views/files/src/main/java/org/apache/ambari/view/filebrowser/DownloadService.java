@@ -46,8 +46,6 @@ import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.annotation.XmlElement;
 
 import com.google.gson.Gson;
-import org.apache.ambari.view.filebrowser.utils.NotFoundFormattedException;
-import org.apache.ambari.view.filebrowser.utils.ServiceFormattedException;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.ambari.view.ViewContext;
@@ -91,16 +89,17 @@ public class DownloadService extends HdfsService {
             "filename=\"" + status.getPath().getName() + "\"").type(mimeType);
       }
       return result.build();
-    } catch (WebApplicationException ex) {
-      throw ex;
     } catch (FileNotFoundException ex) {
-      throw new NotFoundFormattedException(ex.getMessage(), ex);
+      return Response.ok(Response.Status.NOT_FOUND.getStatusCode())
+          .entity(ex.getMessage()).build();
     } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
+      return Response.ok(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode())
+          .entity(ex.getMessage()).build();
     }
   }
 
-  private void zipFile(ZipOutputStream zip, String path) throws InterruptedException, IOException {
+  private void zipFile(ZipOutputStream zip, String path)
+      throws InterruptedException, Exception {
     try {
       zip.putNextEntry(new ZipEntry(path.substring(1)));
       FSDataInputStream in = getApi(context).open(path);
@@ -109,25 +108,22 @@ public class DownloadService extends HdfsService {
         zip.write(chunk);
       }
     } catch (IOException ex) {
-      String msg = "Error zipping file " + path.substring(1) + ": "
-          + ex.getMessage();
-      logger.error(msg);
+      logger.error("Error zipping file " + path.substring(1) + ": "
+          + ex.getMessage());
       zip.write(ex.getMessage().getBytes());
-      throw new ServiceFormattedException(ex.getMessage(), ex);
     } finally {
       zip.closeEntry();
     }
+
   }
 
   private void zipDirectory(ZipOutputStream zip, String path) {
     try {
       zip.putNextEntry(new ZipEntry(path.substring(1) + "/"));
       zip.closeEntry();
-    } catch (IOException ex) {
-      String msg = "Error zipping directory " + path.substring(1) + "/" + ": "
-          + ex.getMessage();
-      logger.error(msg);
-      throw new ServiceFormattedException(msg, ex);
+    } catch (IOException e) {
+      logger.error("Error zipping directory " + path.substring(1) + "/" + ": "
+          + e.getMessage());
     }
   }
 
@@ -141,47 +137,40 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public Response downloadGZip(final DownloadRequest request) {
-    try {
-      StreamingOutput result = new StreamingOutput() {
-        public void write(OutputStream output) throws IOException,
-            ServiceFormattedException {
-          ZipOutputStream zip = new ZipOutputStream(output);
-          try {
-            HdfsApi api = getApi(context);
-            Queue<String> files = new LinkedList<String>();
-            for (String file : request.entries) {
-              files.add(file);
-            }
-            while (!files.isEmpty()) {
-              String path = files.poll();
-              FileStatus status = api.getFileStatus(path);
-              if (status.isDirectory()) {
-                FileStatus[] subdir = api.listdir(path);
-                for (FileStatus file : subdir) {
-                  files.add(org.apache.hadoop.fs.Path
-                      .getPathWithoutSchemeAndAuthority(file.getPath())
-                      .toString());
-                }
-                zipDirectory(zip, path);
-              } else {
-                zipFile(zip, path);
-              }
-            }
-          } catch (Exception ex) {
-            logger.error("Error occurred: " + ex.getMessage());
-            throw new ServiceFormattedException(ex.getMessage(), ex);
-          } finally {
-            zip.close();
+    StreamingOutput result = new StreamingOutput() {
+      public void write(OutputStream output) throws IOException,
+          WebApplicationException {
+        ZipOutputStream zip = new ZipOutputStream(output);
+        try {
+          HdfsApi api = getApi(context);
+          Queue<String> files = new LinkedList<String>();
+          for (String file : request.entries) {
+            files.add(file);
           }
+          while (!files.isEmpty()) {
+            String path = files.poll();
+            FileStatus status = api.getFileStatus(path);
+            if (status.isDirectory()) {
+              FileStatus[] subdir = api.listdir(path);
+              for (FileStatus file : subdir) {
+                files.add(org.apache.hadoop.fs.Path
+                    .getPathWithoutSchemeAndAuthority(file.getPath())
+                    .toString());
+              }
+              zipDirectory(zip, path);
+            } else {
+              zipFile(zip, path);
+            }
+          }
+        } catch (Exception ex) {
+          logger.error("Error occured: " + ex.getMessage());
+        } finally {
+          zip.close();
         }
-      };
-      return Response.ok(result)
-          .header("Content-Disposition", "inline; filename=\"hdfs.zip\"").build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+      }
+    };
+    return Response.ok(result)
+        .header("Content-Disposition", "inline; filename=\"hdfs.zip\"").build();
   }
 
   /**
@@ -194,39 +183,33 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public Response concat(final DownloadRequest request) {
-    try {
-      StreamingOutput result = new StreamingOutput() {
-        public void write(OutputStream output) throws IOException,
-            ServiceFormattedException {
-          FSDataInputStream in = null;
-          for (String path : request.entries) {
-            try {
-              in = getApi(context).open(path);
-              byte[] chunk = new byte[1024];
-              while (in.read(chunk) != -1) {
-                output.write(chunk);
-              }
-            } catch (Exception ex) {
-              throw new ServiceFormattedException(ex.getMessage(), ex);
-            } finally {
-              if (in != null)
-                in.close();
+    StreamingOutput result = new StreamingOutput() {
+      public void write(OutputStream output) throws IOException,
+          WebApplicationException {
+        FSDataInputStream in = null;
+        for (String path : request.entries) {
+          try {
+            in = getApi(context).open(path);
+            byte[] chunk = new byte[1024];
+            while (in.read(chunk) != -1) {
+              output.write(chunk);
             }
+          } catch (Exception ex) {
+            ex.printStackTrace();
+          } finally {
+            if (in != null)
+              in.close();
           }
         }
-      };
-      ResponseBuilder response = Response.ok(result);
-      if (request.download) {
-        response.header("Content-Disposition", "inline; filename=\"concatResult.txt\"").type(MediaType.APPLICATION_OCTET_STREAM);
-      } else {
-        response.header("Content-Disposition", "filename=\"concatResult.txt\"").type(MediaType.TEXT_PLAIN);
       }
-      return response.build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
+    };
+    ResponseBuilder response = Response.ok(result);
+    if (request.download){
+      response.header("Content-Disposition", "inline; filename=\"concatResult.txt\"").type(MediaType.APPLICATION_OCTET_STREAM);
+    } else {
+      response.header("Content-Disposition", "filename=\"concatResult.txt\"").type(MediaType.TEXT_PLAIN);
     }
+    return response.build();
   }
 
   // ===============================
@@ -242,16 +225,10 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public Response zipByRequestId(@QueryParam("requestId") String requestId) {
-    try {
-      String json = context.getInstanceData(requestId);
-      DownloadRequest request = gson.fromJson(json, DownloadRequest.class);
-      context.removeInstanceData(requestId);
-      return downloadGZip(request);
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+    String json = context.getInstanceData(requestId);
+    DownloadRequest request = gson.fromJson(json, DownloadRequest.class);
+    context.removeInstanceData(requestId);
+    return downloadGZip(request);
   }
 
   /**
@@ -265,16 +242,10 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public Response zipGenerateLink(final DownloadRequest request) {
-    try {
-      String requestId = generateUniqueIdentifer(request);
-      JSONObject json = new JSONObject();
-      json.put("requestId", requestId);
-      return Response.ok(json).build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+    String requestId = generateUniqueIdentifer(request);
+    JSONObject json = new JSONObject();
+    json.put("requestId", requestId);
+    return Response.ok(json).build();
   }
 
   /**
@@ -287,16 +258,10 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_OCTET_STREAM)
   public Response concatByRequestId(@QueryParam("requestId") String requestId) {
-    try {
-      String json = context.getInstanceData(requestId);
-      DownloadRequest request = gson.fromJson(json, DownloadRequest.class);
-      context.removeInstanceData(requestId);
-      return concat(request);
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+    String json = context.getInstanceData(requestId);
+    DownloadRequest request = gson.fromJson(json, DownloadRequest.class);
+    context.removeInstanceData(requestId);
+    return concat(request);
   }
 
   /**
@@ -310,16 +275,10 @@ public class DownloadService extends HdfsService {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public Response concatGenerateLink(final DownloadRequest request) {
-    try {
-      String requestId = generateUniqueIdentifer(request);
-      JSONObject json = new JSONObject();
-      json.put("requestId", requestId);
-      return Response.ok(json).build();
-    } catch (WebApplicationException ex) {
-      throw ex;
-    } catch (Exception ex) {
-      throw new ServiceFormattedException(ex.getMessage(), ex);
-    }
+    String requestId = generateUniqueIdentifer(request);
+    JSONObject json = new JSONObject();
+    json.put("requestId", requestId);
+    return Response.ok(json).build();
   }
 
   private Gson gson = new Gson();

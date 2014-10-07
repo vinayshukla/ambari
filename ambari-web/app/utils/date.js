@@ -46,21 +46,26 @@ module.exports = {
   },
 
   /**
-   * Convert timestamp to date-string
-   * default format - 'DAY_OF_THE_WEEK, MONTH DAY, YEAR HOURS:MINUTES'
+   * Convert timestamp to date-string 'DAY_OF_THE_WEEK, MONTH DAY, YEAR HOURS:MINUTES'
    *
    * @param {number} timestamp
-   * @param {bool} format
+   * @param {bool} showSeconds should seconds be added to result string
+   * @param {bool} showMilliseconds should miliseconds be added to result string (if <code>showSeconds</code> is false, milliseconds wouldn't be added)
    * @return {*} date
    * @method dateFormat
    */
-  dateFormat: function (timestamp, format) {
+  dateFormat: function (timestamp, showSeconds, showMilliseconds) {
     if (!validator.isValidInt(timestamp)) {
       return timestamp;
     }
-    format = format || 'ddd, MMM DD, YYYY HH:mm';
-
-    return moment((new Date(timestamp))).format(format);
+    var format = 'ddd, MMM DD, YYYY HH:mm';
+    if (showSeconds) {
+      format += ':ss';
+      if (showMilliseconds) {
+        format += ':SSS';
+      }
+    }
+    return moment((new Date(timestamp)).toISOString().replace('Z', '')).format(format);
   },
 
   /**
@@ -75,8 +80,8 @@ module.exports = {
       return timestamp;
     }
     var format = 'ddd MMM DD YYYY';
-    var date = moment((new Date(timestamp))).format(format);
-    var today = moment((new Date())).format(format);
+    var date = moment((new Date(timestamp)).toISOString().replace('Z', '')).format(format);
+    var today = moment((new Date()).toISOString().replace('Z', '')).format(format);
     if (date === today) {
       return 'Today ' + (new Date(timestamp)).toLocaleTimeString();
     }

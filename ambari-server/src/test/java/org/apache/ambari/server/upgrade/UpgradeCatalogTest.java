@@ -147,7 +147,7 @@ public class UpgradeCatalogTest {
     cr.setVersionTag("version1");
     cr.setProperties(properties);
 
-    cl.setDesiredConfig(Collections.singletonList(cr));
+    cl.setDesiredConfig(cr);
 
     controller.updateClusters(new HashSet<ClusterRequest>() {{ add(cl); }}, null);
 
@@ -159,9 +159,9 @@ public class UpgradeCatalogTest {
     // Add new
     UpgradeCatalog149 testCatalog = injector.getInstance(UpgradeCatalog149.class);
     testCatalog.updateConfigurationProperties("global",
-      Collections.singletonMap("x", "y"), false, false);
+      Collections.singletonMap("x", "y"), false);
     config = cluster.getDesiredConfigByType("global");
-    String version = config.getTag();
+    String version = config.getVersionTag();
     Assert.assertNotNull(config);
     Assert.assertNotSame("version1", version);
     Assert.assertTrue(config.getProperties().containsKey("x"));
@@ -169,20 +169,20 @@ public class UpgradeCatalogTest {
 
     // Override value
     testCatalog.updateConfigurationProperties("global",
-      Collections.singletonMap("x", "z"), true, false);
+      Collections.singletonMap("x", "z"), true);
     config = cluster.getDesiredConfigByType("global");
     Assert.assertNotNull(config);
-    Assert.assertNotSame(version, config.getTag());
+    Assert.assertNotSame(version, config.getVersionTag());
     Assert.assertTrue(config.getProperties().containsKey("x"));
     Assert.assertEquals("z", config.getProperties().get("x"));
-    version = config.getTag();
+    version = config.getVersionTag();
 
     // Retain original
     testCatalog.updateConfigurationProperties("global",
-      Collections.singletonMap("x", "y"), false, false);
+      Collections.singletonMap("x", "y"), false);
     config = cluster.getDesiredConfigByType("global");
     Assert.assertNotNull(config);
-    Assert.assertSame(version, config.getTag());
+    Assert.assertSame(version, config.getVersionTag());
     Assert.assertTrue(config.getProperties().containsKey("x"));
     Assert.assertEquals("z", config.getProperties().get("x"));
   }

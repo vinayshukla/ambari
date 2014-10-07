@@ -23,7 +23,7 @@
         {{#if App.isAdmin}}
           <div>
             <div class="alert alert-warning clearfix">
-              <i class="icon-refresh"></i> {{t services.service.config.restartService.needToRestart}}  <a href="#" {{action showComponentsShouldBeRestarted target="controller"}}>{{view.componentsCount}} {{pluralize view.componentsCount singular="t:common.component" plural="t:common.components"}}</a> {{t on}} <a href="#" {{action showHostsShouldBeRestarted target="controller"}}>{{view.hostsCount}} {{pluralize view.hostsCount singular="t:common.host" plural="t:common.hosts"}}</a>
+              <i class="icon-refresh"></i> {{{view.needToRestartMessage}}} {{t services.service.config.restartService.needToRestart}}  <a href="#" {{action showComponentsShouldBeRestarted target="controller"}}>{{view.componentsCount}} {{pluralize view.componentsCount singular="t:common.component" plural="t:common.components"}}</a> {{t on}} <a href="#" {{action showHostsShouldBeRestarted target="controller"}}>{{view.hostsCount}} {{pluralize view.hostsCount singular="t:common.host" plural="t:common.hosts"}}</a>
               <span class="restart-components pull-right">&nbsp</span>
               <div class="btn-group pull-right">
                 <button type="button" class="btn btn-default dropdown-toggle btn-warning" data-toggle="dropdown">
@@ -43,16 +43,14 @@
       {{/if}}
     {{/if}}
     <div class="clearfix"></div>
-    {{view App.ServiceConfigView filterBinding="controller.filter" columnsBinding="controller.filterColumns" canEditBinding="controller.isCurrentSelected" showConfigHistoryFeatureBinding="controller.showConfigHistoryFeature"}}
+    {{view App.ServiceConfigView filterBinding="controller.filter" columnsBinding="controller.filterColumns"}}
     {{#if App.isAdmin}}
-      {{#unless showConfigHistoryFeature}}
-          <p class="pull-right">
-              <!--<input class="btn btn-primary" type="button" value="Save" {{!bindAttr disabled="isSubmitDisabled"}} />-->
-              <a class="btn" {{action doCancel target="controller"}}>{{t common.cancel}}</a>
-              <a class="btn btn-primary" {{bindAttr disabled="isSubmitDisabled"}}
-                {{action restartServicePopup target="controller"}}>{{t common.save}}</a>
-          </p>
-      {{/unless}}
+      <p class="pull-right">
+        <!--<input class="btn btn-primary" type="button" value="Save" {{!bindAttr disabled="isSubmitDisabled"}} />-->
+        <a class="btn" {{action doCancel target="controller"}}>{{t common.cancel}}</a>
+        <a class="btn btn-primary" {{bindAttr disabled="isSubmitDisabled"}}
+          {{action restartServicePopup target="controller"}}>{{t common.save}}</a>
+      </p>
     {{/if}}
   {{else}}
     <div class="spinner"></div>

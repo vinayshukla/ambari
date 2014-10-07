@@ -30,11 +30,9 @@ from mock.mock import patch
 from ambari_commons import OSCheck, OSConst
 import os_check_type
 
-utils = __import__('ambari_server.utils').utils
-# We have to use this import HACK because the filename contains a dash
-with patch("platform.linux_distribution", return_value = ('Suse','11','Final')):
-  with patch.object(utils, "get_postgre_hba_dir"):
-    ambari_server = __import__('ambari-server')
+with patch("platform.linux_distribution", return_value=('Suse', '11', 'Final')):
+  # We have to use this import HACK because the filename contains a dash
+  ambari_server = __import__('ambari-server')
 
 
 class TestOSCheck(TestCase):
@@ -104,11 +102,11 @@ class TestOSCheck(TestCase):
     result = OSCheck.get_os_family()
     self.assertEquals(result, 'redhat')
 
-    # 3 - Ubuntu
+    # 3 - Debian
     mock_exists.return_value = False
     mock_linux_distribution.return_value = ('Ubuntu', '', '')
     result = OSCheck.get_os_family()
-    self.assertEquals(result, 'ubuntu')
+    self.assertEquals(result, 'debian')
 
     # 4 - Suse
     mock_exists.return_value = False
@@ -189,7 +187,7 @@ class TestOSCheck(TestCase):
   def test_update_ambari_properties_os(self, get_conf_dir_mock):
 
     properties = ["server.jdbc.user.name=ambari-server\n",
-                  "server.jdbc.database_name=ambari\n",
+                  "server.jdbc.database=ambari\n",
                   "ambari-server.user=root\n",
                   "server.jdbc.user.name=ambari-server\n",
                   "jdk.name=jdk-6u31-linux-x64.bin\n",
@@ -260,13 +258,13 @@ class TestOSCheck(TestCase):
       pass
 
   @patch.object(OSCheck, "get_os_family")
-  def is_ubuntu_family(self, get_os_family_mock):
+  def test_is_debian_family(self, get_os_family_mock):
 
-    get_os_family_mock.return_value = "ubuntu"
-    self.assertEqual(OSCheck.is_ubuntu_family(), True)
+    get_os_family_mock.return_value = "debian"
+    self.assertEqual(OSCheck.is_debian_family(), True)
 
     get_os_family_mock.return_value = "troll_os"
-    self.assertEqual(OSCheck.is_ubuntu_family(), False)
+    self.assertEqual(OSCheck.is_debian_family(), False)
 
   @patch.object(OSCheck, "get_os_family")
   def test_is_suse_family(self, get_os_family_mock):

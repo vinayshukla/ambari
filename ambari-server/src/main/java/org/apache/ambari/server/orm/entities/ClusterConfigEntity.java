@@ -21,32 +21,20 @@ package org.apache.ambari.server.orm.entities;
 import javax.persistence.*;
 import java.util.Collection;
 
+@IdClass(ClusterConfigEntityPK.class)
+@Table(name = "clusterconfig")
 @Entity
-@Table(name = "clusterconfig",
-  uniqueConstraints = {@UniqueConstraint(name = "UQ_config_type_tag", columnNames = {"cluster_id", "type_name", "version_tag"}),
-    @UniqueConstraint(name = "UQ_config_type_version", columnNames = {"cluster_id", "type_name", "version"})})
-@TableGenerator(name = "config_id_generator",
-  table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
-  , pkColumnValue = "config_id_seq"
-  , initialValue = 1
-  , allocationSize = 1
-)
 public class ClusterConfigEntity {
 
   @Id
-  @Column(name = "config_id")
-  @GeneratedValue(strategy = GenerationType.TABLE, generator = "config_id_generator")
-  private Long configId;
-
   @Column(name = "cluster_id", nullable = false, insertable = false, updatable = false, length = 10)
   private Long clusterId;
 
+  @Id
   @Column(name = "type_name")
   private String type;
 
-  @Column(name = "version")
-  private Long version;
-
+  @Id
   @Column(name = "version_tag")
   private String tag;
 
@@ -70,17 +58,6 @@ public class ClusterConfigEntity {
   @OneToMany(mappedBy = "clusterConfigEntity")
   private Collection<ConfigGroupConfigMappingEntity> configGroupConfigMappingEntities;
 
-  @ManyToMany(mappedBy = "clusterConfigEntities")
-  private Collection<ServiceConfigEntity> serviceConfigEntities;
-
-  public Long getConfigId() {
-    return configId;
-  }
-
-  public void setConfigId(Long configId) {
-    this.configId = configId;
-  }
-
   public Long getClusterId() {
     return clusterId;
   }
@@ -88,27 +65,19 @@ public class ClusterConfigEntity {
   public void setClusterId(Long clusterId) {
     this.clusterId = clusterId;
   }
-
+  
   public String getType() {
     return type;
   }
-
+  
   public void setType(String typeName) {
     type = typeName;
   }
-
-  public Long getVersion() {
-    return version;
-  }
-
-  public void setVersion(Long version) {
-    this.version = version;
-  }
-
+  
   public String getTag() {
     return tag;
   }
-
+  
   public void setTag(String versionTag) {
     tag = versionTag;
   }
@@ -120,11 +89,11 @@ public class ClusterConfigEntity {
   public void setData(String data) {
     this.configJson = data;
   }
-
+  
   public long getTimestamp() {
     return timestamp;
   }
-
+  
   public void setTimestamp(long stamp) {
     timestamp = stamp;
   }
@@ -148,7 +117,7 @@ public class ClusterConfigEntity {
     if (configJson != null ? !configJson.equals(that.configJson) : that.configJson != null)
       return false;
     if (configAttributesJson != null ? !configAttributesJson
-      .equals(that.configAttributesJson) : that.configAttributesJson != null)
+        .equals(that.configAttributesJson) : that.configAttributesJson != null)
       return false;
 
     return true;
@@ -176,14 +145,5 @@ public class ClusterConfigEntity {
 
   public void setConfigGroupConfigMappingEntities(Collection<ConfigGroupConfigMappingEntity> configGroupConfigMappingEntities) {
     this.configGroupConfigMappingEntities = configGroupConfigMappingEntities;
-  }
-
-
-  public Collection<ServiceConfigEntity> getServiceConfigEntities() {
-    return serviceConfigEntities;
-  }
-
-  public void setServiceConfigEntities(Collection<ServiceConfigEntity> serviceConfigEntities) {
-    this.serviceConfigEntities = serviceConfigEntities;
   }
 }

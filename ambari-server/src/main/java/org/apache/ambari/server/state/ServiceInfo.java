@@ -19,27 +19,15 @@
 package org.apache.ambari.server.state;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlTransient;
+import java.util.*;
 
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.controller.StackServiceResponse;
 import org.apache.ambari.server.state.stack.MetricDefinition;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.annotate.JsonFilter;
+
+import javax.xml.bind.annotation.*;
 
 @XmlAccessorType(XmlAccessType.FIELD)
 @JsonFilter("propertiesfilter")
@@ -52,7 +40,6 @@ public class ServiceInfo {
   private String schemaVersion;
 
   private String name;
-  private String displayName;
   private String version;
   private String comment;
   private List<PropertyInfo> properties;
@@ -71,10 +58,6 @@ public class ServiceInfo {
   @XmlElementWrapper(name="configuration-dependencies")
   @XmlElement(name="config-type")
   private List<String> configDependencies;
-
-  @XmlElementWrapper(name="excluded-config-types")
-  @XmlElement(name="config-type")
-  private Set<String> excludedConfigTypes;
 
   @XmlTransient
   private Map<String, Map<String, Map<String, String>>> configTypes;
@@ -98,9 +81,7 @@ public class ServiceInfo {
   private File metricsFile = null;
   @XmlTransient
   private Map<String, Map<String, List<MetricDefinition>>> metrics = null;
-  
-  @XmlTransient
-  private File alertsFile = null;
+
 
   /**
    * Internal list of os-specific details (loaded from xml). Added at schema ver 2
@@ -134,10 +115,7 @@ public class ServiceInfo {
   @XmlElementWrapper(name="customCommands")
   @XmlElements(@XmlElement(name="customCommand"))
   private List<CustomCommandDefinition> customCommands;
-  
-  @XmlElementWrapper(name="requiredServices")
-  @XmlElement(name="service")
-  private List<String> requiredServices;
+
 
   /**
    * Meaning: stores subpath from stack root to exact directory, that contains
@@ -164,14 +142,6 @@ public class ServiceInfo {
     this.name = name;
   }
 
-  public String getDisplayName() {
-    return displayName;
-  }
-
-  public void setDisplayName(String displayName) {
-    this.displayName = displayName;
-  }
-
   public String getVersion() {
     return version;
   }
@@ -187,13 +157,7 @@ public class ServiceInfo {
   public void setComment(String comment) {
     this.comment = comment;
   }
-  public List<String> getRequiredServices() {
-    return requiredServices;
-  }
 
-  public void setRequiredServices(List<String> requiredServices) {
-    this.requiredServices = requiredServices;
-  }
   public List<PropertyInfo> getProperties() {
     if (properties == null) properties = new ArrayList<PropertyInfo>();
     return properties;
@@ -203,19 +167,7 @@ public class ServiceInfo {
     if (components == null) components = new ArrayList<ComponentInfo>();
     return components;
   }
-  /**
-   * Finds ComponentInfo by component name
-   * @param componentName
-   * @return ComponentInfo componentName or null
-   */
-  public ComponentInfo getComponentByName(String componentName){
-    for(ComponentInfo componentInfo : getComponents()) {
-      if(componentInfo.getName().equals(componentName)){
-        return componentInfo;
-      }
-    }
-    return null;
-  }
+
   public boolean isClientOnlyService() {
     if (components == null || components.isEmpty()) {
       return false;
@@ -258,8 +210,13 @@ public class ServiceInfo {
     return sb.toString();
   }
   
+  public StackServiceResponse convertToResponse()
+  {
+    return new StackServiceResponse(getName(), null, getComment(), getVersion(),
+        getConfigTypes());
+  }
+  
   public Map<String, Map<String, Map<String, String>>> getConfigTypes() {
-    if (configTypes == null) configTypes = new HashMap<String, Map<String, Map<String, String>>>();
     return configTypes;
   }
 
@@ -327,20 +284,6 @@ public class ServiceInfo {
 
   public List<String> getConfigDependencies() {
     return configDependencies;
-  }
-  public List<String> getConfigDependenciesWithComponents(){
-    List<String> retVal = new ArrayList<String>();
-    if(configDependencies != null){
-      retVal.addAll(configDependencies);
-    }
-    if(components != null){
-      for (ComponentInfo c : components) {
-        if(c.getConfigDependencies() != null){
-          retVal.addAll(c.getConfigDependencies());
-        }
-      }
-    }
-    return retVal.size() == 0 ? (configDependencies == null ? null : configDependencies) : retVal;
   }
 
   public void setConfigDependencies(List<String> configDependencies) {
@@ -461,30 +404,5 @@ public class ServiceInfo {
    */
   public void setMonitoringService(Boolean monitoringService) {
     this.monitoringService = monitoringService;
-  }
-
-  /**
-   * @param file the file containing the alert definitions
-   */
-  public void setAlertsFile(File file) {
-    alertsFile = file;
-  }
-  
-  /**
-   * @return the alerts file, or <code>null</code> if none exists
-   */
-  public File getAlertsFile() {
-    return alertsFile;
-  }
-
-  /**
-   * @return config types this service contains configuration for, but which are primarily related to another service
-   */
-  public Set<String> getExcludedConfigTypes() {
-    return excludedConfigTypes;
-  }
-
-  public void setExcludedConfigTypes(Set<String> excludedConfigTypes) {
-    this.excludedConfigTypes = excludedConfigTypes;
   }
 }

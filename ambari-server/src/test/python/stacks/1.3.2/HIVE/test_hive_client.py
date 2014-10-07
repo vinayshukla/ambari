@@ -26,32 +26,26 @@ class TestHiveClient(RMFTestCase):
     self.executeScript("1.3.2/services/HIVE/package/scripts/hive_client.py",
                        classname = "HiveClient",
                        command = "configure",
-                       config_file="default_client.json"
+                       config_file="default.json"
     )
     self.assertResourceCalled('Directory', '/etc/hive/conf',
       owner = 'hive',
       group = 'hadoop',
       recursive = True,
     )
-    self.assertResourceCalled('Directory', '/etc/hive/conf.server',
+    self.assertResourceCalled('XmlConfig', 'hive-site.xml',
       owner = 'hive',
       group = 'hadoop',
-      recursive = True,
+      mode = 0644,
+      conf_dir = '/etc/hive/conf',
+      configurations = self.getConfig()['configurations']['hive-site'],
     )
     self.assertResourceCalled('Execute', "/bin/sh -c 'cd /usr/lib/ambari-agent/ && curl -kf -x \"\" --retry 5 http://c6401.ambari.apache.org:8080/resources/DBConnectionVerification.jar -o DBConnectionVerification.jar'",
       not_if = '[ -f DBConnectionVerification.jar]',
       environment = {'no_proxy': 'c6401.ambari.apache.org'}
     )
-    self.assertResourceCalled('XmlConfig', 'hive-site.xml',
-                              owner = 'hive',
-                              group = 'hadoop',
-                              mode = 0644,
-                              conf_dir = '/etc/hive/conf',
-                              configurations = self.getConfig()['configurations']['hive-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
-    )
     self.assertResourceCalled('File', '/etc/hive/conf/hive-env.sh',
-      content = InlineTemplate(self.getConfig()['configurations']['hive-env']['content']),
+      content = InlineTemplate(self.getConfig()['configurations']['hive-env']['content'], conf_dir="/etc/hive/conf"),
       owner = 'hive',
       group = 'hadoop',
     )
@@ -85,32 +79,26 @@ class TestHiveClient(RMFTestCase):
     self.executeScript("1.3.2/services/HIVE/package/scripts/hive_client.py",
                        classname = "HiveClient",
                        command = "configure",
-                       config_file="secured_client.json"
+                       config_file="secured.json"
     )
     self.assertResourceCalled('Directory', '/etc/hive/conf',
       owner = 'hive',
       group = 'hadoop',
       recursive = True,
     )
-    self.assertResourceCalled('Directory', '/etc/hive/conf.server',
+    self.assertResourceCalled('XmlConfig', 'hive-site.xml',
       owner = 'hive',
       group = 'hadoop',
-      recursive = True,
+      mode = 0644,
+      conf_dir = '/etc/hive/conf',
+      configurations = self.getConfig()['configurations']['hive-site'],
     )
     self.assertResourceCalled('Execute', "/bin/sh -c 'cd /usr/lib/ambari-agent/ && curl -kf -x \"\" --retry 5 http://c6401.ambari.apache.org:8080/resources/DBConnectionVerification.jar -o DBConnectionVerification.jar'",
       not_if = '[ -f DBConnectionVerification.jar]',
       environment = {'no_proxy': 'c6401.ambari.apache.org'}
     )
-    self.assertResourceCalled('XmlConfig', 'hive-site.xml',
-                              owner = 'hive',
-                              group = 'hadoop',
-                              mode = 0644,
-                              conf_dir = '/etc/hive/conf',
-                              configurations = self.getConfig()['configurations']['hive-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hive-site']
-    )
     self.assertResourceCalled('File', '/etc/hive/conf/hive-env.sh',
-      content = InlineTemplate(self.getConfig()['configurations']['hive-env']['content']),
+      content = InlineTemplate(self.getConfig()['configurations']['hive-env']['content'], conf_dir="/etc/hive/conf"),
       owner = 'hive',
       group = 'hadoop',
     )

@@ -18,16 +18,7 @@
 
 App.CreateAppWizardStep2View = Ember.View.extend({
 
-  /**
-   * Message shown in the checkbox popover
-   * @type {string}
-   */
-  checkBoxPopover: Em.I18n.t('wizard.step2.table.popoverCheckbox'),
-
-  /**
-   * Message shown in the label-input popover
-   * @type {string}
-   */
-  yarnLabelPopover: Em.I18n.t('wizard.step2.table.popoverLabel')
-
+  didInsertElement: function () {
+    this.get('controller').loadStep();
+  }
 });

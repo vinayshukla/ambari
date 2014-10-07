@@ -117,7 +117,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    * @method togglePreviousSteps
    */
   togglePreviousSteps: function () {
-    if (App.get('testMode')) {
+    if (App.testMode) {
       return;
     }
     var installerController = App.router.get('installerController');
@@ -258,7 +258,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    * @method navigateStep
    */
   navigateStep: function () {
-    if (App.get('testMode')) {
+    if (App.testMode) {
       // this is for repeatedly testing out installs in test mode
       this.set('content.cluster.status', 'PENDING');
       this.set('content.cluster.isCompleted', false);
@@ -484,7 +484,7 @@ App.WizardStep9Controller = Em.Controller.extend({
         data = {
           "context": Em.I18n.t("requestInfo.startAddedServices"),
           "ServiceInfo": { "state": "STARTED" },
-          "urlParams": "ServiceInfo/state=INSTALLED&ServiceInfo/service_name.in(" + servicesList + ")&params/reconfigure_client=false"
+          "urlParams": "ServiceInfo/state=INSTALLED&ServiceInfo/service_name.in(" + servicesList + ")&params/run_smoke_test=true&params/reconfigure_client=false"
         };
         break;
       default:
@@ -949,7 +949,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    */
   loadLogData: function (startPolling) {
     var requestsId = this.get('wizardController').getDBProperty('cluster').oldRequestsId;
-    if (App.get('testMode')) {
+    if (App.testMode) {
       this.set('POLL_INTERVAL', 1);
     }
     this.getLogsByRequest(!!startPolling, requestsId[requestsId.length-1]);
@@ -1064,7 +1064,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    */
   doPolling: function () {
     var requestId = this.get('content.cluster.requestId');
-    if (App.get('testMode')) {
+    if (App.testMode) {
       this.incrementProperty('numPolls');
     }
     this.getLogsByRequest(true, requestId);
@@ -1077,7 +1077,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    */
   isAllComponentsInstalled: function () {
     var dfd = $.Deferred();
-    if (this.get('content.controllerName') !== 'installerController' && this.get('content.controllerName') !== 'addHostController') {
+    if (this.get('content.controllerName') !== 'installerController') {
       dfd.resolve();
     } else {
       App.ajax.send({
@@ -1161,7 +1161,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    * @method saveClusterStatus
    */
   saveClusterStatus: function (clusterStatus) {
-    if (!App.get('testMode')) {
+    if (!App.testMode) {
       App.router.get(this.get('content.controllerName')).saveClusterStatus(clusterStatus);
     }
     else {
@@ -1175,7 +1175,7 @@ App.WizardStep9Controller = Em.Controller.extend({
    * @method saveInstalledHosts
    */
   saveInstalledHosts: function (context) {
-    if (!App.get('testMode')) {
+    if (!App.testMode) {
       App.router.get(this.get('content.controllerName')).saveInstalledHosts(context);
     }
   }

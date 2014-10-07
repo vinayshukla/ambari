@@ -18,7 +18,7 @@
 
 var App = require('app');
 
-require('controllers/main/admin/serviceAccounts_controller');
+require('controllers/main/admin/misc_controller');
 
 App.HighAvailabilityWizardStep4Controller = Em.Controller.extend({
 
@@ -27,8 +27,6 @@ App.HighAvailabilityWizardStep4Controller = Em.Controller.extend({
   POLL_INTERVAL: 1000,
 
   isNextEnabled: false,
-
-  isNameNodeStarted: true,
 
   pullCheckPointStatus: function () {
     var hostName = this.get('content.masterComponentHosts').findProperty('isCurNameNode', true).hostName;
@@ -43,23 +41,18 @@ App.HighAvailabilityWizardStep4Controller = Em.Controller.extend({
   },
 
   checkNnCheckPointStatus: function (data) {
-    if (data.HostRoles.desired_state === 'STARTED') {
-      this.set('isNameNodeStarted', true);
-      var self = this;
-      var journalTransactionInfo = $.parseJSON(data.metrics.dfs.namenode.JournalTransactionInfo);
-      var isInSafeMode = (data.metrics.dfs.namenode.Safemode != "");
-      journalTransactionInfo = parseInt(journalTransactionInfo.LastAppliedOrWrittenTxId) - parseInt(journalTransactionInfo.MostRecentCheckpointTxId);
-      if (journalTransactionInfo <= 1 && isInSafeMode) {
-        this.set("isNextEnabled", true);
-        return;
-      }
-
-      window.setTimeout(function () {
-        self.pullCheckPointStatus()
-      }, self.POLL_INTERVAL);
-    } else {
-      this.set('isNameNodeStarted', false);
+    var self = this;
+    var journalTransactionInfo =  $.parseJSON(data.metrics.dfs.namenode.JournalTransactionInfo);
+    var isInSafeMode = (data.metrics.dfs.namenode.Safemode != "");
+    journalTransactionInfo = parseInt(journalTransactionInfo.LastAppliedOrWrittenTxId) - parseInt(journalTransactionInfo.MostRecentCheckpointTxId);
+    if(journalTransactionInfo <= 1 && isInSafeMode){
+      this.set("isNextEnabled", true);
+      return;
     }
+
+    window.setTimeout(function () {
+      self.pullCheckPointStatus()
+    }, self.POLL_INTERVAL);
   },
 
   done: function () {

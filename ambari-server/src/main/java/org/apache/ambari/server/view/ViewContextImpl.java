@@ -21,31 +21,20 @@ package org.apache.ambari.server.view;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
-import org.apache.ambari.server.orm.entities.PermissionEntity;
 import org.apache.ambari.server.orm.entities.ViewEntity;
 import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
-import org.apache.ambari.server.view.configuration.ParameterConfig;
-import org.apache.ambari.server.view.configuration.ViewConfig;
 import org.apache.ambari.server.view.events.EventImpl;
 import org.apache.ambari.server.view.persistence.DataStoreImpl;
 import org.apache.ambari.server.view.persistence.DataStoreModule;
 import org.apache.ambari.view.DataStore;
-import org.apache.ambari.view.MaskException;
-import org.apache.ambari.view.Masker;
 import org.apache.ambari.view.ResourceProvider;
-import org.apache.ambari.view.SecurityException;
 import org.apache.ambari.view.URLStreamProvider;
-import org.apache.ambari.server.controller.internal.AppCookieManager;
-import org.apache.ambari.view.ImpersonatorSetting;
 import org.apache.ambari.view.ViewContext;
 import org.apache.ambari.view.ViewController;
 import org.apache.ambari.view.ViewDefinition;
 import org.apache.ambari.view.ViewInstanceDefinition;
 import org.apache.ambari.view.events.Event;
 import org.apache.ambari.view.events.Listener;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.exception.ParseErrorException;
@@ -61,6 +50,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import org.apache.ambari.server.view.configuration.ParameterConfig;
+import org.apache.ambari.server.view.configuration.ViewConfig;
+import org.apache.ambari.view.MaskException;
+import org.apache.ambari.view.Masker;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
  * View context implementation.
@@ -90,7 +87,7 @@ public class ViewContextImpl implements ViewContext, ViewController {
   /**
    * The available stream provider.
    */
-  private final ViewURLStreamProvider streamProvider;
+  private final URLStreamProvider streamProvider;
 
   /**
    * The data store.
@@ -242,32 +239,6 @@ public class ViewContextImpl implements ViewContext, ViewController {
   }
 
   @Override
-  public void hasPermission(String userName, String permissionName) throws org.apache.ambari.view.SecurityException {
-
-    if (userName == null || userName.length() == 0) {
-      throw new SecurityException("No user name specified.");
-    }
-
-    if (permissionName == null || permissionName.length() == 0) {
-      throw new SecurityException("No permission name specified.");
-    }
-
-    if (viewInstanceEntity == null) {
-      throw new SecurityException("There is no instance associated with the view context");
-    }
-
-    PermissionEntity permissionEntity = viewEntity.getPermission(permissionName);
-
-    if (permissionEntity == null) {
-      throw new SecurityException("The permission " + permissionName + " is not defined for " + viewEntity.getName());
-    }
-
-    if (!viewRegistry.hasPermission(permissionEntity, viewInstanceEntity.getResource(), userName)) {
-      throw new SecurityException("The user " + userName + " has not been granted permission " + permissionName);
-    }
-  }
-
-  @Override
   public URLStreamProvider getURLStreamProvider() {
     return streamProvider;
   }
@@ -302,15 +273,6 @@ public class ViewContextImpl implements ViewContext, ViewController {
     return this;
   }
 
-  @Override
-  public HttpImpersonatorImpl getHttpImpersonator() {
-    return new HttpImpersonatorImpl(this, this.streamProvider.getAppCookieManager());
-  }
-
-  @Override
-  public ImpersonatorSetting getImpersonatorSetting() {
-    return new ImpersonatorSettingImpl(this);
-  }
 
   // ----- ViewController ----------------------------------------------------
 
@@ -333,15 +295,6 @@ public class ViewContextImpl implements ViewContext, ViewController {
     viewRegistry.registerListener(listener, viewName, viewVersion);
   }
 
-  @Override
-  public void unregisterListener(Listener listener, String viewName) {
-    viewRegistry.unregisterListener(listener, viewName, null);
-  }
-
-  @Override
-  public void unregisterListener(Listener listener, String viewName, String viewVersion) {
-    viewRegistry.unregisterListener(listener, viewName, viewVersion);
-  }
 
   // ----- helper methods ----------------------------------------------------
 
@@ -420,6 +373,7 @@ public class ViewContextImpl implements ViewContext, ViewController {
      */
     private final org.apache.ambari.server.controller.internal.URLStreamProvider streamProvider;
 
+
     // ----- Constructor -----------------------------------------------------
 
     protected ViewURLStreamProvider(org.apache.ambari.server.controller.internal.URLStreamProvider streamProvider) {
@@ -457,10 +411,6 @@ public class ViewContextImpl implements ViewContext, ViewController {
               configuration.getTruststorePassword(),
               configuration.getTruststoreType());
       return new ViewURLStreamProvider(streamProvider);
-    }
-
-    protected AppCookieManager getAppCookieManager() {
-      return streamProvider.getAppCookieManager();
     }
   }
 

@@ -18,8 +18,6 @@
 
 package org.apache.ambari.server.controller;
 
-import java.util.Map;
-
 
 public class StackVersionResponse {
 
@@ -28,16 +26,13 @@ public class StackVersionResponse {
   private String minUpgradeVersion;
   private boolean active;
   private String parentVersion;
-  private Map<String, Map<String, Map<String, String>>> configTypes;
 
   public StackVersionResponse(String stackVersion, String minUpgradeVersion,
-                              boolean active, String parentVersion, 
-                              Map<String, Map<String, Map<String, String>>> configTypes) {
+                              boolean active, String parentVersion) {
     setStackVersion(stackVersion);
     setMinUpgradeVersion(minUpgradeVersion);
     setActive(active);
     setParentVersion(parentVersion);
-    setConfigTypes(configTypes);
   }
 
   public String getStackName() {
@@ -78,12 +73,5 @@ public class StackVersionResponse {
 
   public void setParentVersion(String parentVersion) {
     this.parentVersion = parentVersion;
-  }
-  public Map<String, Map<String, Map<String, String>>> getConfigTypes() {
-    return configTypes;
-  }
-  public void setConfigTypes(
-      Map<String, Map<String, Map<String, String>>> configTypes) {
-    this.configTypes = configTypes;
   }
 }

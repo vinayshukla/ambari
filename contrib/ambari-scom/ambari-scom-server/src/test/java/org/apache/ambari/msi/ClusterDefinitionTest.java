@@ -45,6 +45,7 @@ public class ClusterDefinitionTest {
     Assert.assertTrue(services.contains("HBASE"));
     Assert.assertTrue(services.contains("ZOOKEEPER"));
     Assert.assertTrue(services.contains("HIVE"));
+    Assert.assertTrue(services.contains("WEBHCAT"));
   }
 
   @Test
@@ -86,6 +87,9 @@ public class ClusterDefinitionTest {
 
     components = clusterDefinition.getComponents("OOZIE");
     Assert.assertTrue(components.contains("OOZIE_SERVER"));
+
+    components = clusterDefinition.getComponents("WEBHCAT");
+    Assert.assertTrue(components.contains("WEBHCAT_SERVER"));
 
     components = clusterDefinition.getComponents("HBASE");
     Assert.assertTrue(components.contains("HBASE_MASTER"));

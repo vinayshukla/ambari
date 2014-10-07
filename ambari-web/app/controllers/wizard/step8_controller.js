@@ -19,7 +19,7 @@
 var App = require('app');
 var stringUtils = require('utils/string_utils');
 
-App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
+App.WizardStep8Controller = Em.Controller.extend({
 
   name: 'wizardStep8Controller',
 
@@ -143,7 +143,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
    */
   selectedServices: function () {
     return this.get('content.services').filterProperty('isSelected', true).filterProperty('isInstalled', false);
-  }.property('content.services.@each.isSelected','content.services.@each.isInstalled').cacheable(),
+  }.property('content.services').cacheable(),
 
   /**
    * List of installed and selected services
@@ -194,20 +194,13 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
    */
   loadStep: function () {
     console.log("TRACE: Loading step8: Review Page");
+    if (this.get('content.controllerName') != 'installerController') {
+      App.router.get('mainAdminSecurityController').setSecurityStatus();
+    }
     this.clearStep();
     if (this.get('content.serviceConfigProperties')) {
       this.formatProperties();
       this.loadConfigs();
-      if (this.get('content.controllerName') != 'installerController' && this.get('securityEnabled')) {
-        this.prepareSecureConfigs();
-        this.get('content.services').filterProperty('isSelected', true)
-          .mapProperty('serviceName').forEach(function (serviceName) {
-            var config = this.get('secureConfigs').findProperty('serviceName', serviceName);
-            if (config) {
-              this.setPrincipalValue(serviceName, config.name);
-            }
-          }, this);
-      }
     }
     this.loadClusterInfo();
     this.loadServices();
@@ -223,6 +216,38 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
     this.get('content.serviceConfigProperties').forEach(function (_configProperty) {
       _configProperty.value = App.config.trimProperty(_configProperty, false);
     });
+  },
+
+  /**
+   * Remove unused Sink configs
+   * @param {Ember.Enumerable} configs
+   * @returns {Ember.Enumerable}
+   * @method removeSinkConfigs
+   */
+  removeSinkConfigs: function (configs) {
+    var sinkDb = configs.findProperty('name', 'sink_database');
+    var sinkDbType = configs.findProperty('name', 'sink_database_type');
+    if (sinkDbType) {
+      var sink_properties = Em.A([]);
+
+      switch (sinkDb.value) {
+        case 'Existing MSSQL Server database with integrated authentication':
+          configs.findProperty('name', 'sink.dbservername').value = configs.findProperty('name', 'sink_existing_mssql_server_host').value;
+          sinkDbType.value = 'mssql';
+          sink_properties = Em.A(['sink_existing_mssql_server_2_database', 'sink_existing_mssql_server_2_host']);
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+          configs.findProperty('name', 'sink.dbservername').value = configs.findProperty('name', 'sink_existing_mssql_server_2_host').value;
+          sinkDbType.value = 'mssql';
+          sink_properties = Em.A(['sink_existing_mssql_server_database', 'sink_existing_mssql_server_host']);
+          break;
+      }
+
+      sink_properties.forEach(function (property) {
+        configs = configs.without(configs.findProperty('name', property));
+      });
+    }
+    return configs;
   },
 
   /**
@@ -243,26 +268,38 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
             configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_ambari_host').value;
             hiveDbType.value = 'mysql';
           }
-          hive_properties = Em.A(['hive_existing_mysql_host', 'hive_existing_mysql_database', 'hive_existing_oracle_host',
-            'hive_existing_oracle_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database']);
+          hive_properties = Em.A(['hive_existing_mysql_host', 'hive_existing_mysql_database', 'hive_existing_oracle_host', 'hive_existing_oracle_database', 'hive_existing_postgresql_host',
+            'hive_existing_postgresql_database', 'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']);
           break;
         case 'Existing MySQL Database':
           configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_existing_mysql_host').value;
           hiveDbType.value = 'mysql';
-          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host',
-            'hive_existing_oracle_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database']);
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host', 'hive_existing_oracle_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database',
+            'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']);
           break;
         case Em.I18n.t('services.service.config.hive.oozie.postgresql'):
           configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_existing_postgresql_host').value;
           hiveDbType.value = 'postgres';
-          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host',
-            'hive_existing_oracle_database', 'hive_existing_mysql_host', 'hive_existing_mysql_database']);
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host', 'hive_existing_oracle_database', 'hive_existing_mysql_host', 'hive_existing_mysql_database',
+            'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']);
+          break;
+        case 'Existing MSSQL Server database with integrated authentication':
+          configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_existing_mssql_server_2_host').value;
+          hiveDbType.value = 'mssql';
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host', 'hive_existing_oracle_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database',
+            'hive_existing_mysql_host', 'hive_existing_mysql_database', 'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']);
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+          configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_existing_mssql_server_host').value;
+          hiveDbType.value = 'mssql';
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_oracle_host', 'hive_existing_oracle_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database',
+            'hive_existing_mysql_host', 'hive_existing_mysql_database', 'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host']);
           break;
         default:
           configs.findProperty('name', 'hive_hostname').value = configs.findProperty('name', 'hive_existing_oracle_host').value;
           hiveDbType.value = 'oracle';
-          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_mysql_host',
-            'hive_existing_mysql_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database']);
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'hive_existing_mysql_host', 'hive_existing_mysql_database', 'hive_existing_postgresql_host', 'hive_existing_postgresql_database',
+            'hive_existing_mssql_server_database', 'hive_existing_mssql_server_host', 'hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']);
           break;
       }
 
@@ -291,25 +328,37 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
           oozieDbType.value = 'derby';
           oozie_properties = Em.A(['oozie_ambari_host', 'oozie_ambari_database', 'oozie_existing_mysql_host',
             'oozie_existing_mysql_database', 'oozie_existing_oracle_host', 'oozie_existing_oracle_database',
-            'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database']);
+            'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']);
           break;
         case 'Existing MySQL Database':
           configs.findProperty('name', 'oozie_hostname').value = configs.findProperty('name', 'oozie_existing_mysql_host').value;
           oozieDbType.value = 'mysql';
           oozie_properties = Em.A(['oozie_ambari_host', 'oozie_ambari_database', 'oozie_existing_oracle_host',
-            'oozie_existing_oracle_database', 'oozie_derby_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database']);
+            'oozie_existing_oracle_database', 'oozie_derby_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']);
           break;
         case Em.I18n.t('services.service.config.hive.oozie.postgresql'):
           configs.findProperty('name', 'oozie_hostname').value = configs.findProperty('name', 'oozie_existing_postgresql_host').value;
           oozieDbType.value = 'postgresql';
           oozie_properties = Em.A(['oozie_ambari_host', 'oozie_ambari_database', 'oozie_existing_oracle_host',
-            'oozie_existing_oracle_database', 'oozie_existing_mysql_host', 'oozie_existing_mysql_database']);
+            'oozie_existing_oracle_database', 'oozie_existing_mysql_host', 'oozie_existing_mysql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']);
+          break;
+        case 'Existing MSSQL Server database with integrated authentication':
+          configs.findProperty('name', 'oozie_hostname').value = configs.findProperty('name', 'oozie_existing_mysql_host').value;
+          oozieDbType.value = 'mssql';
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'oozie_existing_oracle_host',
+            'oozie_existing_oracle_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database', 'oozie_existing_mysql_host', 'oozie_existing_mysql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']);
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+          configs.findProperty('name', 'oozie_hostname').value = configs.findProperty('name', 'oozie_existing_mysql_host').value;
+          oozieDbType.value = 'mssql';
+          hive_properties = Em.A(['hive_ambari_host', 'hive_ambari_database', 'oozie_existing_oracle_host',
+            'oozie_existing_oracle_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database', 'oozie_existing_mysql_host', 'oozie_existing_mysql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host']);
           break;
         default:
           configs.findProperty('name', 'oozie_hostname').value = configs.findProperty('name', 'oozie_existing_oracle_host').value;
           oozieDbType.value = 'oracle';
           oozie_properties = Em.A(['oozie_ambari_host', 'oozie_ambari_database', 'oozie_existing_mysql_host',
-            'oozie_existing_mysql_database', 'oozie_derby_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database']);
+            'oozie_existing_mysql_database', 'oozie_derby_database', 'oozie_existing_postgresql_host', 'oozie_existing_postgresql_database', 'oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host', 'oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']);
           break;
       }
       oozie_properties.forEach(function (property) {
@@ -329,6 +378,9 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
     if (configs.someProperty('name', 'hive_database')) {
       configs = this.removeHiveConfigs(configs);
     }
+    if (configs.someProperty('name', 'sink_database')) {
+      configs = this.removeSinkConfigs(configs);
+    }
     if (configs.someProperty('name', 'oozie_database')) {
       configs = this.removeOozieConfigs(configs);
     }
@@ -337,17 +389,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
     });
     var mappedConfigs = App.config.excludeUnsupportedConfigs(this.get('configMapping'), this.get('selectedServices').mapProperty('serviceName'));
     var uiConfigs = this.loadUiSideConfigs(mappedConfigs);
-    var customGroupConfigs = [];
-    var allConfigs = configs.concat(uiConfigs).filter(function (config) {
-      if (config.group) {
-        customGroupConfigs.push(config);
-        return false;
-      } else {
-        return true;
-      }
-    });
-    this.set('customNonDefaultGroupConfigs', customGroupConfigs);
-    this.set('configs', allConfigs);
+    this.set('configs', configs.concat(uiConfigs));
   },
 
   /**
@@ -561,18 +603,16 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       this.loadRepoInfo();
     } else {
       // from install wizard
-      var selectedStack = App.Stack.find().findProperty('isSelected');
+      var selectedStack = this.get('content.stacks').findProperty('isSelected', true);
       var allRepos = [];
-      if (selectedStack && selectedStack.get('operatingSystems')) {
-        selectedStack.get('operatingSystems').forEach(function (os) {
-          if (os.get('isSelected')) {
-            os.get('repositories').forEach(function(repo) {
-              allRepos.push(Em.Object.create({
-                base_url: repo.get('baseUrl'),
-                os_type: repo.get('osType'),
-                repo_id: repo.get('repoId')
-              }));  
-            }, this);
+      if (selectedStack && selectedStack.operatingSystems) {
+        selectedStack.operatingSystems.forEach(function (os) {
+          if (os.selected) {
+            allRepos.push(Em.Object.create({
+              base_url: os.baseUrl,
+              os_type: os.osType,
+              repo_id: os.repoId
+            }));
           }
         }, this);
       }
@@ -608,7 +648,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
   loadRepoInfoSuccessCallback: function (data) {
     var allRepos = [];
     data.items.forEach(function (os) {
-      if (!App.get('supports.ubuntu') && os.OperatingSystems.os_type == 'ubuntu12') return; // @todo: remove after Ubuntu support confirmation
+      if (!App.supports.ubuntu && os.OperatingSystems.os_type == 'debian12') return; // @todo: remove after Ubuntu support confirmation
       os.repositories.forEach(function (repository) {
         allRepos.push(Em.Object.create({
           base_url: repository.Repositories.base_url,
@@ -644,19 +684,19 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
         display_name: service.get('displayNameOnSelectServicePage'),
         service_components: Em.A([])
       });
-      service.get('serviceComponents').forEach(function (component) {
+      service.get('serviceComponents').forEach(function(component) {
         // show clients for services that have only clients components
         if ((component.get('isClient') || component.get('isClientBehavior')) && !service.get('isClientOnlyService')) return;
         // skip components that was hide on assign master page
         if (component.get('isMaster') && !component.get('isShownOnInstallerAssignMasterPage')) return;
         // no HA component
-        if (component.get('isHAComponentOnly')) return;
+        if (App.get('isHaEnabled') && component.get('isHAComponentOnly')) return;
         var displayName;
         if (component.get('isClient')) {
           displayName = Em.I18n.t('common.clients')
         } else {
           // remove service name from component display name
-          displayName = App.format.role(component.get('componentName')).replace(new RegExp('^' + service.get('serviceName') + '\\s', 'i'), '');
+          displayName = component.get('displayName').replace(new RegExp('^' + service.get('serviceName') + '\\s','i'), '');
         }
         serviceObj.get('service_components').pushObject(Em.Object.create({
           component_name: component.get('isClient') ? Em.I18n.t('common.client').toUpperCase() : component.get('componentName'),
@@ -690,26 +730,46 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       componentValue = this[component.get('customHandler')].call(this, component);
     }
     else {
-      if (component.get('isMaster')) {
+      if (component.get('isMaster') || component.get('isMasterBehavior')) {
         componentValue = this.getMasterComponentValue(component.get('componentName'));
       }
       else {
         console.log(' --- ---INFO: step8: NOT component isMaster');
-        var componentName = component.get('isClient') ? Em.I18n.t('common.client').toUpperCase() : component.get('componentName');
         var hostsLength = this.get('content.slaveComponentHosts')
-          .findProperty('componentName', componentName).hosts.length;
+          .findProperty('componentName', component.get('isClient') ? Em.I18n.t('common.client').toUpperCase() : component.get('componentName'))
+          .hosts.length;
         componentValue = hostsLength + Em.I18n.t('installer.step8.host' + ((hostsLength > 1) ? 's' : ''));
       }
     }
     return componentValue;
   },
 
-  getMasterComponentValue: function (componentName) {
+  getMasterComponentValue: function(componentName) {
     var masterComponents = this.get('content.masterComponentHosts');
     var hostsCount = masterComponents.filterProperty('component', componentName).length;
     return stringUtils.pluralize(hostsCount,
       masterComponents.findProperty('component', componentName).hostName,
-        hostsCount + ' ' + Em.I18n.t('installer.step8.hosts'));
+      hostsCount + ' ' + Em.I18n.t('installer.step8.hosts'));
+  },
+
+/**
+   * Set displayed MetricsSink DB value based on DB type
+   * @param {Ember.Object} dbComponent
+   * @method loadSinkDbValue
+   */
+  loadSinkDbValue: function () {
+    var db, serviceConfigProperties = this.get('wizardController').getDBProperty('serviceConfigProperties'),
+    sinkDb = serviceConfigProperties.findProperty('name', 'sink_database');
+    if (sinkDb.value === 'Existing MSSQL Server database with integrated authentication') {
+      db = serviceConfigProperties.findProperty('name', 'sink_existing_mssql_server_database');
+      return db.value + ' (' + sinkDb.value + ')';
+    }
+    else {
+      if (sinkDb.value === 'Existing MSSQL Server database with sql auth') {
+        db = serviceConfigProperties.findProperty('name', 'sink_existing_mssql_server_2_database');
+        return db.value + ' (' + sinkDb.value + ')';
+      }
+    }
   },
 
   /**
@@ -718,8 +778,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
    * @method loadHiveDbValue
    */
   loadHiveDbValue: function () {
-    var db,
-      serviceConfigPreoprties = this.get('wizardController').getDBProperty('serviceConfigProperties'),
+    var db, serviceConfigPreoprties = this.get('wizardController').getDBProperty('serviceConfigProperties'),
       hiveDb = serviceConfigPreoprties.findProperty('name', 'hive_database');
     if (hiveDb.value === 'New MySQL Database') {
       return 'MySQL (New Database)';
@@ -734,9 +793,22 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
           db = serviceConfigPreoprties.findProperty('name', 'hive_existing_postgresql_database');
           return db.value + ' (' + hiveDb.value + ')';
         }
-        else { // existing oracle database
-          db = serviceConfigPreoprties.findProperty('name', 'hive_existing_oracle_database');
-          return db.value + ' (' + hiveDb.value + ')';
+        else {
+          if (hiveDb.value === 'Existing MSSQL Server database with integrated authentication') {
+            db = serviceConfigPreoprties.findProperty('name', 'hive_existing_mssql_server_database');
+            return db.value + ' (' + hiveDb.value + ')';
+          }
+          else {
+            if (hiveDb.value === 'Existing MSSQL Server database with sql auth') {
+              db = serviceConfigPreoprties.findProperty('name', 'hive_existing_mssql_server_2_database');
+              return db.value + ' (' + hiveDb.value + ')';
+            }
+            else {
+              // existing oracle database
+              db = serviceConfigPreoprties.findProperty('name', 'hive_existing_oracle_database');
+              return db.value + ' (' + hiveDb.value + ')';
+            }
+          }
         }
       }
     }
@@ -793,9 +865,22 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
           db = this.get('wizardController').getDBProperty('serviceConfigProperties').findProperty('name', 'oozie_existing_postgresql_database');
           return db.value + ' (' + oozieDb.value + ')';
         }
-        else { // existing oracle database
-          db = this.get('wizardController').getDBProperty('serviceConfigProperties').findProperty('name', 'oozie_existing_oracle_database');
-          return db.value + ' (' + oozieDb.value + ')';
+        else {
+          if (oozieDb.value === 'Existing MSSQL Server database with integrated authentication') {
+            db = this.get('wizardController').getDBProperty('serviceConfigProperties').findProperty('name', 'oozie_existing_mssql_server_database');
+            return db.value + ' (' + oozieDb.value + ')';
+          }
+          else {
+            if (oozieDb.value === 'Existing MSSQL Server database with sql auth') {
+              db = this.get('wizardController').getDBProperty('serviceConfigProperties').findProperty('name', 'oozie_existing_mssql_server_2_database');
+              return db.value + ' (' + oozieDb.value + ')';
+            }
+            else {
+              // existing oracle database
+              db = this.get('wizardController').getDBProperty('serviceConfigProperties').findProperty('name', 'oozie_existing_oracle_database');
+              return db.value + ' (' + oozieDb.value + ')';
+            }
+          }
         }
       }
     }
@@ -834,25 +919,54 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
    * Update configurations for installed services.
    * Do separated PUT-request for each siteName for each service
    *
-   * @param {Array} fileNamesToUpdate - file names that should be updated
+   * @param {Array} configsToUpdate - configs need to update
+   * Format:
+   * <code>
+   *   [
+   *    {serviceName: 's1', id: 'site property', filename: 'f1.xml', name: 'n1', value: 'v1'},
+   *    {serviceName: 's2', id: 'site property', filename: 'f1.xml', name: 'n2', value: 'v2'},
+   *    {serviceName: 's2', id: '', filename: 'f2.xml', name: 'n3', value: 'v3'}
+   *   ]
+   * </code>
    * @method updateConfigurations
    */
-  updateConfigurations: function (fileNamesToUpdate) {
+  updateConfigurations: function (configsToUpdate) {
     var configurationController = App.router.get('mainServiceInfoConfigsController');
-    var configs = this.get('configs').slice(0);
+    var configs = configsToUpdate.filter(function(config) {
+      return !!config.filename && !/^(core)/.test(config.filename) && config.filename.indexOf('env')==-1;
+    });
+    var serviceNames = configs.mapProperty('serviceName').uniq();
     var configsMap = [];
-    fileNamesToUpdate.forEach(function (fileName) {
-      if (!fileName || /^(core)/.test(fileName)) return;
+
+    serviceNames.forEach(function (serviceName) {
+      var serviceConfigs = configs.filterProperty('serviceName', serviceName);
       var tagName = 'version' + (new Date).getTime();
-      var configsToSave = configs.filterProperty('filename', fileName);
-      configsToSave.forEach(function (item) {
-        item.value = App.config.trimProperty(item, false);
+      serviceConfigs.forEach(function(config) {
+        config.value = App.config.trimProperty(config, false);
       });
-      configsMap.push(configurationController.createSiteObj(fileName.replace(".xml", ""), tagName, configsToSave));
-    }, this);
+      serviceConfigs.mapProperty('filename').uniq().forEach(function (siteName) {
+        configsMap.push(configurationController.createSiteObj(siteName.replace(".xml", ""), tagName, serviceConfigs.filterProperty('filename', siteName)));
+      });
+    });
 
     if (!configsMap.length) return;
-    this.applyConfigurationsToCluster(configsMap);
+    var configData = configsMap.map(function (_serviceConfig) {
+      return JSON.stringify({
+        Clusters: {
+          desired_config: {
+            type: _serviceConfig.type,
+            tag: _serviceConfig.tag,
+            properties: _serviceConfig.properties
+          }
+        }
+      });
+    }, this).toString();
+    this.addRequestToAjaxQueue({
+      name: 'wizard.step8.apply_configuration_to_cluster',
+      data: {
+        data: '[' + configData + ']'
+      }
+    });
   },
   /**
    * Prepare <code>ajaxQueue</code> and start to execute it
@@ -968,14 +1082,15 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
 
   deleteClustersCallback: function (response, request, data) {
     if (data.isLast) {
+      this.setLocalRepositories();
       this.createCluster();
       this.createSelectedServices();
       if (this.get('content.controllerName') !== 'addHostController') {
-        if (this.get('wizardController').getDBProperty('fileNamesToUpdate') && this.get('wizardController').getDBProperty('fileNamesToUpdate').length) {
-          this.updateConfigurations(this.get('wizardController').getDBProperty('fileNamesToUpdate'));
+        if (this.get('wizardController').getDBProperty('configsToUpdate') && this.get('wizardController').getDBProperty('configsToUpdate').length) {
+          this.updateConfigurations(this.get('wizardController').getDBProperty('configsToUpdate'));
         }
         this.createConfigurations();
-        this.applyConfigurationsToCluster(this.get('serviceConfigTags'));
+        this.applyConfigurationsToCluster();
       }
       this.createComponents();
       this.registerHostsToCluster();
@@ -984,14 +1099,42 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       }
       this.createMasterHostComponents();
       this.createSlaveAndClientsHostComponents();
-      if (this.get('content.controllerName') === 'addServiceController') {
-        this.createAdditionalClientComponents();
-      }
       this.createAdditionalHostComponents();
 
       this.set('ajaxQueueLength', this.get('ajaxRequestsQueue.queue.length'));
       this.get('ajaxRequestsQueue').start();
     }
+  },
+
+  /**
+   * Updates local repositories for the Ambari server.
+   * @method setLocalRepositories
+   * @return {bool} true - requests are sent, false - requests not sent
+   */
+  setLocalRepositories: function () {
+    if (this.get('content.controllerName') !== 'installerController' || !App.get('supports.localRepositories')) return false;
+    var self = this,
+      stack = this.get('content.stacks').findProperty('isSelected', true);
+    stack.operatingSystems.forEach(function (os) {
+      if (os.baseUrl !== os.originalBaseUrl) {
+        console.log("Updating local repository URL from " + os.originalBaseUrl + " -> " + os.baseUrl + ". ", os);
+        self.addRequestToAjaxQueue({
+          name: 'wizard.step8.set_local_repos',
+          data: {
+            osType: os.osType,
+            repoId: os.repoId,
+            stackVersionURL: App.get('stackVersionURL'),
+            data: JSON.stringify({
+              "Repositories": {
+                "base_url": os.baseUrl,
+                "verify_base_url": false
+              }
+            })
+          }
+        });
+      }
+    });
+    return true;
   },
 
 
@@ -1018,7 +1161,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
     });
   },
 
-  createClusterSuccess: function (data, xhr, params) {
+  createClusterSuccess: function(data, xhr, params) {
     App.set('clusterName', params.cluster)
   },
 
@@ -1149,12 +1292,12 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
 
   getClientsToMasterMap: function () {
     var clientNames = App.StackServiceComponent.find().filterProperty('isClient').mapProperty('componentName'),
-      clientsMap = {},
-      dependedComponents = App.StackServiceComponent.find().filterProperty('isMaster');
-    clientNames.forEach(function (clientName) {
+        clientsMap = {},
+        dependedComponents = App.StackServiceComponent.find().filterProperty('isMaster');
+    clientNames.forEach(function(clientName) {
       clientsMap[clientName] = Em.A([]);
-      dependedComponents.forEach(function (component) {
-        if (component.get('dependencies').mapProperty('componentName').contains(clientName)) clientsMap[clientName].push(component.get('componentName'));
+      dependedComponents.forEach(function(component) {
+        if (component.get('dependencies').contains(clientName)) clientsMap[clientName].push(component.get('componentName'));
       });
       if (!clientsMap[clientName].length) delete clientsMap[clientName];
     });
@@ -1166,9 +1309,9 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
    * @method createSlaveAndClientsHostComponents
    */
   createSlaveAndClientsHostComponents: function () {
-    var masterHosts = this.get('content.masterComponentHosts');
-    var slaveHosts = this.get('content.slaveComponentHosts');
-    var clients = this.get('content.clients').filterProperty('isInstalled', false);
+    var masterHosts = this.get('content.masterComponentHosts'),
+      slaveHosts = this.get('content.slaveComponentHosts'),
+      clients = this.get('content.clients');
 
     /**
      * Determines on which hosts client should be installed (based on availability of master components on hosts)
@@ -1191,86 +1334,62 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       }
       else {
         clients.forEach(function (_client) {
+
           var hostNames = _slave.hosts.mapProperty('hostName');
-          // The below logic to install clients to existing/New master hosts should not be applied to Add Host wizard.
-          // This is with the presumption that Add Host controller does not add any new Master component to the cluster
-          if (this.get('content.controllerName') !== 'addHostController') {
-            if (clientsToMasterMap[_client.component_name]) {
-              clientsToMasterMap[_client.component_name].forEach(function (componentName) {
-                masterHosts.filterProperty('component', componentName).forEach(function (_masterHost) {
-                  hostNames.pushObject(_masterHost.hostName);
-                });
+          if (clientsToMasterMap[_client.component_name]) {
+            clientsToMasterMap[_client.component_name].forEach(function (componentName) {
+              masterHosts.filterProperty('component', componentName).filterProperty('isInstalled', false).forEach(function (_masterHost) {
+                hostNames.pushObject(_masterHost.hostName);
               });
-            }
+            });
           }
           hostNames = hostNames.uniq();
+
+          if (_client.isInstalled) {
+            /**
+             * check whether clients are already installed on selected master hosts!!!
+             */
+            var clientHosts = [];
+            var installedHosts = this.get('content.hosts');
+            for (var hostName in installedHosts) {
+              if (installedHosts[hostName].isInstalled &&
+                installedHosts[hostName].hostComponents.filterProperty('HostRoles.state', 'INSTALLED').mapProperty('HostRoles.component_name').contains(_client.component_name)) {
+                clientHosts.push(hostName);
+              }
+            }
+
+            if (clientHosts.length > 0) {
+              clientHosts.forEach(function (hostName) {
+                if (hostNames.contains(hostName)) {
+                  hostNames.splice(hostNames.indexOf(hostName), 1);
+                }
+              }, this);
+            }
+            /**
+             * For Add Service Only
+             * if client is not added to host or is not installed add Object
+             * {
+             *    componentName: {String},
+             *    hostName: {String}
+             * }
+             * to content.additionalClients
+             * later it will be used to install client on host before installing new services
+             */
+            if (this.get('content.controllerName') === 'addServiceController' && hostNames.length > 0) {
+              hostNames.forEach(function (hostName) {
+                this.get('content.additionalClients').push(Em.Object.create({
+                  componentName: _client.component_name, hostName: hostName
+                }))
+              }, this)
+
+            }
+          }
+
           this.registerHostsToComponent(hostNames, _client.component_name);
+
         }, this);
       }
     }, this);
-  },
-
-  /**
-   * This function is specific to addServiceController
-   * Newly introduced master components requires some existing client components to be hosted along with them
-   */
-  createAdditionalClientComponents: function () {
-    var masterHosts = this.get('content.masterComponentHosts');
-    var clientsToMasterMap = this.getClientsToMasterMap();
-    var installedClients = [];
-
-    // Get all the installed Client components
-    this.get('content.services').filterProperty('isInstalled').forEach(function (_service) {
-      var serviceClients = App.StackServiceComponent.find().filterProperty('serviceName', _service.get('serviceName')).filterProperty('isClient');
-      serviceClients.forEach(function (client) {
-        installedClients.push(client.get('componentName'));
-      }, this);
-    }, this);
-
-    // Check if there is a dependency for being co-hosted between existing client and selected new master
-    installedClients.forEach(function (_clientName) {
-      if (clientsToMasterMap[_clientName]) {
-        var hostNames = [];
-        clientsToMasterMap[_clientName].forEach(function (componentName) {
-          masterHosts.filterProperty('component', componentName).filterProperty('isInstalled', false).forEach(function (_masterHost) {
-            hostNames.pushObject(_masterHost.hostName);
-          }, this);
-        }, this);
-        hostNames = hostNames.uniq();
-        if (hostNames.length > 0) {
-          this.get('content.additionalClients').pushObject({hostNames: hostNames, componentName: _clientName});
-          // If a dependency for being co-hosted is derived between existing client and selected new master but that
-          // dependency is already satisfied in the cluster then disregard the derived dependency
-          this.removeClientsFromList(_clientName, hostNames);
-          this.registerHostsToComponent(hostNames, _clientName);
-        }
-      }
-    }, this);
-  },
-
-  /**
-   *
-   * @param clientName
-   * @param hostList
-   */
-  removeClientsFromList: function (clientName, hostList) {
-    var clientHosts = [];
-    var installedHosts = this.get('content.hosts');
-    for (var hostName in installedHosts) {
-      if (installedHosts[hostName].isInstalled) {
-        if (installedHosts[hostName].hostComponents.mapProperty('HostRoles.component_name').contains(clientName)) {
-          clientHosts.push(hostName);
-        }
-      }
-    }
-
-    if (clientHosts.length > 0) {
-      clientHosts.forEach(function (hostName) {
-        if (hostList.contains(hostName)) {
-          hostList.splice(hostList.indexOf(hostName), 1);
-        }
-      }, this);
-    }
   },
 
   /**
@@ -1343,116 +1462,148 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
   },
 
   /**
-   * Compare generated config object with current configs that were filled
-   * on "Customize Services" page.
-   *
-   * @param {Object} properties - generated by createSiteObj|createCoreSiteObj
-   * @param {Array} configs - current configs to compare
-   * @return {Boolean}
-   * @method isConfigsChanged
-   **/
-  isConfigsChanged: function (properties, configs) {
-    var isChanged = false;
-    for (var property in properties) {
-      var config = configs.findProperty('name', property);
-      // if config not found then it's looks like a new config
-      if (!config) {
-        isChanged = true;
-      } else {
-        if (!config.hasInitialValue || config.isNotDefaultValue) {
-          isChanged = true;
-        }
-      }
-    }
-    return isChanged;
-  },
-  /**
    * Create config objects for cluster and services
    * @method createConfigurations
    */
   createConfigurations: function () {
+    var self = this;
     var selectedServices = this.get('selectedServices');
     var coreSiteObject = this.createCoreSiteObj();
     var tag = 'version1';
-    var clusterSiteObj = this.createSiteObj('cluster-env', tag);
 
     if (this.get('content.controllerName') == 'installerController') {
-      this.get('serviceConfigTags').pushObject(clusterSiteObj);
+      this.get('serviceConfigTags').pushObject(coreSiteObject);
+      this.get('serviceConfigTags').pushObject(this.createSiteObj('hdfs-site', false, tag));
+      this.get('serviceConfigTags').pushObject(this.createLog4jObj('hdfs', tag));
     }
-
     if (this.get('content.controllerName') == 'addServiceController') {
       tag = 'version' + (new Date).getTime();
       coreSiteObject.tag = tag;
-      var coreSiteConfigs = this.get('configs').filterProperty('filename', 'core-site.xml');
-      if (this.isConfigsChanged(coreSiteObject.properties, coreSiteConfigs))
-        this.get('serviceConfigTags').pushObject(coreSiteObject);
+      this.get('serviceConfigTags').pushObject(coreSiteObject);
+      //for Add Service save config of new and installed services either
+      selectedServices = selectedServices.concat(this.get('installedServices'));
     }
 
-    selectedServices.forEach(function (service) {
-      Object.keys(service.get('configTypes')).forEach(function (type) {
-        if (!this.get('serviceConfigTags').someProperty('type', type)) {
-          var serviceVersionNotes = Em.I18n.t('dashboard.configHistory.table.notes.default').format(service.get('displayName'));
-          if (!App.supports.capacitySchedulerUi && service.get('serviceName') === 'MAPREDUCE' && (type === 'capacity-scheduler' || type === 'mapred-queue-acls')) {
-            return;
-          } else if (type === 'core-site') {
-            coreSiteObject.service_config_version_note = serviceVersionNotes
-            this.get('serviceConfigTags').pushObject(coreSiteObject);
-          } else if (type === 'storm-site') {
-            var obj = this.createStormSiteObj(tag);
-            obj.service_config_version_note = serviceVersionNotes;
-            this.get('serviceConfigTags').pushObject(obj);
-          } else if (type === 'zoo.cfg') {
-            var obj = this.createZooCfgObj(tag);
-            obj.service_config_version_note = serviceVersionNotes;
-            this.get('serviceConfigTags').pushObject(obj);
-          } else {
-            var obj = this.createSiteObj(type, tag);
-            obj.service_config_version_note = serviceVersionNotes;
-            this.get('serviceConfigTags').pushObject(obj);
-          }
+    var objMap = {
+      HDFS: {site: [
+        {filename: 'hdfs-site', isXmlFile: true},
+        {filename: 'hadoop-env', isXmlFile: true}
+      ], log4j: ['hdfs']},
+      GANGLIA: {site: [
+        {filename: 'ganglia-env', isXmlFile: true}
+      ], log4j: []},
+      NAGIOS: {site: [
+        {filename: 'nagios-env', isXmlFile: true}
+      ], log4j: []},
+      STORM: {site: [
+        {filename: 'storm-env', isXmlFile: true}
+      ], log4j: []},
+      MAPREDUCE: {site: [
+        {filename: 'mapred-site', isXmlFile: true},
+        {filename: 'mapred-env', isXmlFile: true}
+      ], log4j: ['mapreduce']},
+      MAPREDUCE2: {site: [
+        {filename: 'mapred-site', isXmlFile: true},
+        {filename: 'mapred-env', isXmlFile: true}
+      ], log4j: ['mapreduce2']},
+      YARN: {site: [
+        {filename: 'yarn-site', isXmlFile: true},
+        {filename: 'capacity-scheduler', isXmlFile: true},
+        {filename: 'yarn-env', isXmlFile: true}
+      ], log4j: ['yarn']},
+      HBASE: {site: [
+        {filename: 'hbase-site', isXmlFile: true},
+        {filename: 'hbase-env', isXmlFile: true}
+      ], log4j: ['hbase']},
+      OOZIE: {site: [
+        {filename: 'oozie-site', isXmlFile: true},
+        {filename: 'oozie-env', isXmlFile: true}
+      ], log4j: ['oozie']},
+      HIVE: {site: [
+        {filename: 'hive-site', isXmlFile: true},
+        {filename: 'hive-env', isXmlFile: true}
+      ], log4j: ['hive', 'hive-exec']},
+      WEBHCAT: {site: [
+        {filename: 'webhcat-site', isXmlFile: true},
+        {filename: 'webhcat-env', isXmlFile: true}
+      ], log4j: []},
+      HUE: {site: [
+        {filename: 'hue-site', isXmlFile: true},
+        {filename: 'hue-env', isXmlFile: true}
+      ], log4j: []},
+      PIG: {site: [
+        {filename: 'pig-properties', isXmlFile: false},
+        {filename: 'pig-env', isXmlFile: true}
+      ], log4j: ['pig']},
+      FALCON: {site: [
+        {filename: 'falcon-startup.properties', isXmlFile: false},
+        {filename: 'falcon-runtime.properties', isXmlFile: false},
+        {filename: 'falcon-env', isXmlFile: true}
+      ], log4j: []},
+      TEZ: {site: [
+        {filename: 'tez-site', isXmlFile: true},
+        {filename: 'tez-env', isXmlFile: true}
+      ], log4j: []},
+      SQOOP: {site: [
+        {filename: 'sqoop-env', isXmlFile: true}
+      ], log4j: []},
+      ZOOKEEPER: {site: [{filename: 'zookeeper-env', isXmlFile: true}], log4j: ['zookeeper']},
+      FLUME: {site: [
+        {filename: 'flume-conf', isXmlFile: false},
+        {filename: 'flume-env', isXmlFile: true}
+      ], log4j: []}
+    };
+
+    if (App.supports.capacitySchedulerUi) {
+      objMap['MAPREDUCE'].site.pushObjects([
+        {filename: 'capacity-scheduler', isXmlFile: true},
+        {filename: 'mapred-queue-acls', isXmlFile: true}
+      ]);
+    }
+
+    for (var serviceName in objMap) {
+      if (objMap.hasOwnProperty(serviceName)) {
+        if (selectedServices.someProperty('serviceName', serviceName)) {
+          objMap[serviceName].site.forEach(function (site) {
+            self.get('serviceConfigTags').pushObject(self.createSiteObj(site.filename, !site.isXmlFile, tag));
+          });
+          objMap[serviceName].log4j.forEach(function (log4j) {
+            self.get('serviceConfigTags').pushObject(self.createLog4jObj(log4j, tag));
+          });
         }
-      }, this);
-    }, this);
+      }
+    }
+
+    if (selectedServices.someProperty('serviceName', 'STORM')) {
+      this.get('serviceConfigTags').pushObject(this.createStormSiteObj(tag));
+    }
+    if (selectedServices.someProperty('serviceName', 'ZOOKEEPER')) {
+      this.get('serviceConfigTags').pushObject(this.createZooCfgObj(tag));
+    }
   },
 
   /**
    * Send <code>serviceConfigTags</code> to server
    * Queued request
    * One request for each service config tag
-   * @param serviceConfigTags
    * @method applyConfigurationsToCluster
    */
-  applyConfigurationsToCluster: function (serviceConfigTags) {
-    var selectedServices = this.get('selectedServices');
-    var allConfigData = [];
-    selectedServices.forEach(function (service) {
-      var serviceConfigData = [];
-      Object.keys(service.get('configTypesRendered')).forEach(function (type) {
-        var serviceConfigTag = serviceConfigTags.findProperty('type', type);
-        if (serviceConfigTag) {
-          serviceConfigData.pushObject(serviceConfigTag);
-        }
-      }, this);
-      allConfigData.pushObject(JSON.stringify({
+  applyConfigurationsToCluster: function () {
+    var configData = this.get('serviceConfigTags').map(function (_serviceConfig) {
+      return JSON.stringify({
         Clusters: {
-          desired_config: serviceConfigData
+          desired_config: {
+            type: _serviceConfig.type,
+            tag: _serviceConfig.tag,
+            properties: _serviceConfig.properties
+          }
         }
-      }));
-    }, this);
-
-    var clusterConfig = serviceConfigTags.findProperty('type', 'cluster-env');
-    if (clusterConfig) {
-      allConfigData.pushObject(JSON.stringify({
-        Clusters: {
-          desired_config: [clusterConfig]
-        }
-      }));
-    }
-
+      });
+    }, this).toString();
     this.addRequestToAjaxQueue({
-      name: 'common.across.services.configurations',
+      name: 'wizard.step8.apply_configuration_to_cluster',
       data: {
-        data: '[' + allConfigData.toString() + ']'
+        data: '[' + configData + ']'
       }
     });
   },
@@ -1485,19 +1636,17 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       configGroup.hosts.forEach(function (hostName) {
         groupData.hosts.push({"host_name": hostName});
       });
-      // get properties that was created for non-default config group
-      configGroup.properties = configGroup.properties.concat(this.get('customNonDefaultGroupConfigs').filterProperty('group', configGroup.name));
       //wrap properties into Em.Object to make them compatible with buildGroupDesiredConfigs method
       configGroup.properties.forEach(function (property) {
         groupConfigs.push(Em.Object.create(property));
       });
       groupData.desired_configs = serviceConfigController.buildGroupDesiredConfigs.call(serviceConfigController, groupConfigs, timeTag);
       // check for group from installed service
-      if (configGroup.isForInstalledService === true) {
+      if (configGroup.isForUpdate === true) {
         // if group is a new one, create it
         if (!configGroup.id) {
           sendData.push({"ConfigGroup": groupData});
-        } else if (configGroup.isForUpdate){
+        } else {
           // update an existing group
           groupData.id = configGroup.id;
           updateData.push({"ConfigGroup": groupData});
@@ -1570,48 +1719,55 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
       oozieUser = this.get('configs').someProperty('name', 'oozie_user') ? this.get('configs').findProperty('name', 'oozie_user').value : null,
       isHiveSelected = installedAndSelectedServices.someProperty('serviceName', 'HIVE'),
       hiveUser = this.get('configs').someProperty('name', 'hive_user') ? this.get('configs').findProperty('name', 'hive_user').value : null,
+      isHcatSelected = installedAndSelectedServices.someProperty('serviceName', 'WEBHCAT'),
       hcatUser = this.get('configs').someProperty('name', 'hcat_user') ? this.get('configs').findProperty('name', 'hcat_user').value : null,
       isGLUSTERFSSelected = installedAndSelectedServices.someProperty('serviceName', 'GLUSTERFS');
+
+    // screen out the GLUSTERFS-specific core-site.xml entries when they are not needed
+    if (!isGLUSTERFSSelected) {
+      coreSiteObj = coreSiteObj.filter(function (_config) {
+        return !_config.name.contains("fs.glusterfs");
+      });
+    }
 
     coreSiteObj.forEach(function (_coreSiteObj) {
       // exclude some configs if service wasn't selected
       if (
         (isOozieSelected || (_coreSiteObj.name != 'hadoop.proxyuser.' + oozieUser + '.hosts' && _coreSiteObj.name != 'hadoop.proxyuser.' + oozieUser + '.groups')) &&
-        (isHiveSelected || (_coreSiteObj.name != 'hadoop.proxyuser.' + hiveUser + '.hosts' && _coreSiteObj.name != 'hadoop.proxyuser.' + hiveUser + '.groups')) &&
-        (isHiveSelected || (_coreSiteObj.name != 'hadoop.proxyuser.' + hcatUser + '.hosts' && _coreSiteObj.name != 'hadoop.proxyuser.' + hcatUser + '.groups'))) {
-        coreSiteProperties[_coreSiteObj.name] = _coreSiteObj.value;
+          (isHiveSelected || (_coreSiteObj.name != 'hadoop.proxyuser.' + hiveUser + '.hosts' && _coreSiteObj.name != 'hadoop.proxyuser.' + hiveUser + '.groups')) &&
+          (isHcatSelected || (_coreSiteObj.name != 'hadoop.proxyuser.' + hcatUser + '.hosts' && _coreSiteObj.name != 'hadoop.proxyuser.' + hcatUser + '.groups'))) {
+        coreSiteProperties[_coreSiteObj.name] = App.config.escapeXMLCharacters(_coreSiteObj.value);
       }
       if (isGLUSTERFSSelected && _coreSiteObj.name == "fs.default.name") {
         coreSiteProperties[_coreSiteObj.name] =
           this.get('configs').someProperty('name', 'fs_glusterfs_default_name') ?
-            this.get('configs').findProperty('name', 'fs_glusterfs_default_name').value : null;
+            App.config.escapeXMLCharacters(this.get('configs').findProperty('name', 'fs_glusterfs_default_name').value) : null;
       }
       if (isGLUSTERFSSelected && _coreSiteObj.name == "fs.defaultFS") {
         coreSiteProperties[_coreSiteObj.name] =
           this.get('configs').someProperty('name', 'glusterfs_defaultFS_name') ?
-            this.get('configs').findProperty('name', 'glusterfs_defaultFS_name').value : null;
+            App.config.escapeXMLCharacters(this.get('configs').findProperty('name', 'glusterfs_defaultFS_name').value) : null;
       }
     }, this);
-    var attributes = App.router.get('mainServiceInfoConfigsController').getConfigAttributes(coreSiteObj);
-    var configObj = {"type": "core-site", "tag": "version1", "properties": coreSiteProperties};
-    if (attributes) {
-      configObj['properties_attributes'] = attributes;
-    }
-    return  configObj;
+    return {"type": "core-site", "tag": "version1", "properties": coreSiteProperties};
   },
 
   /**
    * Create siteObj for custom service with it own configs
    * @param {string} site
+   * @param {bool} isNonXmlFile
    * @param tag
    * @returns {{type: string, tag: string, properties: {}}}
    * @method createSiteObj
    */
-  createSiteObj: function (site,  tag) {
+  createSiteObj: function (site, isNonXmlFile, tag) {
     var properties = {};
-    var configs = this.get('configs').filterProperty('filename', site + '.xml');
-    var attributes = App.router.get('mainServiceInfoConfigsController').getConfigAttributes(configs);
-    configs.forEach(function (_configProperty) {
+    if (!!isNonXmlFile) {
+      this.get('configs').filterProperty('filename', site + '.xml').forEach(function (_configProperty) {
+        properties[_configProperty.name] = _configProperty.value;
+      }, this);
+    } else {
+      this.get('configs').filterProperty('filename', site + '.xml').forEach(function (_configProperty) {
         var heapsizeExceptions = ['hadoop_heapsize', 'yarn_heapsize', 'nodemanager_heapsize', 'resourcemanager_heapsize', 'apptimelineserver_heapsize', 'jobhistory_heapsize'];
         // do not pass any globals whose name ends with _host or _hosts
         if (_configProperty.isRequiredByAgent !== false) {
@@ -1619,15 +1775,23 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
           if (/_heapsize|_newsize|_maxnewsize$/.test(_configProperty.name) && !heapsizeExceptions.contains(_configProperty.name)) {
             properties[_configProperty.name] = _configProperty.value + "m";
           } else {
-            properties[_configProperty.name] = _configProperty.value;
-          }
+            properties[_configProperty.name] = App.config.escapeXMLCharacters(_configProperty.value);
+           }
         }
-    }, this);
-    var configObj = {"type": site, "tag": tag, "properties": properties };
-    if (attributes) {
-      configObj['properties_attributes'] = attributes;
+      }, this);
     }
-    return configObj;
+    return {"type": site, "tag": tag, "properties": properties };
+  },
+
+  /**
+   * Create log4j object for custom service with it own configs
+   * @param {string} site
+   * @param {string} tag
+   * @returns {{type: string, tag: string, properties: {}}}
+   * @method createLog4jObj
+   */
+  createLog4jObj: function (site, tag) {
+    return this.createSiteObj(site + '-log4j', true, tag);
   },
 
   /**
@@ -1640,7 +1804,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
     var configs = this.get('configs').filterProperty('filename', 'zoo.cfg');
     var csProperties = {};
     configs.forEach(function (_configProperty) {
-      csProperties[_configProperty.name] = _configProperty.value;
+      csProperties[_configProperty.name] = App.config.escapeXMLCharacters(_configProperty.value);
     }, this);
     return {type: 'zoo.cfg', tag: tag, properties: csProperties};
   },
@@ -1663,7 +1827,7 @@ App.WizardStep8Controller = Em.Controller.extend(App.AddSecurityConfigs, {
           stormProperties[_configProperty.name] = JSON.stringify(_configProperty.value).replace(/"/g, "");
         }
       } else {
-        stormProperties[_configProperty.name] = _configProperty.value;
+        stormProperties[_configProperty.name] = App.config.escapeXMLCharacters(_configProperty.value);
       }
     }, this);
     return {type: 'storm-site', tag: tag, properties: stormProperties};

@@ -69,10 +69,11 @@ public class GenericDbmsHelper implements DbmsHelper {
   }
 
   @Override
-  public String getSetNullableStatement(String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable) {
+  public String getSetNullableStatement(String tableName, String columnName,
+      boolean nullable) {
     StringBuilder stringBuilder = new StringBuilder();
     writeAlterTableClause(stringBuilder, tableName);
-    writeSetNullableString(stringBuilder, tableName, columnInfo, nullable);
+    writeSetNullableString(stringBuilder, tableName, columnName, nullable);
     return stringBuilder.toString();
   }
 
@@ -114,7 +115,7 @@ public class GenericDbmsHelper implements DbmsHelper {
   }
 
   public StringBuilder writeSetNullableString(StringBuilder builder,
-      String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable) {
+      String tableName, String columnName, boolean nullable) {
     throw new UnsupportedOperationException(
         "Column nullable modification not supported for generic DB");
   }

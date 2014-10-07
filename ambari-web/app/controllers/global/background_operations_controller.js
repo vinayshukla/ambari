@@ -33,11 +33,6 @@ App.BackgroundOperationsController = Em.Controller.extend({
    */
   services:[],
   serviceTimestamp: null,
-
-  /**
-   * Number of operation to load
-   */
-  operationsCount: 10,
   /**
    * Possible levels:
    * REQUESTS_LIST
@@ -95,7 +90,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
    */
   getQueryParams: function () {
     var levelInfo = this.get('levelInfo');
-    var count = this.get('operationsCount');
+    var count = App.db.getBGOOperationsCount();
     var result = {
       name: 'background_operations.get_most_recent',
       successCallback: 'callBackForMostRecent',
@@ -103,7 +98,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
         'operationsCount': count
       }
     };
-    if (levelInfo.get('name') === 'TASK_DETAILS' && !App.get('testMode')) {
+    if (levelInfo.get('name') === 'TASK_DETAILS' && !App.testMode) {
       result.name = 'background_operations.get_by_task';
       result.successCallback = 'callBackFilteredByTask';
       result.data = {
@@ -128,7 +123,6 @@ App.BackgroundOperationsController = Em.Controller.extend({
    */
   callBackFilteredByRequest: function (data, ajaxQuery, params) {
     var requestId = data.Requests.id;
-    var requestInputs = data.Requests.inputs;
     var request = this.get('services').findProperty('id', requestId);
     var hostsMap = {};
     var previousTaskStatusMap = request.get('previousTaskStatusMap');
@@ -136,7 +130,6 @@ App.BackgroundOperationsController = Em.Controller.extend({
     data.tasks.forEach(function (task) {
       var host = hostsMap[task.Tasks.host_name];
       task.Tasks.request_id = requestId;
-      task.Tasks.request_inputs = requestInputs;
       if (host) {
         host.logTasks.push(task);
         host.isModified = (host.isModified) ? true : previousTaskStatusMap[task.Tasks.id] !== task.Tasks.status;
@@ -177,14 +170,6 @@ App.BackgroundOperationsController = Em.Controller.extend({
     task.Tasks.status = data.Tasks.status;
     task.Tasks.stdout = data.Tasks.stdout;
     task.Tasks.stderr = data.Tasks.stderr;
-
-    // Put some command information to task object
-    task.Tasks.command = data.Tasks.command;
-    task.Tasks.custom_command_name = data.Tasks.custom_command_name;
-    task.Tasks.structured_out = data.Tasks.structured_out;
-
-    task.Tasks.output_log = data.Tasks.output_log;
-    task.Tasks.error_log = data.Tasks.error_log;
     this.set('serviceTimestamp', App.dateTime());
   },
 
@@ -195,7 +180,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
   callBackForMostRecent: function (data) {
     var runningServices = 0;
     var currentRequestIds = [];
-    var countIssued = this.get('operationsCount');
+    var countIssued = App.db.getBGOOperationsCount();
     var countGot = data.itemTotal;
    
     data.items.forEach(function (request) {
@@ -230,7 +215,7 @@ App.BackgroundOperationsController = Em.Controller.extend({
         });
         this.get("services").unshift(rq);
         //To sort DESC by request id
-        this.set("services", this.get("services").sort( function(a,b) { return b.get('id') - a.get('id'); }));
+        this.set("services", this.get("services").sort( function(a,b) { return b.get('id') - a.get('id'); })) ;
       }
       runningServices += ~~isRunning;
     }, this);
@@ -348,14 +333,6 @@ App.BackgroundOperationsController = Em.Controller.extend({
         self.set ('popupView.isNotShowBgChecked', !initValue);
       }
     });
-  },
-
-  /**
-   * Called on logout
-   */
-  clear: function () {
-    // set operations count to default value
-    this.set('operationsCount', 10);
   }
 
 });

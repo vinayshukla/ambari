@@ -89,7 +89,7 @@ public class UpgradeCatalog160Test {
     DBAccessor dbAccessor = createNiceMock(DBAccessor.class);
 
     Method m = AbstractUpgradeCatalog.class.getDeclaredMethod
-      ("updateConfigurationProperties", String.class, Map.class, boolean.class, boolean.class);
+      ("updateConfigurationProperties", String.class, Map.class, boolean.class);
 
     UpgradeCatalog160 upgradeCatalog = createMockBuilder(UpgradeCatalog160.class)
       .addMockedMethod(m).createMock();
@@ -97,7 +97,7 @@ public class UpgradeCatalog160Test {
     expect(configuration.getDatabaseUrl()).andReturn(Configuration.JDBC_IN_MEMORY_URL).anyTimes();
 
     upgradeCatalog.updateConfigurationProperties("global",
-      Collections.singletonMap("jobhistory_heapsize", "900"), false, false);
+      Collections.singletonMap("jobhistory_heapsize", "900"), false);
 
     expectLastCall();
 
@@ -234,17 +234,17 @@ public class UpgradeCatalog160Test {
     assertNull(column.getDefaultValue());
     assertTrue(column.isNullable());
   }
-
+  
   @Test
   public void testGetSourceVersion() {
     final DBAccessor dbAccessor     = createNiceMock(DBAccessor.class);
     UpgradeCatalog upgradeCatalog = getUpgradeCatalog(dbAccessor);
     Assert.assertEquals("1.5.1", upgradeCatalog.getSourceVersion());
-  }
+  }  
   /**
    * Checks that the restart_require column was created correct when using a
    * non-Postgres DB (MySQL, Oracle, etc).
-   *
+   * 
    * @param restartRequiredColumnCapture
    */
   private void assertRestartRequiredColumn(

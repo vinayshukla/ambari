@@ -31,7 +31,7 @@ module.exports = [
       App.ServiceConfigCategory.create({ name: 'KERBEROS', displayName: 'Kerberos'}),
       App.ServiceConfigCategory.create({ name: 'AMBARI', displayName: 'Ambari'})
     ],
-    sites: ['cluster-env'],
+    sites: ['global'],
     configs: configProperties.filterProperty('serviceName', 'GENERAL')
   },
   {
@@ -44,7 +44,7 @@ module.exports = [
       App.ServiceConfigCategory.create({ name: 'SNameNode', displayName: 'Secondary NameNode'}),
       App.ServiceConfigCategory.create({ name: 'DataNode', displayName: 'DataNode'})
     ],
-    sites: ['hadoop-env','core-site', 'hdfs-site'],
+    sites: ['core-site', 'hdfs-site'],
     configs: configProperties.filterProperty('serviceName', 'HDFS')
   },
   {
@@ -64,11 +64,20 @@ module.exports = [
     displayName: 'Hive',
     filename: 'hive-site',
     configCategories: [
-      App.ServiceConfigCategory.create({ name: 'Hive Metastore', displayName: 'Hive Metastore and Hive Server 2'}),
+      App.ServiceConfigCategory.create({ name: 'Hive Metastore', displayName: 'Hive Metastore and Hive Server 2'})
+    ],
+    sites: ['hive-site'],
+    configs: configProperties.filterProperty('serviceName', 'HIVE')
+  },
+  {
+    serviceName: 'WEBHCAT',
+    displayName: 'WebHCat',
+    filename: 'webhcat-site',
+    configCategories: [
       App.ServiceConfigCategory.create({ name: 'WebHCat Server', displayName : 'WebHCat Server'})
     ],
-    sites: ['hive-site','webhcat-site'],
-    configs: configProperties.filterProperty('serviceName', 'HIVE')
+    sites: ['webhcat-site'],
+    configs: configProperties.filterProperty('serviceName', 'WEBHCAT')
   },
   {
     serviceName: 'HBASE',
@@ -78,7 +87,7 @@ module.exports = [
       App.ServiceConfigCategory.create({ name: 'HBase Master', displayName: 'HBase Master'}),
       App.ServiceConfigCategory.create({ name: 'RegionServer', displayName: 'RegionServer'})
     ],
-    sites: ['hbase-env','hbase-site'],
+    sites: ['hbase-site'],
     configs: configProperties.filterProperty('serviceName', 'HBASE')
   },
   {
@@ -87,7 +96,6 @@ module.exports = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'ZooKeeper Server', displayName: 'ZooKeeper Server'})
     ],
-    sites: ['zookeeper-env'],
     configs: configProperties.filterProperty('serviceName', 'ZOOKEEPER')
 
   },
@@ -98,7 +106,7 @@ module.exports = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'Oozie Server', displayName:  'Oozie Server'})
     ],
-    sites: ['oozie-env','oozie-site'],
+    sites: ['oozie-site'],
     configs: configProperties.filterProperty('serviceName', 'OOZIE')
   },
   {
@@ -107,7 +115,6 @@ module.exports = [
     configCategories: [
       App.ServiceConfigCategory.create({ name: 'Nagios Server', displayName:  'Nagios Server'})
     ],
-    sites: ['nagios-env'],
     configs: configProperties.filterProperty('serviceName', 'NAGIOS')
   }
 

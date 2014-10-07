@@ -24,7 +24,6 @@
   <property>
     <name>zk_user</name>
     <value>zookeeper</value>
-    <property-type>USER</property-type>
     <description>ZooKeeper User.</description>
   </property>
   <property>
@@ -66,7 +65,7 @@
   <!-- zookeeper-env.sh -->
   <property>
     <name>content</name>
-    <description>This is the jinja template for zookeeper-env.sh file</description>
+    <description>zookeeper-env.sh content</description>
     <value>
 export JAVA_HOME={{java64_home}}
 export ZOO_LOG_DIR={{zk_log_dir}}

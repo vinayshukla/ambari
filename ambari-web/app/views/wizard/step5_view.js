@@ -127,7 +127,6 @@ App.SelectHostView = Em.Select.extend(App.SelectHost, {
   didInsertElement: function () {
     this.initContent();
     this.set("value", this.get("component.selectedHost"));
-    App.popover($("[rel=popover]"), {'placement': 'right', 'trigger': 'hover'});
   },
 
   /**

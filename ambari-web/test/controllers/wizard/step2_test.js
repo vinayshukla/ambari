@@ -51,10 +51,10 @@ describe('App.WizardStep2Controller', function () {
 
   describe('#hostNames', function() {
     it('should be equal to content.installOptions.hostNames', function() {
-      var controller = App.WizardStep2Controller.create({content: {installOptions: {hostNames: 'A,b,C'}}});
-      expect(controller.get('hostNames')).to.equal('a,b,c');
-      controller.set('content.installOptions.hostNames', 'a,B');
-      expect(controller.get('hostNames')).to.equal('a,b');
+      var controller = App.WizardStep2Controller.create({content: {installOptions: {hostNames: ['1','2','3']}}});
+      expect(controller.get('hostNames')).to.eql(['1','2','3']);
+      controller.set('content.installOptions.hostNames', ['1', '2']);
+      expect(controller.get('hostNames')).to.eql(['1', '2']);
     });
   });
 
@@ -89,18 +89,19 @@ describe('App.WizardStep2Controller', function () {
 
   describe('#updateHostNameArr()', function () {
 
-    var controller = App.WizardStep2Controller.create({
-      hostNames: 'apache.ambari'
-    });
-    controller.updateHostNameArr();
+      var controller = App.WizardStep2Controller.create({
+        hostNames: 'apache.ambari'
+      });
+      App.store.load(App.Host, {'host_name': 'apache.ambari', id: '1'});
+      controller.updateHostNameArr();
 
-    it('should push to hostNameArr only new host names', function(){
-      expect(controller.get('hostNameArr').length).to.equal(1);
-    });
+      it('should push to hostNameArr only new host names', function(){
+        expect(controller.get('hostNameArr').length).to.equal(0);
+      });
 
-    it('should push to inputtedAgainHostNames already installed host names', function(){
-      expect(controller.get('inputtedAgainHostNames').length).to.equal(0);
-    })
+      it('should push to inputtedAgainHostNames already installed host names', function(){
+        expect(controller.get('inputtedAgainHostNames').length).to.equal(1);
+      })
   });
 
   describe('#isAllHostNamesValid()', function () {
@@ -285,8 +286,8 @@ describe('App.WizardStep2Controller', function () {
 
       var test = controller.getHostInfo();
       expect(test).to.eql({
-        'apache':{'name':'apache', 'installType': 'manualDriven', 'bootStatus': 'PENDING', isInstalled: false},
-        'ambari':{'name':'ambari', 'installType': 'manualDriven', 'bootStatus': 'PENDING', isInstalled: false}
+        'apache':{'name':'apache', 'installType': 'manualDriven', 'bootStatus': 'PENDING'},
+        'ambari':{'name':'ambari', 'installType': 'manualDriven', 'bootStatus': 'PENDING'}
       });
     })
   });
@@ -295,7 +296,7 @@ describe('App.WizardStep2Controller', function () {
 
     it('should set content.installOptions.sshKey', function () {
       var controller = App.WizardStep2Controller.create({
-        content: {'installOptions': {'sshKey': '111'}}
+       content: {'installOptions': {'sshKey': '111'}}
       });
       controller.setSshKey('222');
       expect(controller.get('content.installOptions.sshKey')).to.equal('222');
@@ -306,17 +307,15 @@ describe('App.WizardStep2Controller', function () {
 
     it('should return false if isSubmitDisabled is true', function () {
       var controller = App.WizardStep2Controller.create({
-        hostNames: 'apache.ambari',
-        parseHostNamesAsPatternExpression: Em.K
+        hostNames: 'apache.ambari'
       });
-      controller.reopen({isSubmitDisabled: true});
+      controller.set('isSubmitDisabled', true);
       expect(controller.evaluateStep()).to.equal(false);
     });
 
     it('should return false if hostsError is not empty', function () {
       var controller = App.WizardStep2Controller.create({
-        hostNames: 'apache.ambari',
-        parseHostNamesAsPatternExpression: Em.K
+        hostNames: 'apache.ambari'
       });
       controller.set('hostsError', 'error');
       expect(controller.evaluateStep()).to.equal(false);
@@ -324,26 +323,23 @@ describe('App.WizardStep2Controller', function () {
 
     it('should return false if sshKeyError is not empty', function () {
       var controller = App.WizardStep2Controller.create({
-        hostNames: 'apache.ambari',
-        parseHostNamesAsPatternExpression: Em.K
+        hostNames: 'apache.ambari'
       });
-      controller.reopen({sshKeyError: 'error'});
+      controller.set('sshKeyError', 'error');
       expect(controller.evaluateStep()).to.equal(false);
     });
 
     it('should return false if hostNameArr is empty', function () {
       var controller = App.WizardStep2Controller.create({
-        hostNames: '',
-        parseHostNamesAsPatternExpression: Em.K
+        hostNames: ''
       });
       expect(controller.evaluateStep()).to.equal(false);
     });
 
-    it('should return false if isPattern is true', function () {
+    it('should return false if isPattern is false', function () {
       var controller = App.WizardStep2Controller.create({
         hostNames: 'apache.ambari',
-        isPattern: true,
-        parseHostNamesAsPatternExpression: Em.K
+        isPattern: false
       });
       expect(controller.evaluateStep()).to.equal(false);
     })

@@ -18,9 +18,10 @@
 package org.apache.ambari.server.security.authorization;
 
 import com.google.inject.Singleton;
-import org.apache.ambari.server.orm.entities.PrivilegeEntity;
+import org.apache.ambari.server.orm.entities.RoleEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -35,16 +36,16 @@ public class AuthorizationHelper {
   /**
    * Converts collection of RoleEntities to collection of GrantedAuthorities
    */
-  public Collection<GrantedAuthority> convertPrivilegesToAuthorities(Collection<PrivilegeEntity> privilegeEntities) {
-    Set<GrantedAuthority> authorities = new HashSet<GrantedAuthority>(privilegeEntities.size());
+  public Collection<GrantedAuthority> convertRolesToAuthorities(Collection<RoleEntity> roleEntities) {
+    Set<GrantedAuthority> authorities = new HashSet<GrantedAuthority>(roleEntities.size());
 
-    for (PrivilegeEntity privilegeEntity : privilegeEntities) {
-      authorities.add(new AmbariGrantedAuthority(privilegeEntity));
+    for (RoleEntity roleEntity : roleEntities) {
+      authorities.add(new SimpleGrantedAuthority(roleEntity.getRoleName().toUpperCase()));
     }
 
     return authorities;
   }
-
+  
   /**
    * Gets the name of the logged in user.  Thread-safe due to use of thread-local.
    * @return the name of the logged in user, or <code>null</code> if none set.

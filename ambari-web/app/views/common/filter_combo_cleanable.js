@@ -35,7 +35,6 @@ App.FilterComboCleanableView = Ember.View.extend({
       placement: 'bottom',
       trigger: 'hover'
     });
-    this.clearFilter();
   },
 
   placeHolder: function(){

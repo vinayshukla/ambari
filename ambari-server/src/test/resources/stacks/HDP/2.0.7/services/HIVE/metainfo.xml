@@ -21,7 +21,6 @@
     <service>
 
       <name>HIVE</name>
-      <displayName>Hive</displayName>
       <comment>Data warehouse system for ad-hoc queries &amp; analysis of large datasets and table &amp; storage management service</comment>
       <version>0.11.0.2.0.5.0</version>
 
@@ -29,10 +28,8 @@
 
         <component>
           <name>HIVE_METASTORE</name>
-          <displayName>Hive Metastore</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
-          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <auto-deploy>
             <enabled>true</enabled>
             <co-locate>HIVE/HIVE_SERVER</co-locate>
@@ -46,10 +43,8 @@
 
         <component>
           <name>HIVE_SERVER</name>
-          <displayName>HiveServer2</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
-          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <dependencies>
             <dependency>
               <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
@@ -89,10 +84,8 @@
 
         <component>
           <name>MYSQL_SERVER</name>
-          <displayName>MySQL Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
-          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <commandScript>
             <script>scripts/mysql_server.py</script>
             <scriptType>PYTHON</scriptType>
@@ -101,25 +94,12 @@
 
         <component>
           <name>HIVE_CLIENT</name>
-          <displayName>Hive Client</displayName>
           <category>CLIENT</category>
           <cardinality>0+</cardinality>
           <commandScript>
-            <script>scripts/hive_client222.py</script>
+            <script>scripts/hive_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>hive-site.xml</fileName>
-              <dictionaryName>hive-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>env</type>
-              <fileName>hive-env.sh</fileName>
-              <dictionaryName>hive-env</dictionaryName>
-            </configFile>
-          </configFiles>
         </component>
       </components>
 
@@ -144,7 +124,7 @@
           </packages>
         </osSpecific>
         <osSpecific>
-          <osFamily>redhat5,redhat6,ubuntu12</osFamily>
+          <osFamily>redhat5,redhat6,debian12</osFamily>
           <packages>
             <package>
               <name>mysql-server</name>

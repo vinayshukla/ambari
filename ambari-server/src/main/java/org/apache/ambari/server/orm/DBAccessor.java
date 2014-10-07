@@ -18,7 +18,6 @@
 package org.apache.ambari.server.orm;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -30,11 +29,6 @@ import org.eclipse.persistence.sessions.DatabaseSession;
  * Note: IF NOT EXISTS is default for all supported DDL statements
  */
 public interface DBAccessor {
-
-  /**
-   * @return new database connection
-   */
-  Connection getNewConnection();
 
   /**
    * Wraps object name with dbms-specific quotes
@@ -310,14 +304,14 @@ public interface DBAccessor {
    * 
    * @param tableName
    *          the name of the table (not {@code null}).
-   * @param columnInfo
-   *          the column object to get name and type of column (not {@code null}).
+   * @param columnName
+   *          the name of the column to alter (not {@code null}).
    * @param nullable
    *          {@code true} to indicate that the column allows {@code NULL}
    *          values, {@code false} otherwise.
    * @throws SQLException
    */
-  public void setNullable(String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable)
+  public void setNullable(String tableName, String columnName, boolean nullable)
       throws SQLException;
 
   /**

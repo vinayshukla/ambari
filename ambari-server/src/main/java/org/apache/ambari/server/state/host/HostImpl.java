@@ -120,11 +120,8 @@ public class HostImpl implements Host {
 
   
   
-  // In-memory status, based on host components states
+  //In-memory status, based on host components states
   private String status;
-
-  // In-memory prefix of log file paths that is retrieved when the agent registers with the server
-  private String prefix;
 
   private static final StateMachineFactory
     <HostImpl, HostState, HostEventType, HostEvent>
@@ -865,21 +862,6 @@ public class HostImpl implements Host {
   }
 
   @Override
-  public String getPrefix() { return prefix; }
-
-  @Override
-  public void setPrefix(String prefix) {
-    if (prefix != null && !prefix.equals(this.prefix)) {
-      try {
-        writeLock.lock();
-        this.prefix = prefix;
-      } finally {
-        writeLock.unlock();
-      }
-    }
-  }
-
-  @Override
   public Map<String, String> getHostAttributes() {
     try {
       readLock.lock();
@@ -1150,7 +1132,7 @@ public class HostImpl implements Host {
       throw new NullPointerException("User must be specified.");
     
     HostConfigMapping exist = getDesiredConfigEntity(clusterId, config.getType());
-    if (null != exist && exist.getVersion().equals(config.getTag())) {
+    if (null != exist && exist.getVersion().equals(config.getVersionTag())) {
       if (!selected) {
         exist.setSelected(0);
         hostConfigMappingDAO.merge(exist);
@@ -1175,7 +1157,7 @@ public class HostImpl implements Host {
       hostConfigMapping.setSelected(1);
       hostConfigMapping.setUser(user);
       hostConfigMapping.setType(config.getType());
-      hostConfigMapping.setVersion(config.getTag());
+      hostConfigMapping.setVersion(config.getVersionTag());
       
       hostConfigMappingDAO.create(hostConfigMapping);
     }
@@ -1196,7 +1178,7 @@ public class HostImpl implements Host {
         clusterId, hostEntity.getHostName())) {
       
       DesiredConfig dc = new DesiredConfig();
-      dc.setTag(e.getVersion());
+      dc.setVersion(e.getVersion());
       dc.setServiceName(e.getServiceName());
       dc.setUser(e.getUser());
       map.put(e.getType(), dc);
@@ -1217,7 +1199,7 @@ public class HostImpl implements Host {
     for (Map.Entry<String, DesiredConfig> desiredConfigEntry :
         cluster.getDesiredConfigs().entrySet()) {
       HostConfig hostConfig = new HostConfig();
-      hostConfig.setDefaultVersionTag(desiredConfigEntry.getValue().getTag());
+      hostConfig.setDefaultVersionTag(desiredConfigEntry.getValue().getVersion());
       hostConfigMap.put(desiredConfigEntry.getKey(), hostConfig);
     }
 
@@ -1235,11 +1217,11 @@ public class HostImpl implements Host {
             hostConfig = new HostConfig();
             hostConfigMap.put(configType, hostConfig);
             hostConfig.setDefaultVersionTag(cluster.getDesiredConfigByType
-              (configType).getTag());
+              (configType).getVersionTag());
           }
           Config config = configEntry.getValue();
           hostConfig.getConfigGroupOverrides().put(configGroup.getId(),
-            config.getTag());
+            config.getVersionTag());
         }
       }
     }

@@ -63,7 +63,7 @@ public class ViewResourceProvider extends AbstractResourceProvider {
     propertyIds.add(VIEW_NAME_PROPERTY_ID);
   }
 
-
+  
   // ----- Constructors ------------------------------------------------------
 
   /**
@@ -73,12 +73,12 @@ public class ViewResourceProvider extends AbstractResourceProvider {
     super(propertyIds, keyPropertyIds);
   }
 
-
+  
   // ----- ResourceProvider --------------------------------------------------
 
   @Override
-  public RequestStatus createResources(Request request)
-      throws SystemException, UnsupportedPropertyException,
+  public RequestStatus createResources(Request request) 
+      throws SystemException, UnsupportedPropertyException, 
              ResourceAlreadyExistsException, NoSuchParentResourceException {
     throw new UnsupportedOperationException("Not yet supported.");
   }
@@ -102,13 +102,11 @@ public class ViewResourceProvider extends AbstractResourceProvider {
 
       for (ViewEntity viewDefinition : viewRegistry.getDefinitions()){
         if (viewName == null || viewName.equals(viewDefinition.getCommonName())) {
-          if (viewRegistry.includeDefinition(viewDefinition)) {
-            Resource resource = new ResourceImpl(Resource.Type.View);
+          Resource resource = new ResourceImpl(Resource.Type.View);
 
-            setResourceProperty(resource, VIEW_NAME_PROPERTY_ID, viewDefinition.getCommonName(), requestedIds);
+          setResourceProperty(resource, VIEW_NAME_PROPERTY_ID, viewDefinition.getCommonName(), requestedIds);
 
-            resources.add(resource);
-          }
+          resources.add(resource);
         }
       }
     }
@@ -132,7 +130,7 @@ public class ViewResourceProvider extends AbstractResourceProvider {
     return keyPropertyIds;
   }
 
-
+  
   // ----- AbstractResourceProvider ------------------------------------------
 
   @Override

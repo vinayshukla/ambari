@@ -52,24 +52,24 @@
               <div class="th url-th">{{t installer.step1.advancedRepo.localRepo.column.baseUrl}}</div>
             </div>
             <div class="tbody">
-              {{#each operatingSystem in view.operatingSystems}}
+              {{#each repoGroup in view.allRepositoriesGroups}}
                 <div class="trow">
                   <div class="os-td">
                     <label>
-                      {{view Ember.Checkbox checkedBinding="operatingSystem.isSelected"}}
-                      <span {{bindAttr class=":os operatingSystem.isSelected::disabled-label"}}>{{operatingSystem.osType}}</span>
+                      {{view Ember.Checkbox checkedBinding="repoGroup.checked"}}
+                      <span {{bindAttr class=":os repoGroup.checked::disabled-label"}}>{{repoGroup.name}}</span>
                     </label>
                   </div>
                   <div style="width:83%">
-                    {{#each repository in operatingSystem.repositories}}
+                    {{#each repository in repoGroup.repositories}}
                         <div class="sub-trow">
                           <div class="name-td">{{repository.repoId}}</div>
                           <div class="validation-td">
                             {{#if repository.validation}}
-                              {{view view.popoverView repositoryBinding="repository"}}
+                              {{view view.popoverView repoGroupBinding="repository"}}
                             {{/if}}
                           </div>
-                          <div {{bindAttr class=":url-td operatingSystem.isSelected::disabled-textfield repository.emptyError:textfield-error repository.invalidError:textfield-error"}}>
+                          <div {{bindAttr class=":url-td repoGroup.checked::disabled-textfield repository.empty-error:textfield-error repository.invalid-error:textfield-error"}}>
                             {{view Ember.TextField valueBinding="repository.baseUrl"}}
                           </div>
                           <div class="clear-td">
@@ -93,11 +93,12 @@
               {{/each}}
             </div>
           </div>
-          <div id="skip-validation">
-            <label>{{view Ember.Checkbox checkedBinding="skipValidationChecked" class="checkbox"}}{{t installer.step1.advancedRepo.skipValidation.message}}
-              <i class="icon-question-sign" rel="skip-validation-tooltip"
-                 data-toggle="tooltip" {{translateAttr title="installer.step1.advancedRepo.skipValidation.tooltip"}}></i></label>
-          </div>
+          <!--uncomment this to show repo validation checkbox-->
+          <!--<div id="skip-validation">-->
+            <!--<label>{{view Ember.Checkbox checkedBinding="view.skipValidationChecked" class="checkbox"}}{{t installer.step1.advancedRepo.skipValidation.message}}-->
+              <!--<i class="icon-question-sign" rel="skip-validation-tooltip"-->
+                 <!--data-toggle="tooltip" {{translateAttr title="installer.step1.advancedRepo.skipValidation.tooltip"}}></i></label>-->
+          <!--</div>-->
           {{#if view.emptyRepoExist}}
             <div class="alert">{{t installer.step1.attentionNeeded}}</div>
           {{/if}}

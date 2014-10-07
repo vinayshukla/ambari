@@ -43,16 +43,13 @@ describe('MainChartHeatmapMetric', function () {
     beforeEach(function() {
       App.set('apiPrefix', '/api/v1');
       App.set('clusterName', 'tdk');
-      sinon.stub(App, 'get', function(k) {
-        if ('testMode' === k) return false;
-        return Em.get(App, k);
-      });
+      App.testMode = false;
       sinon.spy($, 'ajax');
     });
 
     afterEach(function() {
       $.ajax.restore();
-      App.get.restore();
+      App.testMode = true;
     });
 
     mainChartHeatmapMetric  = App.MainChartHeatmapMetric.create({});

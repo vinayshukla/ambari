@@ -50,8 +50,7 @@ public class MaintenanceStateHelper {
   private static final String NAGIOS_COMPONENT = "NAGIOS_SERVER";
   private static final String NAGIOS_ACTION_NAME = "nagios_update_ignore";
   private static final Logger LOG = LoggerFactory.getLogger(MaintenanceStateHelper.class);
-  public static final String UPDATE_NAGIOS_REQUEST_NAME = "Adjusting ignored alerts for Services/Hosts Maintenance Mode";
-
+  
   @Inject
   private Clusters clusters;
   
@@ -251,40 +250,40 @@ public class MaintenanceStateHelper {
   }
   
   /**
-   * Creates the Nagios update request to send to the cluster. This request
-   * updates ignored allerts Nagios configuration.
+   * Creates the requests to send to the clusters. These requests
+   * update ignored allerts Nagios configuration.
    * @param amc the controller
    * @param requestProperties the request properties
-   * @param clusterName the names of clusters to update
+   * @param clusterNames the names of all the clusters to update
    * @return the response
    * @throws AmbariException
    */
   public RequestStatusResponse createRequests(AmbariManagementController amc,
-      Map<String, String> requestProperties, String clusterName)
+      Map<String, String> requestProperties, Set<String> clusterNames)
           throws AmbariException {
     
-    // Substitute another request name
     Map<String, String> params = new HashMap<String, String>();
-    Map<String, String> requestPropertiesClone = new HashMap<String, String>(requestProperties.size());
-    requestPropertiesClone.putAll(requestProperties);
-    requestPropertiesClone.put("context", UPDATE_NAGIOS_REQUEST_NAME);
+    
+    // return the first one, just like amc.createStages()
+    RequestStatusResponse response = null;
 
     RequestResourceFilter resourceFilter =
       new RequestResourceFilter(NAGIOS_SERVICE, NAGIOS_COMPONENT, null);
 
-    RequestOperationLevel level =
-            new RequestOperationLevel(Resource.Type.HostComponent,
-            clusterName, NAGIOS_SERVICE, NAGIOS_COMPONENT, null);
-
-    ExecuteActionRequest actionRequest = new ExecuteActionRequest(
-      clusterName, null, NAGIOS_ACTION_NAME,
-      Collections.singletonList(resourceFilter),
-      level, params, true);
-
-    // createAction() may throw an exception if Nagios is in MS or
-    // if Nagios is absent in cluster. This exception is usually ignored at
-    // upper levels
-    return amc.createAction(actionRequest, requestPropertiesClone);
+    for (String clusterName : clusterNames) {
+      ExecuteActionRequest actionRequest = new ExecuteActionRequest(
+        clusterName, null, NAGIOS_ACTION_NAME,
+        Collections.singletonList(resourceFilter),
+        null, params);
+      
+      if (null == response) {
+        // createAction() may throw an exception if Nagios is in MS or
+        // if Nagios is absent in cluster. This exception is usually ignored at
+        // upper levels
+        response = amc.createAction(actionRequest, requestProperties);
+      }
+    }    
+    return response;
   }
 
   /**

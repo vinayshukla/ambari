@@ -31,7 +31,6 @@ class TestSqoopServiceCheck(RMFTestCase):
     self.assertResourceCalled('Execute', '/usr/bin/kinit  -kt /etc/security/keytabs/smokeuser.headless.keytab ambari-qa',)
     self.assertResourceCalled('Execute', 'sqoop version',
                               logoutput = True,
-                              path = ['/usr/bin'],
                               user = 'ambari-qa',)
     self.assertNoMoreResources()
 
@@ -43,7 +42,6 @@ class TestSqoopServiceCheck(RMFTestCase):
     )
     self.assertResourceCalled('Execute', 'sqoop version',
                               logoutput = True,
-                              path = ['/usr/bin'],
                               user = 'ambari-qa',)
     self.assertNoMoreResources()
 

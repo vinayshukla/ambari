@@ -28,14 +28,13 @@ class TestPigServiceCheck(RMFTestCase):
                        command = "service_check",
                        config_file="default.json"
     )
-    self.assertResourceCalled('ExecuteHadoop', 'dfs -rmr pigsmoke.out passwd; hadoop --config /etc/hadoop/conf dfs -put /etc/passwd passwd ',
+    self.assertResourceCalled('ExecuteHadoop', 'dfs -rmr pigsmoke.out passwd; hadoop dfs -put /etc/passwd passwd ',
       try_sleep = 5,
       tries = 3,
       user = 'ambari-qa',
       conf_dir = '/etc/hadoop/conf',
       security_enabled = False,
       keytab = UnknownConfigurationMock(),
-      bin_dir = '/usr/bin',
       kinit_path_local = '/usr/bin/kinit'
     )
        
@@ -45,7 +44,7 @@ class TestPigServiceCheck(RMFTestCase):
     )
        
     self.assertResourceCalled('Execute', 'pig /tmp/pigSmoke.sh',
-      path = [':/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
+      path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
       tries = 3,
       user = 'ambari-qa',
       try_sleep = 5,
@@ -53,7 +52,6 @@ class TestPigServiceCheck(RMFTestCase):
        
     self.assertResourceCalled('ExecuteHadoop', 'fs -test -e pigsmoke.out',
       user = 'ambari-qa',
-      bin_dir = '/usr/bin',
       conf_dir = '/etc/hadoop/conf',
     )
     self.assertNoMoreResources()
@@ -65,14 +63,13 @@ class TestPigServiceCheck(RMFTestCase):
                        config_file="secured.json"
     )
     
-    self.assertResourceCalled('ExecuteHadoop', 'dfs -rmr pigsmoke.out passwd; hadoop --config /etc/hadoop/conf dfs -put /etc/passwd passwd ',
+    self.assertResourceCalled('ExecuteHadoop', 'dfs -rmr pigsmoke.out passwd; hadoop dfs -put /etc/passwd passwd ',
       try_sleep = 5,
       tries = 3,
       user = 'ambari-qa',
       conf_dir = '/etc/hadoop/conf',
       security_enabled = True, 
       keytab = '/etc/security/keytabs/smokeuser.headless.keytab',
-      bin_dir = '/usr/bin',
       kinit_path_local = '/usr/bin/kinit'
     )
        
@@ -82,7 +79,7 @@ class TestPigServiceCheck(RMFTestCase):
     )
        
     self.assertResourceCalled('Execute', 'pig /tmp/pigSmoke.sh',
-      path = [':/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
+      path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
       tries = 3,
       user = 'ambari-qa',
       try_sleep = 5,
@@ -90,7 +87,6 @@ class TestPigServiceCheck(RMFTestCase):
        
     self.assertResourceCalled('ExecuteHadoop', 'fs -test -e pigsmoke.out',
       user = 'ambari-qa',
-      bin_dir = '/usr/bin',
       conf_dir = '/etc/hadoop/conf',
     )
     self.assertNoMoreResources()

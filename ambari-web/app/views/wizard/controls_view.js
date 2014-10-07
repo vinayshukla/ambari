@@ -32,10 +32,6 @@ App.ServiceConfigPopoverSupport = Ember.Mixin.create({
   isPopoverEnabled: true,
 
   didInsertElement: function () {
-    $('body').tooltip({
-      selector: '[data-toggle=tooltip]',
-      placement: 'top'
-    });
     // if description for this serviceConfig not exist, then no need to show popover
     if (this.get('isPopoverEnabled') !== 'false' && this.get('serviceConfig.description')) {
       App.popover(this.$(), {
@@ -60,25 +56,10 @@ App.ServiceConfigPopoverSupport = Ember.Mixin.create({
 });
 
 /**
- * if config value contains &amp;|&lt;|&gt;|&quot;|&apos;
- * input field converts it to &|<|>|"|'
- * this mixin helps to aviod such convertation and show values as is.
- */
-App.SkipXmlEscapingSupport = Ember.Mixin.create({
-  didInsertElement: function() {
-    this._super();
-    if (this.get('serviceConfig.value').match(/(&amp;|&lt;|&gt;|&quot;|&apos;)/g)) {
-      this.set('value', this.get('serviceConfig.value').replace('&','&amp;'));
-      this.set('value', this.get('value').replace('&amp;','&'));
-    }
-  }
-});
-
-/**
  * Default input control
  * @type {*}
  */
-App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
+App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupport, {
 
   valueBinding: 'serviceConfig.value',
   classNameBindings: 'textFieldClassName',
@@ -95,7 +76,7 @@ App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupp
   },
   //Set editDone false for all current category config text field parameter
   focusIn: function (event) {
-    if (!this.get('serviceConfig.isOverridden') && !this.get('serviceConfig.isComparison')) {
+    if (!this.get('serviceConfig.isOverridden')) {
       this.get("parentView.categoryConfigsAll").setEach("editDone", false);
     }
   },
@@ -171,7 +152,7 @@ App.ServiceConfigPasswordField = Ember.TextField.extend({
  * Textarea control
  * @type {*}
  */
-App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
+App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, {
 
   valueBinding: 'serviceConfig.value',
   rows: 4,
@@ -182,7 +163,7 @@ App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSuppor
  * Textarea control for content type
  * @type {*}
  */
-App.ServiceConfigTextAreaContent = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
+App.ServiceConfigTextAreaContent = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, {
 
   valueBinding: 'serviceConfig.value',
   rows: 20,
@@ -250,7 +231,24 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
               connectionUrl.set('value', "jdbc:oracle:thin:@//" + this.get('hostName') + ":1521/" + this.get('databaseName'));
               dbClass.set('value', "oracle.jdbc.driver.OracleDriver");
               break;
+            case 'Existing MSSQL Server database with integrated authentication':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName') + ";integratedSecurity=true");
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
+            case 'Existing MSSQL Server database with sql auth':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName'));
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
           }
+          var isNotExistingMySQLServer = this.get('serviceConfig.value') !== 'Existing MSSQL Server database with integrated authentication';
+          this.get('categoryConfigsAll').findProperty('name', 'javax.jdo.option.ConnectionUserName').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
+          this.get('categoryConfigsAll').findProperty('name', 'javax.jdo.option.ConnectionPassword').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
         } else if (this.get('serviceConfig.serviceName') === 'OOZIE') {
           switch (this.get('serviceConfig.value')) {
             case 'New Derby Database':
@@ -269,7 +267,44 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
               connectionUrl.set('value', "jdbc:oracle:thin:@//" + this.get('hostName') + ":1521/" + this.get('databaseName'));
               dbClass.set('value', "oracle.jdbc.driver.OracleDriver");
               break;
+            case 'Existing MSSQL Server database with integrated authentication':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName') + ";integratedSecurity=true");
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
+            case 'Existing MSSQL Server database with sql auth':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName'));
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
           }
+          isNotExistingMySQLServer = this.get('serviceConfig.value') !== 'Existing MSSQL Server database with integrated authentication';
+          this.get('categoryConfigsAll').findProperty('name', 'oozie.service.JPAService.jdbc.username').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
+          this.get('categoryConfigsAll').findProperty('name', 'oozie.service.JPAService.jdbc.password').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
+        } else if (this.get('serviceConfig.serviceName') === 'HDFS') {
+          switch (this.get('serviceConfig.value')) {
+            case 'Existing MSSQL Server database with integrated authentication':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName') + ";integratedSecurity=true");
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
+            case 'Existing MSSQL Server database with sql auth':
+              connectionUrl.set('value', "jdbc:sqlserver://" + this.get('hostName') + ";databaseName=" + this.get('databaseName'));
+              dbClass.set('value', "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+              break;
+          }
+          var isNotExistingMySQLServer = this.get('serviceConfig.value') !== 'Existing MSSQL Server database with integrated authentication';
+          this.get('categoryConfigsAll').findProperty('name', 'sink.dblogin').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
+          this.get('categoryConfigsAll').findProperty('name', 'sink.dbpassword').setProperties({
+            isVisible: isNotExistingMySQLServer,
+            isRequired: isNotExistingMySQLServer
+          });
         }
         connectionUrl.set('defaultValue', connectionUrl.get('value'));
       }
@@ -282,6 +317,8 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
     switch (this.get('serviceConfig.serviceName')) {
       case 'HIVE':
         return this.get('categoryConfigsAll').findProperty('name', 'ambari.hive.db.schema.name').get('value');
+      case 'HDFS':
+        return this.get('categoryConfigsAll').findProperty('name', 'sink.db.schema.name').get('value');
       case 'OOZIE':
         return this.get('categoryConfigsAll').findProperty('name', 'oozie.db.schema.name').get('value');
       default:
@@ -308,13 +345,32 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
         case 'Existing Oracle Database':
           hostname = this.get('categoryConfigsAll').findProperty('name', 'hive_existing_oracle_host');
           break;
+        case 'Existing MSSQL Server database with integrated authentication':
+          hostname = this.get('categoryConfigsAll').findProperty('name', 'hive_existing_mssql_server_host');
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+          hostname = this.get('categoryConfigsAll').findProperty('name', 'hive_existing_mssql_server_2_host');
+          break;
       }
       if (hostname) {
         returnValue = hostname.get('value');
       } else {
         returnValue = this.get('categoryConfigsAll').findProperty('name', 'hive_hostname').get('value');
       }
-
+    } else if (this.get('serviceConfig.serviceName') === 'HDFS') {
+      switch (value) {
+        case 'Existing MSSQL Server database with integrated authentication':
+          hostname = this.get('categoryConfigsAll').findProperty('name', 'sink_existing_mssql_server_host');
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+           hostname = this.get('categoryConfigsAll').findProperty('name', 'sink_existing_mssql_server_2_host');
+           break;
+      }
+      if (hostname) {
+        returnValue = hostname.get('value');
+      } else {
+        returnValue = this.get('categoryConfigsAll').findProperty('name', 'sink.dbservername').get('value');
+      }
     } else if (this.get('serviceConfig.serviceName') === 'OOZIE') {
       switch (value) {
         case 'New Derby Database':
@@ -329,6 +385,12 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
         case 'Existing Oracle Database':
           hostname = this.get('categoryConfigsAll').findProperty('name', 'oozie_existing_oracle_host');
           break;
+        case 'Existing MSSQL Server database with integrated authentication':
+          hostname = this.get('categoryConfigsAll').findProperty('name', 'oozie_existing_mssql_server_host');
+          break;
+        case 'Existing MSSQL Server database with sql auth':
+          hostname = this.get('categoryConfigsAll').findProperty('name', 'oozie_existing_mssql_server_2_host');
+          break;
       }
       if (hostname) {
         returnValue = hostname.get('value');
@@ -342,6 +404,8 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
   connectionUrl: function () {
     if (this.get('serviceConfig.serviceName') === 'HIVE') {
       return this.get('categoryConfigsAll').findProperty('name', 'javax.jdo.option.ConnectionURL');
+    } else if (this.get('serviceConfig.serviceName') === 'HDFS') {
+      return this.get('categoryConfigsAll').findProperty('name', 'sink.jdbc.url');
     } else {
       return this.get('categoryConfigsAll').findProperty('name', 'oozie.service.JPAService.jdbc.url');
     }
@@ -350,6 +414,8 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
   dbClass: function () {
     if (this.get('serviceConfig.serviceName') === 'HIVE') {
       return this.get('categoryConfigsAll').findProperty('name', 'javax.jdo.option.ConnectionDriverName');
+    } else if (this.get('serviceConfig.serviceName') === 'HDFS') {
+      return this.get('categoryConfigsAll').findProperty('name', 'sink.jdbc.driver');
     } else {
       return this.get('categoryConfigsAll').findProperty('name', 'oozie.service.JPAService.jdbc.driver');
     }
@@ -365,11 +431,11 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
    **/
   handleDBConnectionProperty: function() {
     if (!['addServiceController', 'installerController'].contains(App.clusterStatus.wizardControllerName)) return;
-    var handledProperties = ['oozie_database', 'hive_database'];
+    var handledProperties = ['oozie_database', 'hive_database', 'sink_database'];
     var currentValue = this.get('serviceConfig.value');
-    var databases = /MySQL|PostgreSQL|Oracle|Derby/gi;
+    var databases = /MySQL|PostgreSQL|Oracle|Derby|MSSQL/gi;
     var currentDB = currentValue.match(databases)[0];
-    var databasesTypes = /MySQL|PostgreS|Oracle|Derby/gi;
+    var databasesTypes = /MySQL|PostgreS|Oracle|Derby|MSSQL/gi;
     var currentDBType = currentValue.match(databasesTypes)[0];
     var existingDatabase = /existing/gi.test(currentValue);
     // db connection check button show up if existed db selected
@@ -386,6 +452,7 @@ App.ServiceConfigRadioButtons = Ember.View.extend({
     // warning msg under database type radio buttons, to warn the user to setup jdbc driver if existed db selected
     var propertyHive = this.get('categoryConfigsAll').findProperty('displayName', 'Hive Database');
     var propertyOozie = this.get('categoryConfigsAll').findProperty('displayName', 'Oozie Database');
+    var propertyMetricsSink = this.get('categoryConfigsAll').findProperty('displayName', 'Metrics Sink Database');
     var propertyAppendTo2 = propertyHive ? propertyHive : propertyOozie;
     if (currentDB && existingDatabase) {
       if (handledProperties.contains(this.get('serviceConfig.name'))) {
@@ -494,18 +561,6 @@ App.ServiceConfigMasterHostView = Ember.View.extend(App.ServiceConfigHostPopover
 
   template: Ember.Handlebars.compile('{{value}}')
 
-});
-
-/**
- * Show value as plain label in italics
- * @type {*}
- */
-App.ServiceConfigLabelView = Ember.View.extend(App.ServiceConfigHostPopoverSupport, {
-
-  classNames: ['master-host', 'span6'],
-  valueBinding: 'serviceConfig.value',
-
-  template: Ember.Handlebars.compile('<i>{{view.value}}</i>')
 });
 
 /**
@@ -769,6 +824,8 @@ App.CheckDBConnectionView = Ember.View.extend({
   hostNameProperty: function() {
     if (!/wizard/i.test(this.get('controller.name')) && this.get('parentView.service.serviceName') === 'HIVE') {
       return this.get('parentView.service.serviceName').toLowerCase() + '_hostname';
+    } else if (!/wizard/i.test(this.get('controller.name')) && this.get('parentView.service.serviceName') === 'HDFS') {
+      return  'sink.dbservername';
     }
     return '{0}_existing_{1}_host'.format(this.get('parentView.service.serviceName').toLowerCase(), this.get('databaseName').toLowerCase());
   }.property('databaseName'),
@@ -779,6 +836,7 @@ App.CheckDBConnectionView = Ember.View.extend({
   /** @property {object} requiredProperties - properties that necessary for database connection **/
   requiredProperties: function() {
     var propertiesMap = {
+      HDFS: ['sink.db.schema.name','sink.dblogin','sink.dbpassword','sink.jdbc.driver','sink.jdbc.url'],
       OOZIE: ['oozie.db.schema.name','oozie.service.JPAService.jdbc.username','oozie.service.JPAService.jdbc.password','oozie.service.JPAService.jdbc.driver','oozie.service.JPAService.jdbc.url'],
       HIVE: ['ambari.hive.db.schema.name','javax.jdo.option.ConnectionUserName','javax.jdo.option.ConnectionPassword','javax.jdo.option.ConnectionDriverName','javax.jdo.option.ConnectionURL']
     };
@@ -787,8 +845,8 @@ App.CheckDBConnectionView = Ember.View.extend({
   /** @property {Object} propertiesPattern - check pattern according to type of connection properties **/
   propertiesPattern: function() {
     return {
-      user_name: /username$/ig,
-      user_passwd: /password$/ig,
+      user_name: /(username|dblogin)$/ig,
+      user_passwd: /(dbpassword|password)$/ig,
       db_connection_url: /jdbc\.url|connectionurl/ig
     }
   }.property(),
@@ -796,6 +854,7 @@ App.CheckDBConnectionView = Ember.View.extend({
   masterHostName: function() {
     var serviceMasterMap = {
       'OOZIE': 'oozieserver_host',
+      'HDFS': 'hadoop_host',
       'HIVE': 'hivemetastore_host'
     };
     return this.get('parentView.categoryConfigsAll').findProperty('name', serviceMasterMap[this.get('parentView.service.serviceName')]).get('value');
@@ -902,7 +961,6 @@ App.CheckDBConnectionView = Ember.View.extend({
    * @method connectToDatabase
    **/
   connectToDatabase: function() {
-    if (this.get('isBtnDisabled')) return false;
     var self = this;
     self.set('isRequestResolved', false);
     App.db.set('tmp', this.get('parentView.service.serviceName') + '_connection', {});

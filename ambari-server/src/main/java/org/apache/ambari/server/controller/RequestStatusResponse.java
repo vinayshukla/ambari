@@ -31,11 +31,6 @@ public class RequestStatusResponse {
   private String logs;
 
   /**
-   * Request message
-   */
-  private String message;
-
-  /**
    * Request context
    */
   private String requestContext;
@@ -83,11 +78,4 @@ public class RequestStatusResponse {
     this.requestContext = requestContext;
   }
 
-  public String getMessage() {
-    return message;
-  }
-
-  public void setMessage(String message) {
-    this.message = message;
-  }
 }

@@ -127,7 +127,6 @@ def mapreduce(name=None):
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations'][
                 'capacity-scheduler'],
-              configuration_attributes=params.config['configuration_attributes']['capacity-scheduler'],
               owner=params.hdfs_user,
               group=params.user_group
     )
@@ -137,7 +136,6 @@ def mapreduce(name=None):
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations'][
                 'mapred-queue-acls'],
-              configuration_attributes=params.config['configuration_attributes']['mapred-queue-acls'],
               owner=params.mapred_user,
               group=params.user_group
     )
@@ -152,7 +150,6 @@ def mapreduce(name=None):
     XmlConfig("mapred-site.xml",
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations']['mapred-site'],
-              configuration_attributes=params.config['configuration_attributes']['mapred-site'],
               owner=params.mapred_user,
               group=params.user_group
     )

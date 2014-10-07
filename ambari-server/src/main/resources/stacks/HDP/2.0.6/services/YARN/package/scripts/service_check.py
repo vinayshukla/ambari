@@ -27,7 +27,7 @@ class ServiceCheck(Script):
     import params
     env.set_params(params)
 
-    run_yarn_check_cmd = format("yarn --config {hadoop_conf_dir} node -list")
+    run_yarn_check_cmd = "/usr/bin/yarn node -list"
 
     component_type = 'rm'
     if params.hadoop_ssl_enabled:
@@ -36,7 +36,7 @@ class ServiceCheck(Script):
       component_address = params.rm_webui_address
 
     validateStatusFileName = "validateYarnComponentStatus.py"
-    validateStatusFilePath = format("{tmp_dir}/{validateStatusFileName}")
+    validateStatusFilePath = format("/tmp/{validateStatusFileName}")
     python_executable = sys.executable
     validateStatusCmd = format("{python_executable} {validateStatusFilePath} {component_type} -p {component_address} -s {hadoop_ssl_enabled}")
 
@@ -60,7 +60,6 @@ class ServiceCheck(Script):
     )
 
     Execute(run_yarn_check_cmd,
-            path=params.execute_path,
             user=params.smokeuser
     )
 

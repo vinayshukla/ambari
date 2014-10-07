@@ -49,22 +49,19 @@ class TestHBaseClient(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
+      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hdfs',
       group = 'hadoop',
       conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',
@@ -121,22 +118,19 @@ class TestHBaseClient(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
+      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hdfs',
       group = 'hadoop',
       conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'],
-      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
+      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',

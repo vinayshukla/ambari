@@ -29,6 +29,12 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
   newApp: null,
 
   /**
+   * Name for new App
+   * @type {String}
+   */
+  newAppName: '',
+
+  /**
    * List of available types for App
    * @type {Array}
    */
@@ -53,11 +59,6 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
   nameErrorMessage: '',
 
   /**
-   * Define if there are existing App types
-   * @type {Boolean}
-   */
-  isAppTypesError: Em.computed.equal('availableTypes.content.length', 0),
-  /**
    * Define description depending on selected App type
    * @type {string}
    */
@@ -68,36 +69,32 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
 
   /**
    * Define if submit button is disabled
-   * <code>newApp.name</code> should pass validation and be not empty
+   * <code>newAppName</code> should pass validation and be not empty
    * @type {bool}
    */
   isSubmitDisabled: function () {
-    return !this.get('newApp.name') || this.get('isNameError') || this.get('isAppTypesError');
-  }.property('newApp.name', 'isNameError', 'isAppTypesError'),
+    return !this.get('newAppName') || this.get('isNameError');
+  }.property('newAppName', 'isNameError'),
+
+  /**
+   * Load all required data for step
+   * @method loadStep
+   */
+  loadStep: function () {
+    this.initializeNewApp();
+    this.loadAvailableTypes();
+  },
 
   /**
    * Initialize new App and set it to <code>newApp</code>
    * @method initializeNewApp
    */
   initializeNewApp: function () {
-    var app = this.get('appWizardController.newApp'),
-      properties = Em.A(['name', 'includeFilePatterns', 'excludeFilePatterns', 'frequency', 'queueName', 'specialLabel', 'selectedYarnLabel']),
-      newApp = Ember.Object.create({
-        appType: null,
-        configs: {}
-      });
-
-    properties.forEach(function(p) {
-      newApp.set(p, '');
+    var newApp = Ember.Object.create({
+      name: '',
+      appType: null,
+      configs: {}
     });
-    newApp.set('selectedYarnLabel', 0);
-
-    if (app) {
-      properties.forEach(function(p) {
-        newApp.set(p, app.get(p));
-      });
-    }
-
     this.set('newApp', newApp);
   },
 
@@ -116,7 +113,7 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
    * @return {Boolean}
    */
   nameValidator: function () {
-    var newAppName = this.get('newApp.name');
+    var newAppName = this.get('newAppName');
     if (newAppName) {
       // new App name should consist only of letters, numbers, '-', '_' and first character should be a letter
       if (!/^[A-Za-z][A-Za-z0-9_\-]*$/.test(newAppName)) {
@@ -133,7 +130,7 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
     }
     this.set('isNameError', false);
     return true;
-  }.observes('newApp.name'),
+  }.observes('newAppName'),
 
   /**
    * Save new application data to wizard controller
@@ -142,8 +139,8 @@ App.CreateAppWizardStep1Controller = Ember.Controller.extend({
   saveApp: function () {
     var newApp = this.get('newApp');
     newApp.set('appType', this.get('selectedType'));
+    newApp.set('name', this.get('newAppName'));
     newApp.set('configs', this.get('selectedType.configs'));
-    newApp.set('predefinedConfigNames', Em.keys(this.get('selectedType.configs')));
     this.set('appWizardController.newApp', newApp);
   },
 

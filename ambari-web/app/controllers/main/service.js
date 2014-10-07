@@ -19,23 +19,14 @@
 var App = require('app');
 
 App.MainServiceController = Em.ArrayController.extend({
-
-  name: 'mainServiceController',
-
-  /**
-   * @type {Ember.Object[]}
-   */
-  content: function () {
-    if (!App.router.get('clusterController.isLoaded')) {
+  name:'mainServiceController',
+  content: function(){
+    if(!App.router.get('clusterController.isLoaded')){
       return [];
     }
     return App.Service.find();
   }.property('App.router.clusterController.isLoaded').volatile(),
 
-  /**
-   * Current cluster
-   * @type {Ember.Object}
-   */
   cluster: function () {
     if (!App.router.get('clusterController.isLoaded')) {
       return null;
@@ -43,99 +34,66 @@ App.MainServiceController = Em.ArrayController.extend({
     return App.Cluster.find().objectAt(0);
   }.property('App.router.clusterController.isLoaded'),
 
-  /**
-   * Check if all services are installed
-   * true - all installed, false - not all
-   * @type {bool}
-   */
-  isAllServicesInstalled: function () {
+  isAllServicesInstalled: function() {
     if (!this.get('content.content')) return false;
+
     var availableServices = App.StackService.find().mapProperty('serviceName');
-    if (!App.get('supports.hue')) {
+    if (!App.supports.hue) {
       availableServices = availableServices.without('HUE');
     }
     return this.get('content.content').length == availableServices.length;
   }.property('content.content.@each', 'content.content.length'),
 
-  /**
-   * Should "Start All"-button be disabled
-   * @type {bool}
-   */
-  isStartAllDisabled: function () {
-    if (this.get('isStartStopAllClicked') == true) {
+  isStartAllDisabled: function(){
+    if(this.get('isStartStopAllClicked') == true) {
       return true;
     }
-    var stoppedServices = this.get('content').filter(function (_service) {
+    var stoppedServices =  this.get('content').filter(function(_service){
       return (_service.get('healthStatus') === 'red' && !App.get('services.clientOnly').contains(_service.get('serviceName')));
     });
     return (stoppedServices.length === 0); // all green status
   }.property('isStartStopAllClicked', 'content.@each.healthStatus'),
-
-  /**
-   * Should "Stop All"-button be disabled
-   * @type {bool}
-   */
-  isStopAllDisabled: function () {
-    if (this.get('isStartStopAllClicked') == true) {
+  isStopAllDisabled: function(){
+    if(this.get('isStartStopAllClicked') == true) {
       return true;
     }
-    var startedServiceLength = this.get('content').filterProperty('healthStatus', 'green').length;
+    var startedServiceLength = this.get('content').filterProperty('healthStatus','green').length;
     return (startedServiceLength === 0);
   }.property('isStartStopAllClicked', 'content.@each.healthStatus'),
-
-  /**
-   * @type {bool}
-   */
-  isStartStopAllClicked: function () {
+  isStartStopAllClicked: function(){
     return (App.router.get('backgroundOperationsController').get('allOperationsCount') !== 0);
   }.property('App.router.backgroundOperationsController.allOperationsCount'),
 
   /**
-   * Callback for <code>start all service</code> button
-   * @return {App.ModalPopup|null}
-   * @method startAllService
+   * callback for <code>start all service</code> button
    */
-  startAllService: function (event) {
-    return this.startStopAllService(event, 'STARTED');
-  },
-
-  /**
-   * Callback for <code>stop all service</code> button
-   * @return {App.ModalPopup|null}
-   * @method stopAllService
-   */
-  stopAllService: function (event) {
-    return this.startStopAllService(event, 'INSTALLED');
-  },
-
-  /**
-   * Common method for "start-all", "stop-all" calls
-   * @param {object} event
-   * @param {string} state 'STARTED|INSTALLED'
-   * @returns {App.ModalPopup|null}
-   * @method startStopAllService
-   */
-  startStopAllService: function(event, state) {
+  startAllService: function(event){
     if ($(event.target).hasClass('disabled') || $(event.target.parentElement).hasClass('disabled')) {
-      return null;
+      return;
     }
     var self = this;
-    return App.showConfirmationFeedBackPopup(function (query) {
-      self.allServicesCall(state, query);
+    App.showConfirmationFeedBackPopup(function(query) {
+      self.allServicesCall('STARTED', query);
     });
   },
 
   /**
-   * Do request to server for "start|stop" all services
-   * @param {string} state "STARTED|INSTALLED"
-   * @param {object} query
-   * @method allServicesCall
-   * @return {$.ajax}
+   * callback for <code>stop all service</code> button
    */
-  allServicesCall: function (state, query) {
+  stopAllService: function(event){
+    if ($(event.target).hasClass('disabled') || $(event.target.parentElement).hasClass('disabled')) {
+      return;
+    }
+    var self = this;
+    App.showConfirmationFeedBackPopup(function(query) {
+      self.allServicesCall('INSTALLED', query);
+    });
+  },
+
+  allServicesCall: function(state, query) {
     var context = (state == 'INSTALLED') ? App.BackgroundOperationsController.CommandContexts.STOP_ALL_SERVICES :
-      App.BackgroundOperationsController.CommandContexts.START_ALL_SERVICES;
-    return App.ajax.send({
+       App.BackgroundOperationsController.CommandContexts.START_ALL_SERVICES
+    App.ajax.send({
       name: 'common.services.update',
       sender: this,
       data: {
@@ -150,15 +108,12 @@ App.MainServiceController = Em.ArrayController.extend({
     });
   },
 
-  /**
-   * Success-callback for all-services request
-   * @param {object} data
-   * @param {object} xhr
-   * @param {object} params
-   * @method allServicesCallSuccessCallback
-   */
-  allServicesCallSuccessCallback: function (data, xhr, params) {
+  allServicesCallSuccessCallback: function(data, xhr, params) {
+    console.log("TRACE: Start/Stop all service -> In success function for the start/stop all Service call");
+    console.log("TRACE: Start/Stop all service -> value of the received data is: " + data);
+    var requestId = data.Requests.id;
     params.query.set('status', 'SUCCESS');
+    console.log('requestId is: ' + requestId);
 
     // load data (if we need to show this background operations popup) from persist
     App.router.get('applicationController').dataLoading().done(function (initValue) {
@@ -167,25 +122,12 @@ App.MainServiceController = Em.ArrayController.extend({
       }
     });
   },
-
-  /**
-   * Error-callback for all-services request
-   * @param {object} request
-   * @param {object} ajaxOptions
-   * @param {string} error
-   * @param {object} opt
-   * @param {object} params
-   * @method allServicesCallErrorCallback
-   */
-  allServicesCallErrorCallback: function (request, ajaxOptions, error, opt, params) {
+  allServicesCallErrorCallback: function(request, ajaxOptions, error, opt, params) {
+    console.log("ERROR");
     params.query.set('status', 'FAIL');
   },
 
-  /**
-   * "Add-service"-click handler
-   * @method gotoAddService
-   */
-  gotoAddService: function () {
+  gotoAddService: function() {
     if (this.get('isAllServicesInstalled')) {
       return;
     }

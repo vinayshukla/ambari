@@ -21,14 +21,12 @@
   <services>
     <service>
       <name>STORM</name>
-      <displayName>Storm</displayName>
       <comment>Apache Hadoop Stream processing framework</comment>
       <version>0.9.1.2.1</version>
       <components>
 
         <component>
           <name>NIMBUS</name>
-          <displayName>Nimbus</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <dependencies>
@@ -49,7 +47,6 @@
 
         <component>
           <name>STORM_REST_API</name>
-          <displayName>Storm REST API Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -61,7 +58,6 @@
 
         <component>
           <name>SUPERVISOR</name>
-          <displayName>Supervisor</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -73,7 +69,6 @@
 
         <component>
           <name>STORM_UI_SERVER</name>
-          <displayName>Storm UI Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -85,7 +80,6 @@
 
         <component>
           <name>DRPC_SERVER</name>
-          <displayName>DRPC Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -112,10 +106,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>ZOOKEEPER</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>storm-site</config-type>

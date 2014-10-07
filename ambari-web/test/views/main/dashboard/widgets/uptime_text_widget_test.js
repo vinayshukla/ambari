@@ -17,6 +17,7 @@
  */
 
 var App = require('app');
+
 require('views/main/dashboard/widget');
 require('views/main/dashboard/widgets/text_widget');
 require('views/main/dashboard/widgets/uptime_text_widget');
@@ -24,20 +25,19 @@ require('views/main/dashboard/widgets/uptime_text_widget');
 describe('App.UptimeTextDashboardWidgetView', function() {
 
   describe('#timeConverter', function() {
-    var ts1 = 1358245370553, ts2 = 0;
     var timestamps = [
       {
-        t: ts1,
+        t: 1358245370553,
         e: {
           l: 2,
-          f: new Date(ts1)
+          f: 'Tue Jan 15 2013'
         }
       },
       {
-        t: ts2,
+        t: 0,
         e: {
           l: 2,
-          f: new Date(ts2)
+          f: 'Thu Jan 01 1970'
         }
       }
     ];
@@ -46,7 +46,7 @@ describe('App.UptimeTextDashboardWidgetView', function() {
       it('timestamp ' + timestamp.t, function() {
         var result = uptimeTextDashboardWidgetView.timeConverter(timestamp.t);
         expect(result.length).to.equal(timestamp.e.l);
-        assert.include(timestamp.e.f.toString(), result[0].toString(), timestamp.e.f + ' contains string ' + result[0]);
+        expect(result[0]).to.equal(timestamp.e.f);
       });
     });
   });

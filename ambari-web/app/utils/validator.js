@@ -41,15 +41,17 @@ module.exports = {
     return floatRegex.test(value);
   },
   /**
-   * validate directory with slash at the start
+   * validate directory with slash or drive at the start
    * @param value
    * @return {Boolean}
    */
   isValidDir: function(value){
     var floatRegex = /^\/[0-9a-z]*/;
+    var winRegex = /^[a-z]:\\[0-9a-z]*/;
+    var winUrlRegex = /^file:\/\/\/[a-z]:\/[0-9a-z]*/;
     var dirs = value.replace(/,/g,' ').trim().split(new RegExp("\\s+", "g"));
     for(var i = 0; i < dirs.length; i++){
-      if(!floatRegex.test(dirs[i])){
+      if(!floatRegex.test(dirs[i]) && !winRegex.test(dirs[i]) && !winUrlRegex.test(dirs[i])){
         return false;
       }
     }
@@ -167,16 +169,5 @@ module.exports = {
     }
     if (/^[\?\|\*\!,]/.test(value)) return false;
     return /^((\.\*?)?([\w\[\]\?\-_,\|\*\!\{\}]*)?)+(\.\*?)?$/g.test(value) && (checkPair(['[',']'])) && (checkPair(['{','}']));
-  },
-
-  /**
-  * Remove validation messages for components which are already installed
-  */
-  filterNotInstalledComponents: function(validationData) {
-    var hostComponents = App.HostComponent.find();
-    return validationData.resources[0].items.filter(function(item) {
-      // true is there is no host with this component
-      return hostComponents.filterProperty("componentName", item["component-name"]).filterProperty("hostName", item.host).length === 0;
-    });
   }
 };

@@ -16,14 +16,7 @@
  * limitations under the License.
  */
 
-var App = window.App = Ember.Application.createWithMixins(Bootstrap, {
-  LOG_TRANSITIONS: false,
-  LOG_TRANSITIONS_INTERNAL: false
-});
-
-require('scripts/router');
-require('scripts/routes/*');
-require('scripts/store');
+var App = window.App = Ember.Application.create();
 
 App.Helpers = Ember.Namespace.create();
 
@@ -34,43 +27,25 @@ App.initializer({
   initialize: function(container, application) {
 
     application.reopen({
-
       /**
        * Test mode is automatically enabled if running on localhost
        * @type {bool}
        */
-      testMode: (location.hostname == 'localhost'),
-
-      /**
-       * Prefix for API-requests
-       * @type {string}
-       */
-      urlPrefix: '/api/v1/',
-
-      /**
-       * Current cluster name
-       * @type {null|string}
-       */
-      clusterName: null
-
+      testMode: (location.hostname == 'localhost')
     });
-
-    application.ApplicationStatusMapper.getInstanceParameters();
 
   }
 });
 
 
 /* Order and include as you please. */
-require('scripts/translations');
-require('scripts/mixins/*');
+require('scripts/router');
+require('scripts/store');
 require('scripts/helpers/*');
 require('scripts/models/**/*');
 require('scripts/mappers/server_data_mapper.js');
 require('scripts/mappers/**/*');
-require('scripts/controllers/**/*');
+require('scripts/controllers/*');
+require('scripts/routes/*');
 require('scripts/components/*');
-require('scripts/views/sort_view');
-require('scripts/views/filter_view');
-require('scripts/views/table_view');
-require('scripts/views/**/*');
+require('scripts/views/*');

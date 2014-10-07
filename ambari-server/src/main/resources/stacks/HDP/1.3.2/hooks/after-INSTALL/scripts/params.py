@@ -24,7 +24,8 @@ import os
 config = Script.get_config()
 
 #security params
-security_enabled = config['configurations']['cluster-env']['security_enabled']
+_authentication = config['configurations']['core-site']['hadoop.security.authentication']
+security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
 #java params
 java_home = config['hostLevelParams']['java_home']
 #hadoop params
@@ -32,7 +33,6 @@ hadoop_conf_dir = "/etc/hadoop/conf"
 hadoop_conf_empty_dir = "/etc/hadoop/conf.empty"
 hdfs_log_dir_prefix = config['configurations']['hadoop-env']['hdfs_log_dir_prefix']
 hadoop_pid_dir_prefix = config['configurations']['hadoop-env']['hadoop_pid_dir_prefix']
-hadoop_root_logger = config['configurations']['hadoop-env']['hadoop_root_logger']
 hadoop_env_sh_template = config['configurations']['hadoop-env']['content']
 
 #hadoop-env.sh
@@ -59,7 +59,4 @@ hadoop_libexec_dir = "/usr/lib/hadoop/libexec"
 
 #users and groups
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-user_group = config['configurations']['cluster-env']['user_group']
-
-namenode_host = default("/clusterHostInfo/namenode_host", [])
-has_namenode = not len(namenode_host) == 0
+user_group = config['configurations']['hadoop-env']['user_group']

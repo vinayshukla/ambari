@@ -73,23 +73,19 @@ module.exports = App.WizardRoute.extend({
               self.proceedOnClose();
             },
             proceedOnClose: function () {
-              var self = this;
+              this.hide();
               router.get('mainAdminSecurityAddStep4Controller').clearStep();
               router.get('addSecurityController.content.services').clear();
               router.set('addSecurityController.content.serviceConfigProperties', null);
               App.router.get('updateController').set('isWorking', true);
               mainAdminSecurityController.setAddSecurityWizardStatus(null);
               App.db.setSecurityDeployCommands(undefined);
-              addSecurityController.finish();
+              router.get('addSecurityController').setCurrentStep(1);
               App.clusterStatus.setClusterStatus({
                 clusterName: router.get('content.cluster.name'),
-                clusterState: 'DEFAULT',
-                localdb: App.db.data
-              }, {alwaysCallback: function() {
-                self.hide();
-                router.transitionTo('adminSecurity.index');
-                location.reload();   // this is needed because the ATS Component may be deleted in older HDP stacks.
-              }});
+                clusterState: 'DEFAULT'
+              });
+              router.transitionTo('adminSecurity.index');
             },
             didInsertElement: function () {
               this.fitHeight();
@@ -108,7 +104,7 @@ module.exports = App.WizardRoute.extend({
     route: '/start',
     enter: function (router) {
       router.get('addSecurityController').setCurrentStep('1');
-      if(!App.get('testMode')){
+      if(!App.testMode){
         App.clusterStatus.setClusterStatus({
           clusterName: this.get('clusterName'),
           clusterState: 'ADD_SECURITY_STEP_1',
@@ -144,7 +140,7 @@ module.exports = App.WizardRoute.extend({
 
     enter: function (router) {
       router.get('addSecurityController').setCurrentStep('2');
-      if(!App.get('testMode')){
+      if(!App.testMode){
         App.clusterStatus.setClusterStatus({
           clusterName: this.get('clusterName'),
           clusterState: 'ADD_SECURITY_STEP_2',
@@ -178,7 +174,7 @@ module.exports = App.WizardRoute.extend({
 
     enter: function (router) {
       router.get('addSecurityController').setCurrentStep('3');
-      if(!App.get('testMode')){
+      if(!App.testMode){
         App.clusterStatus.setClusterStatus({
           clusterName: this.get('clusterName'),
           clusterState: 'ADD_SECURITY_STEP_3',
@@ -234,6 +230,7 @@ module.exports = App.WizardRoute.extend({
       var controller = router.get('mainAdminSecurityAddStep4Controller');
       if (!controller.get('isSubmitDisabled')) {
         $(context.currentTarget).parents("#modal").find(".close").trigger('click');
+        location.reload();
       }
     }
   }),

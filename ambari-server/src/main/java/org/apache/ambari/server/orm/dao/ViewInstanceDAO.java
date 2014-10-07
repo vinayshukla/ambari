@@ -73,42 +73,42 @@ public class ViewInstanceDAO {
    * Refresh the state of the instance from the database,
    * overwriting changes made to the entity, if any.
    *
-   * @param viewInstanceEntity  entity to refresh
+   * @param ViewInstanceEntity  entity to refresh
    */
   @Transactional
-  public void refresh(ViewInstanceEntity viewInstanceEntity) {
-    entityManagerProvider.get().refresh(viewInstanceEntity);
+  public void refresh(ViewInstanceEntity ViewInstanceEntity) {
+    entityManagerProvider.get().refresh(ViewInstanceEntity);
   }
 
   /**
    * Make an instance managed and persistent.
    *
-   * @param viewInstanceEntity  entity to persist
+   * @param ViewInstanceEntity  entity to persist
    */
   @Transactional
-  public void create(ViewInstanceEntity viewInstanceEntity) {
-    entityManagerProvider.get().persist(viewInstanceEntity);
+  public void create(ViewInstanceEntity ViewInstanceEntity) {
+    entityManagerProvider.get().persist(ViewInstanceEntity);
   }
 
   /**
    * Merge the state of the given entity into the current persistence context.
    *
-   * @param viewInstanceEntity  entity to merge
+   * @param ViewInstanceEntity  entity to merge
    * @return the merged entity
    */
   @Transactional
-  public ViewInstanceEntity merge(ViewInstanceEntity viewInstanceEntity) {
-    return entityManagerProvider.get().merge(viewInstanceEntity);
+  public ViewInstanceEntity merge(ViewInstanceEntity ViewInstanceEntity) {
+    return entityManagerProvider.get().merge(ViewInstanceEntity);
   }
 
   /**
    * Remove the entity instance.
    *
-   * @param viewInstanceEntity  entity to remove
+   * @param ViewInstanceEntity  entity to remove
    */
   @Transactional
-  public void remove(ViewInstanceEntity viewInstanceEntity) {
-    entityManagerProvider.get().remove(merge(viewInstanceEntity));
+  public void remove(ViewInstanceEntity ViewInstanceEntity) {
+    entityManagerProvider.get().remove(merge(ViewInstanceEntity));
   }
 
   /**

@@ -24,7 +24,6 @@ import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.api.services.BaseRequest;
 import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.ExecuteActionRequest;
-import org.apache.ambari.server.controller.RequestRequest;
 import org.apache.ambari.server.controller.RequestStatusResponse;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
@@ -43,7 +42,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +56,6 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   protected static final String REQUEST_CLUSTER_NAME_PROPERTY_ID = "Requests/cluster_name";
   protected static final String REQUEST_ID_PROPERTY_ID = "Requests/id";
   protected static final String REQUEST_STATUS_PROPERTY_ID = "Requests/request_status";
-  protected static final String REQUEST_ABORT_REASON_PROPERTY_ID = "Requests/abort_reason";
   protected static final String REQUEST_CONTEXT_ID = "Requests/request_context";
   public static final String REQUEST_SOURCE_SCHEDULE = "Requests/request_schedule";
   public static final String REQUEST_SOURCE_SCHEDULE_ID = "Requests/request_schedule/schedule_id";
@@ -70,7 +67,6 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   protected static final String REQUEST_CREATE_TIME_ID = "Requests/create_time";
   protected static final String REQUEST_START_TIME_ID = "Requests/start_time";
   protected static final String REQUEST_END_TIME_ID = "Requests/end_time";
-  protected static final String REQUEST_EXCLUSIVE_ID = "Requests/exclusive";
   protected static final String REQUEST_TASK_CNT_ID = "Requests/task_count";
   protected static final String REQUEST_FAILED_TASK_CNT_ID = "Requests/failed_task_count";
   protected static final String REQUEST_ABORTED_TASK_CNT_ID = "Requests/aborted_task_count";
@@ -84,7 +80,6 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   protected static final String HOSTS_ID = "hosts";
   protected static final String ACTION_ID = "action";
   protected static final String INPUTS_ID = "parameters";
-  protected static final String EXLUSIVE_ID = "exclusive";
   private static Set<String> pkPropertyIds =
       new HashSet<String>(Arrays.asList(new String[]{
           REQUEST_ID_PROPERTY_ID}));
@@ -164,82 +159,9 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
   }
 
   @Override
-  public RequestStatus updateResources(Request requestInfo, Predicate predicate)
-          throws SystemException, UnsupportedPropertyException,
-          NoSuchResourceException, NoSuchParentResourceException {
-    AmbariManagementController amc = getManagementController();
-    final Set<RequestRequest> requests = new HashSet<RequestRequest>();
-
-    Iterator<Map<String,Object>> iterator = requestInfo.getProperties().iterator();
-    if (iterator.hasNext()) {
-      for (Map<String, Object> propertyMap : getPropertyMaps(iterator.next(), predicate)) {
-        requests.add(getRequest(propertyMap));
-      }
-    }
-    // Validate
-    List<org.apache.ambari.server.actionmanager.Request> targets =
-            new ArrayList<org.apache.ambari.server.actionmanager.Request>();
-    for (RequestRequest updateRequest : requests) {
-      ActionManager actionManager = amc.getActionManager();
-      List<org.apache.ambari.server.actionmanager.Request> internalRequests =
-              actionManager.getRequests(Collections.singletonList(updateRequest.getRequestId()));
-      if (internalRequests.size() == 0) {
-        throw new IllegalArgumentException(
-                String.format("Request %s does not exist", updateRequest.getRequestId()));
-      }
-      // There should be only one request with this id (or no request at all)
-      org.apache.ambari.server.actionmanager.Request internalRequest = internalRequests.get(0);
-      // Validate update request (check constraints on state value and presense of abort reason)
-      if (updateRequest.getAbortReason() == null || updateRequest.getAbortReason().isEmpty()) {
-        throw new IllegalArgumentException("Abort reason can not be empty.");
-      }
-
-      HostRoleStatus internalRequestStatus = calculateSummaryStatus(
-              calculateRequestStatusCounters(internalRequest),
-              internalRequest.getCommands().size()
-      );
-      if (updateRequest.getStatus() != HostRoleStatus.ABORTED) {
-        throw new IllegalArgumentException(
-                String.format("%s is wrong value. The only allowed value " +
-                                "for updating request status is ABORTED",
-                        updateRequest.getStatus()));
-      }
-      if (internalRequestStatus.isCompletedState()) {
-        throw new IllegalArgumentException(
-                String.format("Can not set request that is in %s state to %s state.",
-                        internalRequestStatus.toString(), updateRequest.getStatus()));
-      }
-      // Validation passed
-      targets.add(internalRequest);
-    }
-    // Perform update
-    Iterator<RequestRequest> reqIterator = requests.iterator();
-    for (int i = 0; i < targets.size(); i++) {
-      org.apache.ambari.server.actionmanager.Request target = targets.get(i);
-      String reason = reqIterator.next().getAbortReason();
-      amc.getActionManager().cancelRequest(target.getRequestId(), reason);
-    }
-    return getRequestStatus(null);
-  }
-
-  private RequestRequest getRequest(Map<String, Object> propertyMap) {
-    // Cluster name may be empty for custom actions
-    String clusterNameStr = (String) propertyMap.get(REQUEST_CLUSTER_NAME_PROPERTY_ID);
-    String requestIdStr = (String) propertyMap.get(REQUEST_ID_PROPERTY_ID);
-    long requestId = Integer.valueOf(requestIdStr);
-    String requestStatusStr = (String) propertyMap.get(REQUEST_STATUS_PROPERTY_ID);
-    HostRoleStatus requestStatus = null;
-    if (requestStatusStr != null) {
-      // This conversion may throw IllegalArgumentException, it is OK
-      // in this case it will be mapped to HTTP 400 Bad Request
-      requestStatus = HostRoleStatus.valueOf(requestStatusStr);
-    }
-    String abortReason = (String) propertyMap.get(REQUEST_ABORT_REASON_PROPERTY_ID);
-    RequestRequest requestRequest = new RequestRequest(clusterNameStr, requestId);
-    requestRequest.setStatus(requestStatus);
-    requestRequest.setAbortReason(abortReason);
-    return requestRequest;
-
+  public RequestStatus updateResources(Request request, Predicate predicate)
+      throws SystemException, UnsupportedPropertyException, NoSuchResourceException, NoSuchParentResourceException {
+    throw new UnsupportedOperationException("Not currently supported.");
   }
 
   @Override
@@ -319,19 +241,13 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
         params.put(key.substring(keyPrefix.length()), requestInfoProperties.get(key));
       }
     }
-
-    boolean exclusive = false;
-    if (requestInfoProperties.containsKey(EXLUSIVE_ID)) {
-      exclusive = Boolean.valueOf(requestInfoProperties.get(EXLUSIVE_ID).trim());
-    }
-
     return new ExecuteActionRequest(
       (String) propertyMap.get(REQUEST_CLUSTER_NAME_PROPERTY_ID),
       commandName,
       actionName,
       resourceFilterList,
       operationLevel,
-      params, exclusive);
+      params);
   }
 
   // Get all of the request resources for the given properties
@@ -430,83 +346,72 @@ public class RequestResourceProvider extends AbstractControllerResourceProvider 
     setResourceProperty(resource, REQUEST_CREATE_TIME_ID, request.getCreateTime(), requestedPropertyIds);
     setResourceProperty(resource, REQUEST_START_TIME_ID, request.getStartTime(), requestedPropertyIds);
     setResourceProperty(resource, REQUEST_END_TIME_ID, request.getEndTime(), requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_EXCLUSIVE_ID, request.isExclusive(), requestedPropertyIds);
-
     if (request.getRequestScheduleId() != null) {
       setResourceProperty(resource, REQUEST_SOURCE_SCHEDULE_ID, request.getRequestScheduleId(), requestedPropertyIds);
     } else {
       setResourceProperty(resource, REQUEST_SOURCE_SCHEDULE, null, requestedPropertyIds);
     }
-    int taskCount = request.getCommands().size();
 
-    Map<HostRoleStatus, Integer> hostRoleStatusCounters = calculateRequestStatusCounters(request);
-    HostRoleStatus requestStatus = calculateSummaryStatus(hostRoleStatusCounters, taskCount);
+    List<HostRoleCommand> commands = request.getCommands();
 
+    int taskCount = commands.size();
+    int completedTaskCount = 0;
+    int queuedTaskCount = 0;
+    int pendingTaskCount = 0;
+    int failedTaskCount = 0;
+    int abortedTaskCount = 0;
+    int timedOutTaskCount = 0;
+
+    for (HostRoleCommand hostRoleCommand : commands) {
+      HostRoleStatus status = hostRoleCommand.getStatus();
+      if (status.isCompletedState()) {
+        completedTaskCount++;
+
+        switch (status) {
+          case ABORTED:
+            abortedTaskCount++;
+            break;
+          case FAILED:
+            failedTaskCount++;
+            break;
+          case TIMEDOUT:
+            timedOutTaskCount++;
+            break;
+        }
+      } else if (status.equals(HostRoleStatus.QUEUED)) {
+        queuedTaskCount++;
+      } else if (status.equals(HostRoleStatus.PENDING)) {
+        pendingTaskCount++;
+      }
+    }
+
+    int inProgressTaskCount = taskCount - completedTaskCount - queuedTaskCount - pendingTaskCount;
+
+    LOG.debug("taskCount={}, inProgressTaskCount={}, completedTaskCount={}, queuedTaskCount={}, " +
+      "pendingTaskCount={}, failedTaskCount={}, abortedTaskCount={}, timedOutTaskCount={}",
+      taskCount, inProgressTaskCount, completedTaskCount, queuedTaskCount, pendingTaskCount,
+      failedTaskCount, abortedTaskCount, timedOutTaskCount);
+
+    // determine request status
+    HostRoleStatus requestStatus = failedTaskCount > 0 ? HostRoleStatus.FAILED :
+        abortedTaskCount > 0 ? HostRoleStatus.ABORTED :
+            timedOutTaskCount > 0 ? HostRoleStatus.TIMEDOUT :
+                inProgressTaskCount > 0 ? HostRoleStatus.IN_PROGRESS :
+                    completedTaskCount == taskCount ? HostRoleStatus.COMPLETED :
+                        HostRoleStatus.PENDING;
     double progressPercent =
-            ((hostRoleStatusCounters.get(HostRoleStatus.QUEUED) * 0.09 +
-                    hostRoleStatusCounters.get(HostRoleStatus.IN_PROGRESS) * 0.35 +
-                    hostRoleStatusCounters.get(HostRoleStatus.COMPLETED)) / (double) taskCount) * 100.0;
+        ((queuedTaskCount * 0.09 + inProgressTaskCount * 0.35 + completedTaskCount) / (double) taskCount) * 100.0;
 
     setResourceProperty(resource, REQUEST_STATUS_PROPERTY_ID, requestStatus.toString(), requestedPropertyIds);
     setResourceProperty(resource, REQUEST_TASK_CNT_ID, taskCount, requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_FAILED_TASK_CNT_ID,
-            hostRoleStatusCounters.get(HostRoleStatus.FAILED), requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_ABORTED_TASK_CNT_ID,
-            hostRoleStatusCounters.get(HostRoleStatus.ABORTED), requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_TIMED_OUT_TASK_CNT_ID,
-            hostRoleStatusCounters.get(HostRoleStatus.TIMEDOUT), requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_QUEUED_TASK_CNT_ID,
-            hostRoleStatusCounters.get(HostRoleStatus.QUEUED), requestedPropertyIds);
-    setResourceProperty(resource, REQUEST_COMPLETED_TASK_CNT_ID,
-            hostRoleStatusCounters.get(HostRoleStatus.COMPLETED), requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_FAILED_TASK_CNT_ID, failedTaskCount, requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_ABORTED_TASK_CNT_ID, abortedTaskCount, requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_TIMED_OUT_TASK_CNT_ID, timedOutTaskCount, requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_QUEUED_TASK_CNT_ID, queuedTaskCount, requestedPropertyIds);
+    setResourceProperty(resource, REQUEST_COMPLETED_TASK_CNT_ID, completedTaskCount, requestedPropertyIds);
     setResourceProperty(resource, REQUEST_PROGRESS_PERCENT_ID, progressPercent, requestedPropertyIds);
 
     return resource;
   }
 
-  /**
-   * Returns counts of tasks that are in various states.
-   */
-  private Map<HostRoleStatus, Integer> calculateRequestStatusCounters(org.apache.ambari.server.actionmanager.Request request) {
-    List<HostRoleCommand> commands = request.getCommands();
-    Map<HostRoleStatus, Integer> counters = new HashMap<HostRoleStatus, Integer>();
-    int totalTasks = commands.size();
-    // initialize
-    for (HostRoleStatus hostRoleStatus : HostRoleStatus.values()) {
-      counters.put(hostRoleStatus, 0);
-    }
-    // calculate counts
-    for (HostRoleCommand hostRoleCommand : commands) {
-      HostRoleStatus status = hostRoleCommand.getStatus();
-      if (status.isCompletedState() &&
-            status != HostRoleStatus.COMPLETED ) { // we don't want to count twice
-        // Increase total number of completed tasks;
-        counters.put(HostRoleStatus.COMPLETED, counters.get(HostRoleStatus.COMPLETED) + 1);
-      }
-      // Increment counter for particular status
-      counters.put(status, counters.get(status) + 1);
-    }
-    // We overwrite the value to have the sum converged
-    counters.put(HostRoleStatus.IN_PROGRESS,
-            totalTasks - counters.get(HostRoleStatus.COMPLETED)-
-                    counters.get(HostRoleStatus.QUEUED)-
-                    counters.get(HostRoleStatus.PENDING));
-    return counters;
-  }
-
-  /**
-   * @param counters counts of tasks that are in various states.
-   * @param totalTasks total number of tasks in request
-   * @return summary request status based on statuses of tasks in different
-   * states.
-   */
-  private HostRoleStatus calculateSummaryStatus(Map<HostRoleStatus, Integer> counters, int totalTasks) {
-    return counters.get(HostRoleStatus.FAILED) > 0 ? HostRoleStatus.FAILED :
-            // TODO (dlysnichenko): maybe change order of FAILED and ABORTED?
-            counters.get(HostRoleStatus.ABORTED) > 0 ? HostRoleStatus.ABORTED :
-                    counters.get(HostRoleStatus.TIMEDOUT) > 0 ? HostRoleStatus.TIMEDOUT :
-                            counters.get(HostRoleStatus.IN_PROGRESS) > 0 ? HostRoleStatus.IN_PROGRESS :
-                                    counters.get(HostRoleStatus.COMPLETED) == totalTasks ? HostRoleStatus.COMPLETED :
-                                            HostRoleStatus.PENDING;
-  }
 }

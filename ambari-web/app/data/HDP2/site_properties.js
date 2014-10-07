@@ -45,6 +45,203 @@ module.exports =
       "index": 3
     },
     {
+      "id": "puppet var",
+      "name": "hadoop.user.name",
+      "displayName": "Hadoop User Name",
+      "description": "User to run Hadoop services under",
+      "defaultValue": "hadoop",
+      "isReconfigurable": false,
+      "displayType": "user",
+      "isOverridable": false,
+      "isVisible": App.get('isHadoopWindowsStack'),
+      "serviceName": "MISC",
+      "filename": "hadoop-env.xml",
+      "category": "Users and Groups",
+      "belongsToService": ["HDFS"],
+      "index": 0
+    },
+    {
+      "id": "puppet var",
+      "name": "hadoop.user.password",
+      "displayName": "Hadoop User Password",
+      "description": "Password for hadoop user",
+      "isReconfigurable": false,
+      "displayType": "password",
+      "isOverridable": false,
+      "isVisible": App.get('isHadoopWindowsStack'),
+      "serviceName": "MISC",
+      "filename": "hadoop-env.xml",
+      "category": "Users and Groups",
+      "belongsToService": ["HDFS"],
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "hadoop_host",
+      "displayName": "Hadoop host",
+      "value": "",
+      "defaultValue": "",
+      "description": "A hadoop host from where metrics will be uploaded",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isVisible": true,
+      "isRequiredByAgent": false,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 0
+    },
+    {
+      "id": "puppet var",
+      "name": "sink_existing_mssql_server_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database for Metrics Sink",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isVisible": false,
+      "isReconfigurable": false,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "sink_existing_mssql_server_2_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database for Metrics Sink",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isVisible": false,
+      "isReconfigurable": false,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "sink_database",
+      "displayName": "Metrics Sink Database",
+      "value": "",
+      "defaultValue": "Existing MSSQL Server database with sql auth",
+      "options": [
+        {
+          displayName: 'Existing MSSQL Server database with integrated authentication',
+          foreignKeys: ['sink_existing_mssql_server_database', 'sink_existing_mssql_server_host']
+        },
+        {
+          displayName: 'Existing MSSQL Server database with sql auth',
+          foreignKeys: ['sink_existing_mssql_server_2_database', 'sink_existing_mssql_server_2_host']
+        }
+      ],
+      "displayType": "radio button",
+      "isReconfigurable": false,
+      "radioName": "sink-database",
+      "isOverridable": false,
+      "isVisible": true,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 2
+    },
+    {
+      "id": "site property",
+      "name": "sink.dbservername",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the database is hosted",
+      "defaultValue": "",
+      "isReconfigurable": true,
+      "displayType": "host",
+      "isOverridable": false,
+      "isObserved": true,
+      "isVisible": false,
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 2
+    },
+    {
+      "id": "puppet var",
+      "name": "sink_existing_mssql_server_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 3
+    },
+    {
+      "id": "puppet var",
+      "name": "sink_existing_mssql_server_2_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "HDFS",
+      "category": "MetricsSink",
+      "index": 3
+    },
+    {
+      "id": "site property",
+      "name": "sink.db.schema.name",
+      "displayName": "Database Name",
+      "isOverridable": false,
+      "displayType": "host",
+      "isObserved": true,
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 4
+    },
+    {
+      "id": "site property",
+      "name": "sink.dblogin",
+      "displayName": "Database Username",
+      "isOverridable": false,
+      "displayType": "user",
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 5
+    },
+    {
+      "id": "site property",
+      "name": "sink.dbpassword",
+      "displayName": "Database Password",
+      "isOverridable": false,
+      "displayType": "password",
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 6
+    },
+    {
+      "id": "site property",
+      "name": "sink.jdbc.driver",
+      "displayName": "JDBC Driver Class",
+      "isOverridable": false,
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 7
+    },
+    {
+      "id": "site property",
+      "name": "sink.jdbc.url",
+      "displayName": "Database URL",
+      "isOverridable": false,
+      "displayType": "advanced",
+      "category": "MetricsSink",
+      "serviceName": "HDFS",
+      "index": 8
+    },
+
+    {
       "id": "site property",
       "name": "dfs.namenode.name.dir",
       "displayName": "NameNode directories",
@@ -76,19 +273,6 @@ module.exports =
     },
     {
       "id": "site property",
-      "name": "dfs.datanode.data.dir.mount.file",
-      "displayName": "File that stores mount point for each data dir",
-      "description": "File path that contains the last known mount point for each data dir. This file is used to avoid creating a DFS data dir on the root drive (and filling it up) if a path was previously mounted on a drive.",
-      "defaultValue": "/etc/hadoop/conf/dfs_data_dir_mount.hist",
-      "displayType": "directory",
-      "isVisible": true,
-      "category": "DATANODE",
-      "serviceName": "HDFS",
-      "filename": "hadoop-env.xml",
-      "index": 4
-    },
-    {
-      "id": "site property",
       "name": "dfs.datanode.data.dir",
       "displayName": "DataNode directories",
       "defaultDirectory": "/hadoop/hdfs/data",
@@ -110,7 +294,7 @@ module.exports =
       "name": "dfs.replication",
       "displayName": "Block replication",
       "displayType": "int",
-      "category": "General",
+      "category": "Advanced",
       "serviceName": "HDFS"
     },
     {
@@ -128,7 +312,7 @@ module.exports =
       "name": "dfs.client.read.shortcircuit",
       "displayName": "HDFS Short-circuit read",
       "displayType": "checkbox",
-      "category": "Advanced hdfs-site",
+      "category": "Advanced",
       "serviceName": "HDFS"
     },
     {
@@ -139,7 +323,7 @@ module.exports =
       "isRequired": false,
       "isRequiredByAgent": false,
       "isVisible": false,
-      "category": "Advanced hdfs-site",
+      "category": "Advanced",
       "serviceName": "HDFS"
     },
     {
@@ -150,7 +334,7 @@ module.exports =
       "isRequiredByAgent": false,
       "isRequired": false,
       "isVisible": false,
-      "category": "Advanced hdfs-site",
+      "category": "Advanced",
       "serviceName": "HDFS"
     },
 
@@ -275,7 +459,7 @@ module.exports =
       "id": "site property",
       "name": "yarn.log.server.url",
       "displayName": "yarn.log.server.url",
-      "category": "Advanced yarn-site",
+      "category": "Advanced",
       "serviceName": "YARN"
     },
     {
@@ -391,14 +575,14 @@ module.exports =
       "displayName": "hadoop.security.auth_to_local",
       "displayType": "multiLine",
       "serviceName": "HDFS",
-      "category": "Advanced core-site"
+      "category": "Advanced"
     },
     {
       "id": "site property",
       "name": "yarn.app.mapreduce.am.resource.mb",
       "displayName": "yarn.app.mapreduce.am.resource.mb",
       "displayType": "int",
-      "category": "Advanced mapred-site",
+      "category": "Advanced",
       "serviceName": "MAPREDUCE2"
     },
 
@@ -419,7 +603,7 @@ module.exports =
       "name": "oozie.service.JPAService.jdbc.username",
       "displayName": "Database Username",
       "isOverridable": false,
-      "displayType": "host",
+      "displayType": "user",
       "category": "OOZIE_SERVER",
       "serviceName": "OOZIE",
       "index": 5
@@ -480,7 +664,7 @@ module.exports =
       "id": "site property",
       "name": "javax.jdo.option.ConnectionUserName",
       "displayName": "Database Username",
-      "displayType": "host",
+      "displayType": "user",
       "isOverridable": false,
       "category": "HIVE_METASTORE",
       "serviceName": "HIVE",
@@ -523,7 +707,7 @@ module.exports =
       "displayName": "hive.server2.tez.default.queues",
       "isRequired": false,
       "serviceName": "HIVE",
-      "category": "Advanced hive-site"
+      "category": "Advanced"
     },
     {
       "id": "site property",
@@ -535,27 +719,8 @@ module.exports =
       "isReconfigurable": true,
       "isOverridable": false,
       "isVisible": true,
-      "category": "Advanced hive-site",
+      "category": "Advanced",
       "serviceName": "HIVE"
-    },
-    {
-      "id": "site property",
-      "name": "hive.server2.support.dynamic.service.discovery",
-      "displayName": "hive.server2.support.dynamic.service.discovery",
-      "defaultValue": true,
-      "displayType": "checkbox",
-      "category": "Advanced hive-site",
-      "serviceName": "HIVE"
-    },
-    {
-      "id": "site property",
-      "name": "hive.zookeeper.quorum",
-      "displayName": "hive.zookeeper.quorum",
-      "defaultValue": "localhost:2181",
-      "displayType": "multiLine",
-      "isVisible": true,
-      "serviceName": "HIVE",
-      "category": "Advanced hive-site"
     },
   /**********************************************tez-site*****************************************/
     {
@@ -645,27 +810,27 @@ module.exports =
       "displayName": "HBase local directory",
       "defaultDirectory": "/hadoop/hbase",
       "displayType": "directory",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "serviceName": "HBASE"
 
     },
     {
-      "id": "site property",
-      "name": "hbase.master.port",
-      "displayName": "HBase Master Port",
-      "isReconfigurable": true,
-      "displayType": "int",
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "HBASE",
-      "category": "Advanced hbase-site"
+    "id": "site property",
+    "name": "hbase.master.port",
+    "displayName": "HBase Master Port",
+    "isReconfigurable": true,
+    "displayType": "int",
+    "isOverridable": false,
+    "isVisible": true,
+    "serviceName": "HBASE",
+    "category": "Advanced"
     },
     {
       "id": "site property",
       "name": "hbase.regionserver.global.memstore.upperLimit",
       "displayName": "hbase.regionserver.global.memstore.upperLimit",
       "displayType": "float",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "serviceName": "HBASE"
     },
     {
@@ -673,7 +838,7 @@ module.exports =
       "name": "hbase.regionserver.global.memstore.lowerLimit",
       "displayName": "hbase.regionserver.global.memstore.lowerLimit",
       "displayType": "float",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "serviceName": "HBASE"
     },
     {
@@ -681,7 +846,7 @@ module.exports =
       "name": "hbase.hstore.blockingStoreFiles",
       "displayName": "hstore blocking storefiles",
       "displayType": "int",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "serviceName": "HBASE"
     },
     {
@@ -745,7 +910,7 @@ module.exports =
       "name": "hbase.hregion.memstore.mslab.enabled",
       "displayName": "hbase.hregion.memstore.mslab.enabled",
       "displayType": "checkbox",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "serviceName": "HBASE"
     },
     {
@@ -792,7 +957,7 @@ module.exports =
       "id": "site property",
       "name": "hbase.coprocessor.region.classes",
       "displayName": "hbase.coprocessor.region.classes",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "isRequired": false,
       "serviceName": "HBASE"
     },
@@ -800,7 +965,7 @@ module.exports =
       "id": "site property",
       "name": "hbase.coprocessor.master.classes",
       "displayName": "hbase.coprocessor.master.classes",
-      "category": "Advanced hbase-site",
+      "category": "Advanced",
       "isRequired": false,
       "serviceName": "HBASE"
     },
@@ -810,7 +975,7 @@ module.exports =
       "displayName": "hbase.zookeeper.quorum",
       "displayType": "multiLine",
       "serviceName": "HBASE",
-      "category": "Advanced hbase-site"
+      "category": "Advanced"
     },
 
   /**********************************************storm-site***************************************/
@@ -977,7 +1142,6 @@ module.exports =
       "displayName": "nimbus.host",
       "displayType": "masterHost",
       "isOverridable": false,
-      "isReconfigurable": false,
       "serviceName": "STORM",
       "category": "NIMBUS"
     },
@@ -1236,7 +1400,7 @@ module.exports =
     {
       "id": "site property",
       "serviceName": "STORM",
-      "category": "Advanced storm-site",
+      "category": "Advanced",
       "displayName": "worker.childopts",
       "name": "worker.childopts",
       "displayType": "multiLine",
@@ -1245,7 +1409,7 @@ module.exports =
   /*********************************************oozie-site for Falcon*****************************/
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-job-submit-instances",
@@ -1255,7 +1419,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-action-create-inst",
@@ -1265,7 +1429,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-action-create",
@@ -1275,7 +1439,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-job-submit-data",
@@ -1285,7 +1449,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-action-start",
@@ -1295,7 +1459,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-sla-submit",
@@ -1305,7 +1469,7 @@ module.exports =
     },
     {
       "id": "site property",
-      "isReconfigurable": true,
+      "isReconfigurable": false,
       "serviceName": "FALCON",
       "category": "Falcon - Oozie integration",
       "displayName": "oozie.service.ELService.ext.functions.coord-sla-create",
@@ -1581,7 +1745,7 @@ module.exports =
       "serviceName": "FALCON",
       "filename": "falcon-startup.properties.xml"
     },
-    {
+   {
       "id": "site property",
       "name": "*.falcon.http.authentication.blacklisted.users",
       "displayName": "*.falcon.http.authentication.blacklisted.users",
@@ -1597,29 +1761,29 @@ module.exports =
       "name": "templeton.hive.archive",
       "displayName": "templeton.hive.archive",
       "isRequired": false,
-      "serviceName": "HIVE",
-      "category": "Advanced webhcat-site"
+      "serviceName": "WEBHCAT",
+      "category": "Advanced"
     },
     {
       "id": "site property",
       "name": "templeton.pig.archive",
       "displayName": "templeton.pig.archive",
       "isRequired": false,
-      "serviceName": "HIVE",
-      "category": "Advanced webhcat-site"
+      "serviceName": "WEBHCAT",
+      "category": "Advanced"
     },
     {
       "id": "site property",
       "name": "templeton.zookeeper.hosts",
       "displayName": "templeton.zookeeper.hosts",
       "displayType": "multiLine",
-      "serviceName": "HIVE",
-      "category": "Advanced webhcat-site"
+      "serviceName": "WEBHCAT",
+      "category": "Advanced"
     },
   /**********************************************pig.properties*****************************************/
     {
       "id": "site property",
-      "name": "content",
+      "name": "pig-content",
       "displayName": "content",
       "value": "",
       "defaultValue": "",
@@ -1629,8 +1793,61 @@ module.exports =
       "showLabel": false,
       "serviceName": "PIG",
       "filename": "pig-properties.xml",
-      "category": "Advanced pig-properties"
+      "category": "Advanced"
     },
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "PIG",
+      "filename": "pig-env.xml",
+      "category": "PigEnv"
+    },
+
+    //***************************************** GLUSTERFS stack********************************************
+
+    {
+      "id": "site property",
+      "name": "fs.glusterfs.impl",
+      "displayName": "GlusterFS fs impl",
+      "displayType": "string",
+      "filename": "core-site.xml",
+      "serviceName": "GLUSTERFS",
+      "category": "General"
+    },
+    {
+      "id": "site property",
+      "name": "fs.AbstractFileSystem.glusterfs.impl",
+      "displayName": "Abstract File System Implementation",
+      "displayType": "string",
+      "filename": "core-site.xml",
+      "serviceName": "GLUSTERFS",
+      "category": "General"
+    },
+    {
+      "id": "site property",
+      "name": "fs.glusterfs.volumes",
+      "displayName": "Gluster volume name(s)",
+      "displayType": "string",
+      "filename": "core-site.xml",
+      "serviceName": "GLUSTERFS",
+      "category": "General"
+    },
+    {
+      "id": "site property",
+      "name": "fs.glusterfs.volume.fuse.gv0",
+      "displayName": "Gluster mount point for volume",
+      "displayType": "string",
+      "filename": "core-site.xml",
+      "serviceName": "GLUSTERFS",
+      "category": "General"
+    }, 
   /********************************************* flume-agent *****************************/
     {
       "id": "site property",
@@ -1644,6 +1861,20 @@ module.exports =
       "filename": "flume-conf.xml"
     },
   /**********************************************HDFS***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "HDFS",
+      "filename": "hadoop-env.xml",
+      "category": "HadoopEnv"
+    },
     {
       "id": "puppet var",
       "name": "namenode_host",
@@ -1733,6 +1964,7 @@ module.exports =
       "isOverridable": false,
       "isVisible": true,
       "isRequiredByAgent": false,
+      "domain": "datanode-global",
       "serviceName": "HDFS",
       "filename": "hadoop-env.xml",
       "category": "DATANODE",
@@ -1747,6 +1979,7 @@ module.exports =
       "displayType": "int",
       "unit": "MB",
       "isVisible": true,
+      "domain": "datanode-global",
       "serviceName": "HDFS",
       "filename": "hadoop-env.xml",
       "category": "DATANODE",
@@ -1763,7 +1996,6 @@ module.exports =
       "isVisible": true,
       "serviceName": "HDFS",
       "filename": "hadoop-env.xml",
-      "category": "General",
       "index": 1
     },
     {
@@ -1778,7 +2010,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "HDFS",
       "filename": "hadoop-env.xml",
-      "category": "Advanced hadoop-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -1792,20 +2024,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "HDFS",
       "filename": "hadoop-env.xml",
-      "category": "Advanced hadoop-env"
-    },
-    {
-      "id": "puppet var",
-      "name": "hadoop_root_logger",
-      "displayName": "Hadoop Root Logger",
-      "description": "Hadoop logging options",
-      "defaultValue": "INFO,RFA",
-      "displayType": "string",
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "HDFS",
-      "filename": "hadoop-env.xml",
-      "category": "Advanced hadoop-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -1817,36 +2036,26 @@ module.exports =
       "displayType": "checkbox",
       "isOverridable": false,
       "isVisible": false,
-      "serviceName": "MISC",
-      "filename": "cluster-env.xml"
-    },
-    {
-      "id": "puppet var",
-      "name": "kerberos_domain",
-      "displayName": "Kerberos realm",
-      "description": "Kerberos realm",
-      "defaultValue": 'EXAMPLE.COM',
-      "isRequired": false,
-      "isOverridable": false,
-      "isVisible": false,
-      "serviceName": "MISC",
-      "filename": "cluster-env.xml"
-    },
-    {
-      "id": "puppet var",
-      "name": "rpm_version",
-      "displayName": "Hadoop RPM version",
-      "description": "Hadoop RPM version",
-      "defaultValue": '',
-      "isRequired": true,
-      "isOverridable": false,
-      "isVisible": false,
-      "isEditable": false,
-      "serviceName": "MISC",
-      "filename": "cluster-env.xml"
+      "serviceName": "HDFS",
+      "filename": "hadoop-env.xml",
+      "category": "Advanced"
     },
 
   /**********************************************MAPREDUCE2***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "MAPREDUCE2",
+      "filename": "mapred-env.xml",
+      "category": "MapredEnv"
+    },
     {
       "id": "puppet var",
       "name": "hs_host",
@@ -1889,7 +2098,7 @@ module.exports =
       "isReconfigurable": false,
       "serviceName": "MAPREDUCE2",
       "filename": "mapred-env.xml",
-      "category": "Advanced mapred-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -1903,9 +2112,23 @@ module.exports =
       "isReconfigurable": false,
       "serviceName": "MAPREDUCE2",
       "filename": "mapred-env.xml",
-      "category": "Advanced mapred-env"
+      "category": "Advanced"
     },
   /**********************************************YARN***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "YARN",
+      "filename": "yarn-env.xml",
+      "category": "YarnEnv"
+    },
     {
       "id": "puppet var",
       "name": "yarn_heapsize",
@@ -1993,7 +2216,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "YARN",
       "filename": "yarn-env.xml",
-      "category": "Advanced yarn-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2007,18 +2230,7 @@ module.exports =
       "isReconfigurable": false,
       "serviceName": "YARN",
       "filename": "yarn-env.xml",
-      "category": "Advanced yarn-env"
-    },
-    {
-      "id": "puppet var",
-      "name": "min_user_id",
-      "displayName": "Minimum user ID for submitting job",
-      "isOverridable": true,
-      "displayType": "int",
-      "isVisible": true,
-      "serviceName": "YARN",
-      "filename": "yarn-env.xml",
-      "category": "Advanced yarn-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2051,6 +2263,20 @@ module.exports =
       "index": 1
     },
   /**********************************************HBASE***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "HBASE",
+      "filename": "hbase-env.xml",
+      "category": "HbaseEnv"
+    },
     {
       "id": "puppet var",
       "name": "hbasemaster_host",
@@ -2115,27 +2341,6 @@ module.exports =
     },
     {
       "id": "puppet var",
-      "name": "hbase_regionserver_xmn_max",
-      "displayName": "RegionServers maximum value for -Xmn",
-      "displayType": "int",
-      "unit": "MB",
-      "isVisible": true,
-      "serviceName": "HBASE",
-      "category": "HBASE_REGIONSERVER",
-      "index": 6
-    },
-    {
-      "id": "puppet var",
-      "name": "hbase_regionserver_xmn_ratio",
-      "displayName": "RegionServers -Xmn in -Xmx ratio",
-      "displayType": "float",
-      "isVisible": true,
-      "serviceName": "HBASE",
-      "category": "HBASE_REGIONSERVER",
-      "index": 7
-    },
-    {
-      "id": "puppet var",
       "name": "hbase_log_dir",
       "displayName": "HBase Log Dir",
       "description": "Directory for HBase logs",
@@ -2146,7 +2351,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "HBASE",
       "filename": "hbase-env.xml",
-      "category": "Advanced hbase-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2160,51 +2365,48 @@ module.exports =
       "isVisible": true,
       "serviceName": "HBASE",
       "filename": "hbase-env.xml",
-      "category": "Advanced hbase-env"
-    },
-     //***************************************** GLUSTERFS stack********************************************
-    {
-      "id": "site property",
-      "name": "fs.glusterfs.impl",
-      "displayName": "GlusterFS fs impl",
-      "displayType": "string",
-      "filename": "core-site.xml",
-      "serviceName": "GLUSTERFS",
-      "category": "General"
-    },
-    {
-      "id": "site property",
-      "name": "fs.AbstractFileSystem.glusterfs.impl",
-      "displayName": "GlusterFS Abstract File System Implementation",
-      "displayType": "string",
-      "filename": "core-site.xml",
-      "serviceName": "GLUSTERFS",
-      "category": "General"
+      "category": "Advanced"
     },
   /**********************************************GLUSTERFS***************************************/
     {
-      "id": "puppet var",
-      "name": "fs_glusterfs_default_name",
-      "displayName": "GlusterFS default fs name 1.x Hadoop",
-      "description": "GlusterFS default filesystem name (glusterfs://{MasterFQDN}:9000)",
-      "defaultValue": "glusterfs:///localhost:8020",
-      "displayType": "string",
-      "isVisible": true,
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "GlusterfsEnv"
     },
     {
       "id": "puppet var",
       "name": "glusterfs_defaultFS_name",
-      "displayName": "GlusterFS default fs name 2.x Hadoop",
+      "displayName": "GlusterFS default fs name",
       "description": "GlusterFS default filesystem name (glusterfs:///)",
       "defaultValue": "glusterfs:///localhost:8020",
       "displayType": "string",
       "isVisible": true,
+      "domain": "global",
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "General"
+    },
+    {
+      "id": "puppet var",
+      "name": "fs_glusterfs_default_name",
+      "displayName": "GlusterFS default fs name",
+      "description": "GlusterFS default filesystem name (glusterfs:///)",
+      "defaultValue": "glusterfs:///localhost:8020",
+      "displayType": "string",
+      "isVisible": true,
+      "domain": "global",
+      "serviceName": "GLUSTERFS",
+      "filename": "glusterfs-env.xml",
+      "category": "General"
     },
     {
       "id": "puppet var",
@@ -2215,10 +2417,10 @@ module.exports =
       "displayType": "int",
       "unit": "MB",
       "isVisible": true,
+      "domain": "global",
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop",
-      "index": 1
+      "filename": "glusterfs-env.xml",
+      "category": "General"
     },
     {
       "id": "puppet var",
@@ -2229,10 +2431,10 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "directory",
       "isOverridable": false,
-      "isVisible": false,
+      "isVisible": true,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2243,10 +2445,10 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "directory",
       "isOverridable": false,
-      "isVisible": false,
+      "isVisible": true,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2259,8 +2461,8 @@ module.exports =
       "isOverridable": false,
       "isVisible": false,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2273,8 +2475,8 @@ module.exports =
       "isOverridable": false,
       "isVisible": false,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "category"
     },
     {
       "id": "puppet var",
@@ -2287,8 +2489,8 @@ module.exports =
       "isOverridable": false,
       "isVisible": false,
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2299,47 +2501,26 @@ module.exports =
       "displayType": "int",
       "unit": "MB",
       "isVisible": false,
+      "domain": "datanode-global",
       "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
-    },
-    {
-      "id": "puppet var",
-      "name": "glusterfs_user",
-      "displayName": "glusterfs user",
-      "description": "glusterfs user",
-      "defaultValue": "root",
-      "displayType": "string",
-      "isVisible": false,
-      "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
-    },
-    {
-      "id": "puppet var",
-      "name": "namenode_host",
-      "displayName": "NameNode Host",
-      "description": "NameNode Host.",
-      "defaultValue": "",
-      "displayType": "string",
-      "isVisible": false,
-      "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
-    },
-    {
-      "id": "puppet var",
-      "name": "snamenode_host",
-      "displayName": "Secondary NameNode Host",
-      "description": "Secondary NameNode Host.",
-      "defaultValue": "",
-      "displayType": "string",
-      "isVisible": false,
-      "serviceName": "GLUSTERFS",
-      "filename": "hadoop-env.xml",
-      "category": "General Hadoop"
+      "filename": "glusterfs-env.xml",
+      "category": "Advanced"
     },
   /**********************************************HIVE***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "HIVE",
+      "filename": "hive-env.xml",
+      "category": "HiveEnv"
+    },
     {
       "id": "puppet var",
       "name": "hivemetastore_host",
@@ -2364,6 +2545,38 @@ module.exports =
       "value": "",
       "defaultValue": "MySQL",
       "description": "Using an existing MySQL database for Hive Metastore",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isVisible": false,
+      "isReconfigurable": false,
+      "serviceName": "HIVE",
+      "filename": "hive-env.xml",
+      "category": "HIVE_METASTORE",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "hive_existing_mssql_server_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database for Hive Metastore",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isVisible": false,
+      "isReconfigurable": false,
+      "serviceName": "HIVE",
+      "filename": "hive-env.xml",
+      "category": "HIVE_METASTORE",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "hive_existing_mssql_server_2_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database for Hive Metastore",
       "displayType": "masterHost",
       "isOverridable": false,
       "isVisible": false,
@@ -2417,6 +2630,7 @@ module.exports =
       "description": "MySQL will be installed by Ambari",
       "displayType": "masterHost",
       "isOverridable": false,
+      "isReconfigurable": false,
       "isVisible": false,
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
@@ -2432,20 +2646,31 @@ module.exports =
       "options": [
         {
           displayName: 'New MySQL Database',
-          foreignKeys: ['hive_ambari_database', 'hive_ambari_host']
+          foreignKeys: ['hive_ambari_database', 'hive_ambari_host'],
+          hidden: App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing MySQL Database',
-          foreignKeys: ['hive_existing_mysql_database', 'hive_existing_mysql_host']
+          foreignKeys: ['hive_existing_mysql_database', 'hive_existing_mysql_host'],
+          hidden: App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing PostgreSQL Database',
-          foreignKeys: ['hive_existing_postgresql_database', 'hive_existing_postgresql_host']
+          foreignKeys: ['hive_existing_postgresql_database', 'hive_existing_postgresql_host'],
+          hidden: App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing Oracle Database',
           foreignKeys: ['hive_existing_oracle_database', 'hive_existing_oracle_host'],
-          hidden: !App.supports.hiveOozieExtraDatabases
+          hidden: !App.supports.hiveOozieExtraDatabases || App.get('isHadoopWindowsStack')
+        },
+        {
+          displayName: 'Existing MSSQL Server database with integrated authentication',
+          foreignKeys: ['hive_existing_mssql_server_database', 'hive_existing_mssql_server_host']
+        },
+        {
+          displayName: 'Existing MSSQL Server database with sql auth',
+          foreignKeys: ['hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']
         }
       ],
       "description": "MySQL will be installed by Ambari",
@@ -2544,6 +2769,38 @@ module.exports =
     },
     {
       "id": "puppet var",
+      "name": "hive_existing_mssql_server_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "HIVE",
+      "filename": "hive-env.xml",
+      "category": "HIVE_METASTORE",
+      "index": 3
+    },
+    {
+      "id": "puppet var",
+      "name": "hive_existing_mssql_server_2_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "HIVE",
+      "filename": "hive-env.xml",
+      "category": "HIVE_METASTORE",
+      "index": 3
+    },
+    {
+      "id": "puppet var",
       "name": "hive_metastore_port",
       "displayName": "Hive metastore port",
       "description": "",
@@ -2554,7 +2811,7 @@ module.exports =
       "isVisible": false,
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2568,7 +2825,7 @@ module.exports =
       "isRequiredByAgent": false, // Make this to true when we expose the property on ui by making "isVisible": true
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2582,7 +2839,7 @@ module.exports =
       "isRequiredByAgent": false, // Make this to true when we expose the property on ui by making "isVisible": true
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2596,7 +2853,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2610,9 +2867,38 @@ module.exports =
       "isVisible": true,
       "serviceName": "HIVE",
       "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
-  /**********************************************HIVE***************************************/
+  /**********************************************SQOOP***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "SQOOP",
+      "filename": "sqoop-env.xml",
+      "category": "SqoopEnv"
+    },
+  /**********************************************WEBHCAT***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "WEBHCAT",
+      "filename": "webhcat-env.xml",
+      "category": "WebhcatEnv"
+    },
     {
       "id": "puppet var",
       "name": "webhcatserver_host",
@@ -2624,7 +2910,7 @@ module.exports =
       "isOverridable": false,
       "isVisible": true,
       "isRequiredByAgent": false,
-      "serviceName": "HIVE",
+      "serviceName": "WEBHCAT",
       "filename": "webhcat-env.xml",
       "category": "WEBHCAT_SERVER"
     },
@@ -2638,9 +2924,9 @@ module.exports =
       "displayType": "directory",
       "isOverridable": false,
       "isVisible": true,
-      "serviceName": "HIVE",
+      "serviceName": "WEBHCAT",
       "filename": "webhcat-env.xml",
-      "category": "Advanced webhcat-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2652,35 +2938,25 @@ module.exports =
       "displayType": "directory",
       "isOverridable": false,
       "isVisible": true,
-      "serviceName": "HIVE",
+      "serviceName": "WEBHCAT",
       "filename": "webhcat-env.xml",
-      "category": "Advanced webhcat-env"
-    },
-    {
-      "id": "puppet var",
-      "name": "hive_database_name",
-      "displayName": "hive_database_name",
-      "defaultValue": "",
-      "isReconfigurable": false,
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "HIVE",
-      "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
-    },
-    {
-      "id": "puppet var",
-      "name": "hive_database_type",
-      "displayName": "hive_database_type",
-      "defaultValue": "",
-      "isReconfigurable": false,
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "HIVE",
-      "filename": "hive-env.xml",
-      "category": "Advanced hive-env"
+      "category": "Advanced"
     },
   /**********************************************OOZIE***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
+      "category": "OozieEnv"
+    },
     {
       "id": "puppet var",
       "name": "oozieserver_host",
@@ -2742,6 +3018,7 @@ module.exports =
       "description": "MySQL will be installed by Ambari",
       "displayType": "masterHost",
       "isVisible": false,
+      "isReconfigurable": false,
       "isOverridable": false,
       "serviceName": "OOZIE",
       "filename": "oozie-env.xml",
@@ -2784,6 +3061,38 @@ module.exports =
     },
     {
       "id": "puppet var",
+      "name": "oozie_existing_mssql_server_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database with integrated authentication for Oozie Metastore",
+      "displayType": "masterHost",
+      "isVisible": false,
+      "isReconfigurable": false,
+      "isOverridable": false,
+      "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
+      "category": "OOZIE_SERVER",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
+      "name": "oozie_existing_mssql_server_2_database",
+      "displayName": "Database Type",
+      "value": "",
+      "defaultValue": "MSSQL",
+      "description": "Using an existing MSSQL database with sql auth for Oozie Metastore",
+      "displayType": "masterHost",
+      "isVisible": false,
+      "isReconfigurable": false,
+      "isOverridable": false,
+      "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
+      "category": "OOZIE_SERVER",
+      "index": 1
+    },
+    {
+      "id": "puppet var",
       "name": "oozie_database",
       "displayName": "Oozie Database",
       "value": "",
@@ -2791,7 +3100,8 @@ module.exports =
       "options": [
         {
           displayName: 'New Derby Database',
-          foreignKeys: ['oozie_derby_database']
+          foreignKeys: ['oozie_derby_database'],
+          hidden: App.get('isHadoopWindowsStack')
         },
         /*{
          displayName: 'New MySQL Database',
@@ -2801,17 +3111,25 @@ module.exports =
         {
           displayName: 'Existing MySQL Database',
           foreignKeys: ['oozie_existing_mysql_database', 'oozie_existing_mysql_host'],
-          hidden: !App.supports.hiveOozieExtraDatabases
+          hidden: !App.supports.hiveOozieExtraDatabases || App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing PostgreSQL Database',
           foreignKeys: ['oozie_existing_postgresql_database', 'oozie_existing_postgresql_host'],
-          hidden: !App.supports.hiveOozieExtraDatabases
+          hidden: !App.supports.hiveOozieExtraDatabases || App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing Oracle Database',
           foreignKeys: ['oozie_existing_oracle_database', 'oozie_existing_oracle_host'],
-          hidden: !App.supports.hiveOozieExtraDatabases
+          hidden: !App.supports.hiveOozieExtraDatabases || App.get('isHadoopWindowsStack')
+        },
+        {
+          displayName: 'Existing MSSQL Server database with integrated authentication',
+          foreignKeys: ['oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host']
+        },
+        {
+          displayName: 'Existing MSSQL Server database with sql auth',
+          foreignKeys: ['oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']
         }
       ],
       "description": "Current Derby Database will be installed by Ambari",
@@ -2920,6 +3238,38 @@ module.exports =
     },
     {
       "id": "puppet var",
+      "name": "oozie_existing_mssql_server_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
+      "category": "OOZIE_SERVER",
+      "index": 3
+    },
+    {
+      "id": "puppet var",
+      "name": "oozie_existing_mssql_server_2_host",
+      "displayName": "Database Host",
+      "description": "Specify the host on which the existing database is hosted",
+      "defaultValue": "",
+      "displayType": "host",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": false,
+      "isObserved": true,
+      "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
+      "category": "OOZIE_SERVER",
+      "index": 3
+    },
+    {
+      "id": "puppet var",
       "name": "oozie_log_dir",
       "displayName": "Oozie Log Dir",
       "description": "Directory for oozie logs",
@@ -2930,7 +3280,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "OOZIE",
       "filename": "oozie-env.xml",
-      "category": "Advanced oozie-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2944,7 +3294,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "OOZIE",
       "filename": "oozie-env.xml",
-      "category": "Advanced oozie-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -2956,7 +3306,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "OOZIE",
       "filename": "oozie-env.xml",
-      "category": "Advanced oozie-env"
+      "category": "Advanced"
     },
   /**********************************************NAGIOS***************************************/
     {
@@ -2970,7 +3320,6 @@ module.exports =
       "isOverridable": false,
       "isVisible": true,
       "serviceName": "NAGIOS",
-      "category": "General",
       "filename": "nagios-env.xml",
       "index": 0
     },
@@ -2986,7 +3335,6 @@ module.exports =
       "isVisible": true,
       "serviceName": "NAGIOS",
       "filename": "nagios-env.xml",
-      "category": "General",
       "index": 1
     },
     {
@@ -3000,10 +3348,23 @@ module.exports =
       "isVisible": true,
       "serviceName": "NAGIOS",
       "filename": "nagios-env.xml",
-      "category": "General",
       "index": 2
     },
   /**********************************************ZOOKEEPER***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "ZOOKEEPER",
+      "filename": "zookeeper-env.xml",
+      "category": "ZookeeperEnv"
+    },
     {
       "id": "puppet var",
       "name": "zookeeperserver_hosts",
@@ -3105,7 +3466,7 @@ module.exports =
       "isVisible": true,
       "serviceName": "ZOOKEEPER",
       "filename": "zookeeper-env.xml",
-      "category": "Advanced zookeeper-env",
+      "category": "Advanced",
       "index": 0
     },
     {
@@ -3120,8 +3481,68 @@ module.exports =
       "isVisible": true,
       "serviceName": "ZOOKEEPER",
       "filename": "zookeeper-env.xml",
-      "category": "Advanced zookeeper-env",
+      "category": "Advanced",
       "index": 1
+    },
+  /**********************************************HUE***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "HUE",
+      "filename": "hue-env.xml",
+      "category": "HueEnv"
+    },
+    {
+      "id": "puppet var",
+      "name": "hueserver_host",
+      "displayName": "Hue Server host",
+      "value": "",
+      "defaultValue": "",
+      "description": "The host that has been assigned to run Hue Server",
+      "displayType": "masterHost",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": true,
+      "serviceName": "HUE",
+      "filename": "hue-env.xml",
+      "category": "Hue Server"
+    },
+    {
+      "id": "puppet var",
+      "name": "hue_log_dir",
+      "displayName": "HUE Log Dir",
+      "description": "Directory for HUE logs",
+      "defaultValue": "/var/log/hue",
+      "isReconfigurable": false,
+      "displayType": "directory",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": true,
+      "serviceName": "HUE",
+      "filename": "hue-env.xml",
+      "category": "Advanced"
+    },
+    {
+      "id": "puppet var",
+      "name": "hue_pid_dir",
+      "displayName": "HUE Pid Dir",
+      "description": "Directory in which the pid files for HUE processes will be created",
+      "defaultValue": "/var/run/hue",
+      "isReconfigurable": false,
+      "displayType": "directory",
+      "isOverridable": false,
+      "isRequiredByAgent": false,
+      "isVisible": true,
+      "serviceName": "HUE",
+      "filename": "hue-env.xml",
+      "category": "Advanced"
     },
   /**********************************************GANGLIA***************************************/
     {
@@ -3136,9 +3557,23 @@ module.exports =
       "isRequiredByAgent": false,
       "serviceName": "GANGLIA",
       "filename": "ganglia-env.xml",
-      "category": "Advanced ganglia-env"
+      "category": "Advanced"
     },
   /**********************************************FALCON***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "FALCON",
+      "filename": "falcon-env.xml",
+      "category": "FalconEnv"
+    },
     {
       "id": "puppet var",
       "name": "falconserver_host",
@@ -3207,7 +3642,7 @@ module.exports =
       "isReconfigurable": false,
       "serviceName": "FALCON",
       "filename": "falcon-env.xml",
-      "category": "Advanced falcon-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -3222,7 +3657,7 @@ module.exports =
       "isReconfigurable": false,
       "serviceName": "FALCON",
       "filename": "falcon-env.xml",
-      "category": "Advanced falcon-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -3237,7 +3672,7 @@ module.exports =
       "isReconfigurable": true,
       "serviceName": "FALCON",
       "filename": "falcon-env.xml",
-      "category": "Advanced falcon-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -3252,7 +3687,7 @@ module.exports =
       "isReconfigurable": true,
       "serviceName": "FALCON",
       "filename": "falcon-env.xml",
-      "category": "Advanced falcon-env"
+      "category": "Advanced"
     },
     {
       "id": "puppet var",
@@ -3267,9 +3702,23 @@ module.exports =
       "isReconfigurable": true,
       "serviceName": "FALCON",
       "filename": "falcon-env.xml",
-      "category": "Advanced falcon-env"
+      "category": "Advanced"
     },
   /**********************************************STORM***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "STORM",
+      "filename": "storm-env.xml",
+      "category": "StormEnv"
+    },
     {
       "id": "puppet var",
       "name": "storm_log_dir",
@@ -3282,7 +3731,7 @@ module.exports =
       "isRequiredByAgent": true,
       "serviceName": "STORM",
       "filename": "storm-env.xml",
-      "category": "Advanced storm-env"
+      "category": "General"
     },
     {
       "id": "puppet var",
@@ -3296,7 +3745,7 @@ module.exports =
       "isRequiredByAgent": true,
       "serviceName": "STORM",
       "filename": "storm-env.xml",
-      "category": "Advanced storm-env"
+      "category": "General"
     },
     {
       "id": "puppet var",
@@ -3356,6 +3805,21 @@ module.exports =
       "isOverridable": false,
       "category": "STORM_REST_API"
     },
+  /**********************************************TEZ***************************************/
+    {
+      "id": "site property",
+      "name": "content",
+      "displayName": "content",
+      "value": "",
+      "defaultValue": "",
+      "description": "-env.sh content",
+      "displayType": "content",
+      "isRequired": false,
+      "showLabel": false,
+      "serviceName": "TEZ",
+      "filename": "tez-env.xml",
+      "category": "TezEnv"
+    },
   /**********************************************MISC***************************************/
     {
       "id": "puppet var",
@@ -3381,12 +3845,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "filename": "core-site.xml",
       "serviceName": "MISC",
       "category": "Users and Groups",
-      "belongsToService": ["HIVE", "OOZIE", "FALCON"],
-      "index": 18
+      "belongsToService": ["HIVE", "WEBHCAT", "OOZIE", "FALCON"],
+      "index": 19
     },
     {
       "id": "puppet var",
@@ -3411,12 +3875,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": false,
       "serviceName": "MISC",
       "filename": "hadoop-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["HDFS"],
-      "index": 1
+      "index": 2
     },
     {
       "id": "puppet var",
@@ -3427,12 +3891,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "mapred-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["MAPREDUCE2"],
-      "index": 2
+      "index": 3
     },
     {
       "id": "puppet var",
@@ -3443,12 +3907,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "yarn-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["YARN"],
-      "index": 3
+      "index": 4
     },
     {
       "id": "puppet var",
@@ -3459,12 +3923,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "hbase-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["HBASE"],
-      "index": 4
+      "index": 5
     },
     {
       "id": "puppet var",
@@ -3475,12 +3939,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "hive-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["HIVE"],
-      "index": 5
+      "index": 6
     },
     {
       "id": "puppet var",
@@ -3491,12 +3955,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "hive-env.xml",
+      "filename": "hcatalog-env.xml",
       "category": "Users and Groups",
-      "belongsToService": ["HIVE"],
-      "index": 6
+      "belongsToService": ["HCATALOG"],
+      "index": 7
     },
     {
       "id": "puppet var",
@@ -3507,12 +3971,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "webhcat-env.xml",
       "category": "Users and Groups",
-      "belongsToService": ["HIVE"],
-      "index": 7
+      "belongsToService": ["WEBHCAT"],
+      "index": 8
     },
     {
       "id": "puppet var",
@@ -3523,12 +3987,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "oozie-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["OOZIE"],
-      "index": 8
+      "index": 9
     },
     {
       "id": "puppet var",
@@ -3539,12 +4003,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "falcon-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["FALCON"],
-      "index": 10
+      "index": 11
     },
     {
       "id": "puppet var",
@@ -3555,12 +4019,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "storm-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["STORM"],
-      "index": 9
+      "index": 10
     },
     {
       "id": "puppet var",
@@ -3571,27 +4035,11 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "zookeeper-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["ZOOKEEPER"],
-      "index": 11
-    },
-    {
-      "id": "puppet var",
-      "name": "flume_user",
-      "displayName": "Flume User",
-      "description": "User to run Flume as",
-      "defaultValue": "flume",
-      "isReconfigurable": false,
-      "displayType": "user",
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "MISC",
-      "filename": "flume-env.xml",
-      "category": "Users and Groups",
-      "belongsToService": ["FLUME"],
       "index": 12
     },
     {
@@ -3603,7 +4051,7 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "ganglia-env.xml",
       "category": "Users and Groups",
@@ -3619,7 +4067,7 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "advanced",
       "isOverridable": false,
-      "isVisible": false,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "ganglia-env.xml",
       "category": "Users and Groups",
@@ -3634,12 +4082,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "nagios-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["NAGIOS"],
-      "index": 14
+      "index": 15
     },
     {
       "id": "puppet var",
@@ -3650,12 +4098,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "nagios-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["NAGIOS"],
-      "index": 13
+      "index": 14
     },
     {
       "id": "puppet var",
@@ -3666,11 +4114,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": App.supports.customizeSmokeTestUser,
+      "isVisible": App.supports.customizeSmokeTestUser && !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "cluster-env.xml",
+      "filename": "hadoop-env.xml",
       "category": "Users and Groups",
-      "index": 16
+      "belongsToService": ["HDFS"],
+      "index": 17
     },
     {
       "id": "puppet var",
@@ -3681,12 +4130,12 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
       "filename": "tez-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["TEZ"],
-      "index": 15
+      "index": 16
     },
     {
       "id": "puppet var",
@@ -3697,24 +4146,11 @@ module.exports =
       "isReconfigurable": false,
       "displayType": "user",
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "cluster-env.xml",
+      "filename": "hadoop-env.xml",
       "category": "Users and Groups",
-      "index": 17
-    },
-    {
-      "id": "puppet var",
-      "name": "sqoop_user",
-      "displayName": "Sqoop User",
-      "isReconfigurable": false,
-      "displayType": "user",
-      "isOverridable": false,
-      "isVisible": true,
-      "serviceName": "MISC",
-      "filename": "sqoop-env.xml",
-      "category": "Users and Groups",
-      "belongsToService": ["SQOOP"],
+      "belongsToService": ["HDFS"],
       "index": 17
     },
     {
@@ -3739,10 +4175,11 @@ module.exports =
       "displayType": "checkbox",
       "isReconfigurable": true,
       "isOverridable": false,
-      "isVisible": true,
+      "isVisible": !App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "cluster-env.xml",
-      "category": "Users and Groups"
+      "filename": "hadoop-env.xml",
+      "category": "Users and Groups",
+      "belongsToService": ["HDFS"]
     }
   ]
 };

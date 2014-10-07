@@ -24,7 +24,6 @@
   <property>
     <name>oozie_user</name>
     <value>oozie</value>
-    <property-type>USER</property-type>
     <description>Oozie User.</description>
   </property>
   <property>
@@ -61,7 +60,7 @@
   <!-- oozie-env.sh -->
   <property>
     <name>content</name>
-    <description>This is the jinja template for oozie-env.sh file</description>
+    <description>oozie-env.sh content</description>
     <value>
 #!/bin/bash
 

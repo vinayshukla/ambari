@@ -330,9 +330,9 @@ public class HostResourceProvider extends AbstractControllerResourceProvider {
     if (null != o)
       hostRequest.setMaintenanceState(o.toString());
     
-    List<ConfigurationRequest> cr = getConfigurationRequests("Hosts", properties);
+    ConfigurationRequest cr = getConfigurationRequest("Hosts", properties);
     
-    hostRequest.setDesiredConfigs(cr);
+    hostRequest.setDesiredConfig(cr);
 
     return hostRequest;
   }
@@ -533,10 +533,7 @@ public class HostResourceProvider extends AbstractControllerResourceProvider {
 
     AmbariManagementController controller = getManagementController();
     Clusters                   clusters   = controller.getClusters();
-
-    // We don't expect batch requests for different clusters, that's why
-    // nothing bad should happen if value is overwritten few times
-    String maintenanceCluster = null;
+    Set<String>                maintenanceClusters = new HashSet<String>();
     
     for (HostRequest request : requests) {
       if (request.getHostname() == null
@@ -585,54 +582,54 @@ public class HostResourceProvider extends AbstractControllerResourceProvider {
               "maintenance state to one of " + EnumSet.of(MaintenanceState.OFF, MaintenanceState.ON));
           } else {
             h.setMaintenanceState(c.getClusterId(), newState);
-            maintenanceCluster = c.getClusterName();
+            
+            maintenanceClusters.add(c.getClusterName());
           }
         }
       }
 
-      if (null != request.getClusterName() && null != request.getDesiredConfigs()) {
+      if (null != request.getClusterName() && null != request.getDesiredConfig()) {
         Cluster c = clusters.getCluster(request.getClusterName());
 
         if (clusters.getHostsForCluster(request.getClusterName()).containsKey(h.getHostName())) {
 
-          for (ConfigurationRequest cr : request.getDesiredConfigs()) {
+          ConfigurationRequest cr = request.getDesiredConfig();
 
-            if (null != cr.getProperties() && cr.getProperties().size() > 0) {
-              LOG.info(MessageFormat.format("Applying configuration with tag ''{0}'' to host ''{1}'' in cluster ''{2}''",
-                  cr.getVersionTag(),
-                  request.getHostname(),
-                  request.getClusterName()));
+          if (null != cr.getProperties() && cr.getProperties().size() > 0) {
+            LOG.info(MessageFormat.format("Applying configuration with tag ''{0}'' to host ''{1}'' in cluster ''{2}''",
+                cr.getVersionTag(),
+                request.getHostname(),
+                request.getClusterName()));
 
-              cr.setClusterName(c.getClusterName());
-              controller.createConfiguration(cr);
-            }
+            cr.setClusterName(c.getClusterName());
+            controller.createConfiguration(cr);
+          }
 
-            Config baseConfig = c.getConfig(cr.getType(), cr.getVersionTag());
-            if (null != baseConfig) {
-              String authName = controller.getAuthName();
-              DesiredConfig oldConfig = h.getDesiredConfigs(c.getClusterId()).get(cr.getType());
+          Config baseConfig = c.getConfig(cr.getType(), cr.getVersionTag());
+          if (null != baseConfig) {
+            String authName = controller.getAuthName();
+            DesiredConfig oldConfig = h.getDesiredConfigs(c.getClusterId()).get(cr.getType());
 
-              if (h.addDesiredConfig(c.getClusterId(), cr.isSelected(), authName,  baseConfig)) {
-                Logger logger = LoggerFactory.getLogger("configchange");
-                logger.info("cluster '" + c.getClusterName() + "', "
-                    + "host '" + h.getHostName() + "' "
-                    + "changed by: '" + authName + "'; "
-                    + "type='" + baseConfig.getType() + "' "
-                    + "version='" + baseConfig.getVersion() + "'"
-                    + "tag='" + baseConfig.getTag() + "'"
-                    + (null == oldConfig ? "" : ", from='" + oldConfig.getTag() + "'"));
-              }
+            if (h.addDesiredConfig(c.getClusterId(), cr.isSelected(), authName,  baseConfig)) {
+              Logger logger = LoggerFactory.getLogger("configchange");
+              logger.info("cluster '" + c.getClusterName() + "', "
+                  + "host '" + h.getHostName() + "' "
+                  + "changed by: '" + authName + "'; "
+                  + "type='" + baseConfig.getType() + "' "
+                  + "tag='" + baseConfig.getVersionTag() + "'"
+                  + (null == oldConfig ? "" : ", from='" + oldConfig.getVersion() + "'"));
             }
           }
+
         }
       }
       //todo: if attempt was made to update a property other than those
       //todo: that are allowed above, should throw exception
     }
     
-    if (maintenanceCluster != null) {
+    if (maintenanceClusters.size() > 0) {
       try {
-        maintenanceStateHelper.createRequests(controller, requestProperties, maintenanceCluster);
+        maintenanceStateHelper.createRequests(controller, requestProperties, maintenanceClusters);
       } catch (Exception e) {
         LOG.warn("Could not send maintenance status to Nagios (" + e.getMessage() + ")");
       }

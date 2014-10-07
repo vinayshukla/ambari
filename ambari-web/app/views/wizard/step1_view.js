@@ -21,103 +21,115 @@ App.WizardStep1View = Em.View.extend({
 
   templateName: require('templates/wizard/step1'),
 
-  didInsertElement: function () {
-    if (this.get('isRLCollapsed')) {
-      this.$('.accordion-body').hide();
-    }
-    $("[rel=skip-validation-tooltip]").tooltip({ placement: 'right'});
-  },
-
   /**
    * List of available stacks
    * @type {Em.Object[]}
    */
   stacks: function () {
-    return this.get('controller.content.stacks').toArray().map(function (stack) {
+    return this.get('controller.content.stacks').map(function (stack) {
       return Em.Object.create({
-        name: stack.get('id').replace('-', ' '),
+        name: stack.get('name').replace('-', ' '),
         isSelected: stack.get('isSelected')
       });
     });
-  }.property('controller.selectedStack'),
-
-  operatingSystems: function () {
-    var selectedStack = this.get('controller.selectedStack');
-    var result = [];
-    if (!!selectedStack)
-      result = selectedStack.get('operatingSystems');
-    return result;
-  }.property('controller.selectedStack'),
+  }.property('controller.content.stacks.@each.isSelected'),
 
   /**
-   * List of all repositories under selected stack operatingSystems
-   * API and ember data model structure:
-   * stack = [{OS-1},{OS-2}]
-   * OS-1 = [{repository-1},{repository-2}]
-   * OS-2 = [{repository-3},{repository-4}]
-   * @return: [{repository-1},{repository-2},{repository-3},{repository-4}]
+   * List of all repositories
+   * @type {Array}
    */
-  allRepositories: function () {
-    var selectedStack = this.get('controller.selectedStack');
+  allRepositories: [],
+
+  /**
+   * List of all repo-groups
+   * @type {Array}
+   */
+  allRepositoriesGroups: function () {
     var result = [];
-    if (!!selectedStack)
-      result = selectedStack.get('repositories');
+    var stacks = this.get('controller.content.stacks');
+    if (stacks && stacks.length) {
+      var selectedStack = stacks.findProperty('isSelected', true);
+      var allRepositories = this.get('allRepositories');
+      var OSNames = allRepositories.mapProperty('osType').uniq();
+      OSNames.forEach(function (os) {
+        result.push(Ember.Object.create({
+          checked: selectedStack.operatingSystems.findProperty('osType', os).selected,
+          name: os,
+          repositories: allRepositories.filterProperty('osType', os)
+        }));
+      });
+    }
     return result;
-  }.property('controller.selectedStack'),
+  }.property('allRepositories.length', 'controller.content.stacks'),
 
   /**
    * Verify if some repo has empty base-url
    * @type {bool}
    */
   emptyRepoExist: function () {
-    return this.get('allRepositories').someProperty('emptyError', true);
-  }.property('allRepositories.@each.emptyError'),
+    return this.get('allRepositories').someProperty('empty-error', true);
+  }.property('allRepositories.@each.empty-error'),
 
   /**
    * Disable submit button flag
    * @type {bool}
    */
   isSubmitDisabled: function () {
-    return this.get('emptyRepoExist') || this.get('isNoOsChecked') || this.get('invalidUrlExist');
-  }.property('emptyRepoExist', 'isNoOsChecked', 'invalidUrlExist'),
+    return this.get('emptyRepoExist') || this.get('allRepoUnchecked') || this.get('invalidUrlExist');
+  }.property('emptyRepoExist', 'allRepoUnchecked', 'invalidUrlExist'),
 
   /**
    * Verify if some invalid repo-urls exist
    * @type {bool}
    */
   invalidUrlExist: function () {
-    return this.get('allRepositories').someProperty('validation', App.Repository.validation['INVALID']);
-  }.property('allRepositories.@each.validation'),
+    var selectedStack = this.get('controller.content.stacks').findProperty('isSelected', true);
+    var invalidExist = this.get('allRepositories').someProperty('validation', 'icon-exclamation-sign');
+    return (selectedStack.get('invalidCnt') > 0) && invalidExist;
+  }.property('controller.content.stacks.@each.invalidCnt', 'allRepositories.@each.validation'),
 
   /**
    * If all repo links are unchecked
    * @type {bool}
    */
-  isNoOsChecked: function () {
-    return this.get('operatingSystems').everyProperty('isSelected', false);
-  }.property('operatingSystems.@each.isSelected'),
+  allRepoUnchecked: function () {
+    return !this.get('allRepositoriesGroups').someProperty('checked', true);
+  }.property('allRepositoriesGroups.@each.checked'),
 
   /**
    * Overall errors count
    * @type {number}
    */
   totalErrorCnt: function () {
-    var emptyCnt = this.get('allRepositories').filterProperty('emptyError').length;
-    var invalidCnt = this.get('allRepositories').filterProperty('validation', App.Repository.validation['INVALID']).length;
-    if (this.get('isNoOsChecked')) {
+    var emptyCnt = this.get('allRepositories').filterProperty('empty-error', true).length;
+    var invalidCnt = this.get('allRepositories').filterProperty('validation', 'icon-exclamation-sign').length;
+    if (this.get('allRepoUnchecked')) {
       return 1;
     } else if (emptyCnt || invalidCnt) {
       return emptyCnt + invalidCnt;
     } else {
       return 0;
     }
-  }.property('allRepositories.@each.emptyError', 'isNoOsChecked', 'allRepositories.@each.validation'),
+  }.property('allRepositories.@each.empty-error', 'allRepoUnchecked', 'allRepositories.@each.validation'),
 
   /**
    * Is Repositories Accordion collapsed
    * @type {bool}
    */
   isRLCollapsed: true,
+
+  /**
+   * Skip repo-validation
+   * @type {bool}
+   */
+  skipValidationChecked: true,
+
+  didInsertElement: function () {
+    if (this.get('isRLCollapsed')) {
+      this.$('.accordion-body').hide();
+    }
+    $("[rel=skip-validation-tooltip]").tooltip({ placement: 'right'});
+  },
 
   /**
    * Checkbox for each stack
@@ -133,7 +145,7 @@ App.WizardStep1View = Em.View.extend({
 
     click: function () {
       this.get('controller.content.stacks').setEach('isSelected', false);
-      this.get('controller.content.stacks').findProperty('id', this.get('content.name').replace(' ', '-')).set('isSelected', true);
+      this.get('controller.content.stacks').findProperty('name', this.get('content.name').replace(' ', '-')).set('isSelected', true);
     }
   }),
 
@@ -143,8 +155,8 @@ App.WizardStep1View = Em.View.extend({
    */
   popoverView: Em.View.extend({
     tagName: 'i',
-    classNameBindings: ['repository.validation'],
-    attributeBindings: ['repository.errorTitle:title', 'repository.errorContent:data-content'],
+    classNameBindings: ['repoGroup.validation'],
+    attributeBindings: ['repoGroup.errorTitle:title', 'repoGroup.errorContent:data-content'],
     didInsertElement: function () {
       App.popover($(this.get('element')), {'trigger': 'hover'});
     }
@@ -163,9 +175,37 @@ App.WizardStep1View = Em.View.extend({
    * Onclick handler for recheck repos urls. Used in Advanced Repository Options.
    */
   retryRepoUrls: function () {
-    App.router.get('installerController').checkRepoURL(this.get('controller'));
+    App.router.get('installerController').checkRepoURL();
   },
 
+  /**
+   * Format repo values and set it to <code>allRepositories</code>
+   * @method loadRepositories
+   */
+  loadRepositories: function () {
+    var selectedStack = this.get('controller.content.stacks').findProperty('isSelected', true);
+    var repos = [];
+    if (selectedStack && selectedStack.operatingSystems) {
+      selectedStack.operatingSystems.forEach(function (os) {
+        repos.push(Ember.Object.create({
+          'id': os.id,
+          'repoId': os.repoId,
+          'baseUrl': os.baseUrl,
+          'osType': os.osType,
+          'latestBaseUrl': os.latestBaseUrl,
+          'defaultBaseUrl': os.defaultBaseUrl,
+          'empty-error': !os.baseUrl,
+          'invalid-error': os.validation == 'icon-exclamation-sign',
+          'validation': os.validation,
+          'undo': os.baseUrl != os.latestBaseUrl,
+          'clearAll': os.baseUrl,
+          'errorTitle': os.errorTitle,
+          'errorContent': os.errorContent
+        }));
+      }, this);
+    }
+    this.set('allRepositories', repos);
+  }.observes('controller.content.stacks.@each.isSelected', 'controller.content.stacks.@each.reload'),
 
   /**
    * Onclick handler for checkbox of each repo group
@@ -173,24 +213,38 @@ App.WizardStep1View = Em.View.extend({
    */
   updateByCheckbox: function () {
     //upload to content
-    var operatingSystems = this.get('operatingSystems');
-    if (operatingSystems) {
-      operatingSystems.forEach(function (os) {
-        if (!os.get('isSelected')) {
-          os.get('repositories').forEach(function (repository) {
-            repository.set('baseUrl', repository.get('latestBaseUrl'));
-            repository.set('validation', App.Repository.validation['PENDING']);
-          });
+    var repos = this.get('allRepositories');
+    var selectedStack = this.get('controller.content.stacks').findProperty('isSelected', true);
+    var allRepositoriesGroups = this.get('allRepositoriesGroups');
+    if (selectedStack && selectedStack.operatingSystems) {
+      selectedStack.operatingSystems.forEach(function (os) {
+        var targetRepo = repos.findProperty('id', os.id);
+        var repoGroup = allRepositoriesGroups.findProperty('name', targetRepo.get('osType'));
+        if (repoGroup && !repoGroup.get('checked')) {
+          os.baseUrl = os.latestBaseUrl;
+          os.validation = null;
+          os.selected = false;
+          targetRepo.set('baseUrl', os.latestBaseUrl);
+          targetRepo.set('latestBaseUrl', os.latestBaseUrl);
+          targetRepo.set('undo', targetRepo.get('baseUrl') != targetRepo.get('latestBaseUrl'));
+          targetRepo.set('invalid-error', false);
+          targetRepo.set('validation', null);
+          targetRepo.set('clearAll', false);
+          targetRepo.set('empty-error', !targetRepo.get('baseUrl'));
         } else {
-          os.get('repositories').forEach(function (repository) {
-            if (this.get('controller.skipValidationChecked')) {
-              repository.set('validation', App.Repository.validation['PENDING']);
-            }
-          }, this);
+          os.selected = true;
+//          os.skipValidation = this.get('skipValidationChecked');
+          os.skipValidation = true;
+          if (os.skipValidation) {
+            targetRepo.set('validation', null);
+            targetRepo.set('invalid-error', false);
+          }
+          targetRepo.set('clearAll', targetRepo.get('baseUrl'));
+          targetRepo.set('empty-error', !targetRepo.get('baseUrl'));
         }
       }, this);
     }
-  }.observes('operatingSystems.@each.isSelected', 'controller.skipValidationChecked'),
+  }.observes('allRepositoriesGroups.@each.checked'),
 
   /**
    * Onclick handler for undo action of each repo group
@@ -198,8 +252,7 @@ App.WizardStep1View = Em.View.extend({
    * @param {object} event
    */
   undoGroupLocalRepository: function (event) {
-    event.context.set('baseUrl', event.context.get('latestBaseUrl'));
-    event.context.set('validation', App.Repository.validation['PENDING']);
+    this.doActionForGroupLocalRepository(event, 'latestBaseUrl');
   },
 
   /**
@@ -208,8 +261,21 @@ App.WizardStep1View = Em.View.extend({
    * @param {object} event
    */
   clearGroupLocalRepository: function (event) {
-    event.context.set('baseUrl', '');
-    event.context.set('validation', App.Repository.validation['PENDING']);
+    this.doActionForGroupLocalRepository(event, '');
+  },
+
+  /**
+   * Common handler for repo groups actions
+   * @method doActionForGroupLocalRepository
+   * @param {object} event
+   * @param {string} newBaseUrlField
+   */
+  doActionForGroupLocalRepository: function (event, newBaseUrlField) {
+    var selectedStack = this.get('controller.content.stacks').findProperty('isSelected', true);
+    var cos = selectedStack.operatingSystems.findProperty('id', event.context.get('id'));
+    cos.baseUrl = Em.isEmpty(newBaseUrlField) ? '' : Em.get(cos, newBaseUrlField);
+    cos.validation = null;
+    this.loadRepositories();
   },
 
   /**
@@ -218,13 +284,22 @@ App.WizardStep1View = Em.View.extend({
    */
   editLocalRepository: function () {
     //upload to content
-    var repositories = this.get('allRepositories');
-    repositories.forEach(function (repository) {
-      if (repository.get('lastBaseUrl') != repository.get('baseUrl')) {
-        repository.set('lastBaseUrl', repository.get('baseUrl'));
-        repository.set('validation', App.Repository.validation['PENDING']);
-      }
-    }, this);
+    var repos = this.get('allRepositories');
+    var selectedStack = this.get('controller.content.stacks').findProperty('isSelected', true);
+    if (selectedStack && selectedStack.operatingSystems) {
+      selectedStack.operatingSystems.forEach(function (os) {
+        var targetRepo = repos.findProperty('id', os.id);
+        if (os.baseUrl != targetRepo.get('baseUrl')) {
+          os.baseUrl = targetRepo.get('baseUrl');
+          os.validation = null;
+          targetRepo.set('undo', targetRepo.get('baseUrl') != targetRepo.get('latestBaseUrl'));
+          targetRepo.set('invalid-error', false);
+          targetRepo.set('validation', null);
+          targetRepo.set('clearAll', os.baseUrl);
+          targetRepo.set('empty-error', !targetRepo.get('baseUrl'));
+        }
+      });
+    }
   }.observes('allRepositories.@each.baseUrl')
 
 });

@@ -741,7 +741,7 @@ public class ServiceComponentHostImpl implements ServiceComponentHost {
           saveIfPersisted();
           // TODO Audit logs
         } catch (InvalidStateTransitionException e) {
-          LOG.debug("Can't handle ServiceComponentHostEvent event at"
+          LOG.error("Can't handle ServiceComponentHostEvent event at"
               + " current state"
               + ", serviceComponentName=" + this.getServiceComponentName()
               + ", hostName=" + this.getHostName()

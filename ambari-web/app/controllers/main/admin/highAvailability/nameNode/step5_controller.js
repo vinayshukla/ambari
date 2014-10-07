@@ -85,17 +85,29 @@ App.HighAvailabilityWizardStep5Controller = App.HighAvailabilityProgressPageCont
 
   reconfigureHDFS: function () {
     var data = this.get('content.serviceConfigProperties');
-    var siteNames = ['hdfs-site','core-site'];
-    var configData = this.reconfigureSites(siteNames, data);
+    var hdfsSiteProperties = data.items.findProperty('type', 'hdfs-site').properties;
+    var coreSiteProperties = data.items.findProperty('type', 'core-site').properties;
+    var self = this;
     App.ajax.send({
-      name: 'common.service.configurations',
+      name: 'admin.high_availability.save_configs',
       sender: this,
       data: {
-        desired_config: configData
+        siteName: 'hdfs-site',
+        properties: hdfsSiteProperties
       },
-      error: 'onTaskError',
-      success: 'installHDFSClients'
-    })
+      error: 'onTaskError'
+    }).done(function() {
+      App.ajax.send({
+        name: 'admin.high_availability.save_configs',
+        sender: self,
+        data: {
+          siteName: 'core-site',
+          properties: coreSiteProperties
+        },
+        error: 'onTaskError',
+        success: 'installHDFSClients'
+      });
+    });
   },
 
   installHDFSClients: function () {

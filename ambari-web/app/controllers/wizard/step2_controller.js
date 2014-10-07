@@ -62,7 +62,7 @@ App.WizardStep2Controller = Em.Controller.extend({
 
   /**
    * "Shortcut" to <code>content.installOptions.hostNames</code>
-   * @type {string}
+   * @type {string[]}
    */
   hostNames: function () {
     return this.get('content.installOptions.hostNames').toLowerCase();
@@ -112,6 +112,10 @@ App.WizardStep2Controller = Em.Controller.extend({
    * @type {string|null}
    */
   hostsError: null,
+
+  isSSHRegistrationEnabled: function () {
+    return !App.get('isHadoopWindowsStack');
+  }.property('App.isHadoopWindowsStack'),
 
   /**
    * Error-message if <code>sshKey</code> is empty, null otherwise
@@ -469,7 +473,7 @@ App.WizardStep2Controller = Em.Controller.extend({
    * @method manualInstallWarningPopup
    */
   manualInstallWarningPopup: function () {
-    if (!this.get('content.installOptions.useSsh')) {
+    if (this.get('isSSHRegistrationEnabled') && !this.get('content.installOptions.useSsh')) {
       App.ModalPopup.show({
         header: Em.I18n.t('common.warning'),
         body: Em.I18n.t('installer.step2.manualInstall.info'),

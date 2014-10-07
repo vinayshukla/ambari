@@ -260,8 +260,6 @@ App.showPromptPopup = function (text, primary, defaultValue, secondary) {
       text: text
     }),
     inputValue: defaultValue || '',
-    isInvalid: false,
-    errorMessage: '',
     onPrimary: function () {
       this.hide();
       primary(this.get('inputValue'));

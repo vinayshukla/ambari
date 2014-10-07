@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.ambari.groovy.client.AmbariClient;
-import org.apache.ambari.groovy.client.InvalidHostGroupHostAssociation;
 import org.apache.ambari.shell.completion.Blueprint;
 import org.apache.ambari.shell.completion.Host;
 import org.apache.ambari.shell.flash.FlashService;
@@ -251,7 +250,7 @@ public class ClusterCommandsTest {
   }
 
   @Test
-  public void testAutoAssignForEmptyResult() throws InvalidHostGroupHostAssociation {
+  public void testAutoAssignForEmptyResult() {
     Map<String, List<String>> hostGroups = singletonMap("group1", asList("host1"));
     ReflectionTestUtils.setField(clusterCommands, "hostGroups", hostGroups);
     when(context.getFocusValue()).thenReturn("blueprint");
@@ -264,7 +263,7 @@ public class ClusterCommandsTest {
   }
 
   @Test
-  public void testAutoAssign() throws InvalidHostGroupHostAssociation {
+  public void testAutoAssign() {
     Map<String, List<String>> hostGroups = singletonMap("group1", asList("host1"));
     Map<String, List<String>> newAssignments = singletonMap("group1", asList("host1"));
     ReflectionTestUtils.setField(clusterCommands, "hostGroups", hostGroups);

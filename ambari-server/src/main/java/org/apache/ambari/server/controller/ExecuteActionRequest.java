@@ -35,15 +35,13 @@ public class ExecuteActionRequest {
   private RequestOperationLevel operationLevel = null;
   private String actionName;
   private Map<String, String> parameters;
-  private boolean exclusive;
 
   public ExecuteActionRequest(String clusterName, String commandName,
                               String actionName,
                               List<RequestResourceFilter> resourceFilters,
                               RequestOperationLevel operationLevel,
-                              Map<String, String> parameters,
-                              boolean exclusive) {
-    this(clusterName, commandName, parameters, exclusive);
+                              Map<String, String> parameters) {
+    this(clusterName, commandName, parameters);
     this.actionName = actionName;
     if (resourceFilters != null) {
       this.resourceFilters.addAll(resourceFilters);
@@ -55,9 +53,7 @@ public class ExecuteActionRequest {
    * Create an ExecuteActionRequest to execute a command.
    * No filters.
    */
-  public ExecuteActionRequest(String clusterName, String commandName,
-                              Map<String, String> parameters,
-                              boolean exclusive) {
+  public ExecuteActionRequest(String clusterName, String commandName, Map<String, String> parameters) {
     this.clusterName = clusterName;
     this.commandName = commandName;
     this.actionName = null;
@@ -66,7 +62,6 @@ public class ExecuteActionRequest {
       this.parameters.putAll(parameters);
     }
     this.resourceFilters = new ArrayList<RequestResourceFilter>();
-    this.exclusive = exclusive;
   }
 
   public String getClusterName() {
@@ -93,14 +88,6 @@ public class ExecuteActionRequest {
     return parameters;
   }
 
-  public boolean isExclusive() {
-    return exclusive;
-  }
-
-  public void setExclusive(boolean isExclusive) {
-    this.exclusive = isExclusive;
-  }
-
   public Boolean isCommand() {
     return actionName == null || actionName.isEmpty();
   }
@@ -113,7 +100,6 @@ public class ExecuteActionRequest {
         append(", command :" + commandName).
         append(", inputs :" + parameters.toString()).
         append(", resourceFilters: " + resourceFilters).
-        append(", exclusive: " + exclusive).
         append(", clusterName :" + clusterName).toString();
   }
 }

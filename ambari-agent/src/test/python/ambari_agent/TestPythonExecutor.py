@@ -55,15 +55,12 @@ class TestPythonExecutor(TestCase):
     runShellKillPgrp_method.side_effect = lambda python : python.terminate()
     executor.runShellKillPgrp = runShellKillPgrp_method
     subproc_mock.returncode = None
-    callback_method = MagicMock()
     thread = Thread(target =  executor.run_file, args = ("fake_puppetFile",
-      ["arg1", "arg2"], "/fake_tmp_dir", tmpoutfile, tmperrfile,
-      PYTHON_TIMEOUT_SECONDS, tmpstrucout, "INFO", callback_method, '1'))
+      ["arg1", "arg2"], tmpoutfile, tmperrfile, PYTHON_TIMEOUT_SECONDS, tmpstrucout,"INFO"))
     thread.start()
     time.sleep(0.1)
     subproc_mock.finished_event.wait()
     self.assertEquals(subproc_mock.was_terminated, True, "Subprocess should be terminated due to timeout")
-    self.assertTrue(callback_method.called)
 
 
   def test_watchdog_2(self):
@@ -86,18 +83,16 @@ class TestPythonExecutor(TestCase):
     runShellKillPgrp_method.side_effect = lambda python : python.terminate()
     executor.runShellKillPgrp = runShellKillPgrp_method
     subproc_mock.returncode = 0
-    callback_method = MagicMock()
     thread = Thread(target =  executor.run_file, args = ("fake_puppetFile", ["arg1", "arg2"],
-                                                      "/fake_tmp_dir", tmpoutfile, tmperrfile,
-                                                      PYTHON_TIMEOUT_SECONDS, tmpstrucout,
-                                                      "INFO", callback_method, "1-1"))
+                                                      tmpoutfile, tmperrfile,
+                                                      PYTHON_TIMEOUT_SECONDS, tmpstrucout, "INFO"))
     thread.start()
     time.sleep(0.1)
     subproc_mock.should_finish_event.set()
     subproc_mock.finished_event.wait()
     self.assertEquals(subproc_mock.was_terminated, False, "Subprocess should not be terminated before timeout")
     self.assertEquals(subproc_mock.returncode, 0, "Subprocess should not be terminated before timeout")
-    self.assertTrue(callback_method.called)
+
 
   def test_execution_results(self):
     subproc_mock = self.Subprocess_mockup()
@@ -117,13 +112,10 @@ class TestPythonExecutor(TestCase):
     executor.runShellKillPgrp = runShellKillPgrp_method
     subproc_mock.returncode = 0
     subproc_mock.should_finish_event.set()
-    callback_method = MagicMock()
-    result = executor.run_file("file", ["arg1", "arg2"], "/fake_tmp_dir",
-                               tmpoutfile, tmperrfile, PYTHON_TIMEOUT_SECONDS,
-                               tmpstroutfile, "INFO", callback_method, "1-1")
+    result = executor.run_file("file", ["arg1", "arg2"], tmpoutfile, tmperrfile, PYTHON_TIMEOUT_SECONDS, tmpstroutfile, "INFO")
     self.assertEquals(result, {'exitcode': 0, 'stderr': 'Dummy err', 'stdout': 'Dummy output',
                                'structuredOut': {}})
-    self.assertTrue(callback_method.called)
+
 
   def test_is_successfull(self):
     executor = PythonExecutor("/tmp", AmbariConfig().getConfig())

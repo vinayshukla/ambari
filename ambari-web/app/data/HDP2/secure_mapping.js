@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-// All of the "name" properties have to coincide with how they will appear in the *-site.xml file
-// The "template" properties can come from the config properties in site_properties.js or secure_properties.js .
 module.exports = [
   {
     "name": "hadoop.security.authentication",
@@ -217,49 +215,6 @@ module.exports = [
     "filename": "yarn-site.xml",
     "serviceName": "YARN"
   },
-  // YARN Timeline Service
-  // These "http-authentication" properties are supported in HDP Champlain
-  {
-    "name": "yarn.timeline-service.principal",
-    "templateName": ["apptimelineserver_principal_name", "kerberos_domain"],
-    "foreignKey": null,
-    "value": "<templateName[0]>@<templateName[1]>",
-    "filename": "yarn-site.xml",
-    "serviceName": "YARN"
-  },
-  {
-    "name": "yarn.timeline-service.keytab",
-    "templateName": ["apptimelineserver_keytab"],
-    "foreignKey": null,
-    "value": "<templateName[0]>",
-    "filename": "yarn-site.xml",
-    "serviceName": "YARN"
-  },
-  {
-    "name": "yarn.timeline-service.http-authentication.type",
-    "templateName": [],
-    "foreignKey": null,
-    "value": "kerberos",
-    "filename": "yarn-site.xml",
-    "serviceName": "YARN"
-  },
-  {
-    "name": "yarn.timeline-service.http-authentication.kerberos.principal",
-    "templateName": ["apptimelineserver_http_principal_name", "kerberos_domain"],
-    "foreignKey": null,
-    "value": "<templateName[0]>@<templateName[1]>",
-    "filename": "yarn-site.xml",
-    "serviceName": "YARN"
-  },
-  {
-    "name": "yarn.timeline-service.http-authentication.kerberos.keytab",
-    "templateName": ["apptimelineserver_http_keytab"],
-    "foreignKey": null,
-    "value": "<templateName[0]>",
-    "filename": "yarn-site.xml",
-    "serviceName": "YARN"
-  },
-  // YARN Resource Manager
   {
     "name": "yarn.resourcemanager.principal",
     "templateName": ["resourcemanager_principal_name", "kerberos_domain"],
@@ -505,7 +460,7 @@ module.exports = [
     "foreignKey": null,
     "value": "<templateName[0]>@<templateName[1]>",
     "filename": "webhcat-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   },
   {
     "name": "templeton.kerberos.keytab",
@@ -513,7 +468,7 @@ module.exports = [
     "foreignKey": null,
     "value": "<templateName[0]>",
     "filename": "webhcat-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   },
   {
     "name": "templeton.kerberos.secret",
@@ -521,7 +476,7 @@ module.exports = [
     "foreignKey": null,
     "value": "secret",
     "filename": "webhcat-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   },
   {
     "name": "templeton.hive.properties",
@@ -530,7 +485,7 @@ module.exports = [
     "value": "hive.metastore.local=false,hive.metastore.uris=thrift://<templateName[0]>:9083,hive." +
       "metastore.sasl.enabled=true,hive.metastore.execute.setugi=true,hive.metastore.warehouse.dir=/apps/hive/warehouse,hive.exec.mode.local.auto=false,hive.metastore.kerberos.principal=<templateName[1]>@<templateName[2]>",
     "filename": "webhcat-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   },
   {
     "name": "hbase.coprocessor.master.classes",
@@ -689,7 +644,7 @@ module.exports = [
     "foreignKey": ["webHCat_http_primary_name"],
     "value": "<templateName[0]>",
     "filename": "core-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   },
   {
     "name": "hadoop.proxyuser.<foreignKey[0]>.hosts",
@@ -697,7 +652,7 @@ module.exports = [
     "foreignKey": ["webHCat_http_primary_name"],
     "value": "<templateName[0]>",
     "filename": "core-site.xml",
-    "serviceName": "HIVE"
+    "serviceName": "WEBHCAT"
   }
 ];
 

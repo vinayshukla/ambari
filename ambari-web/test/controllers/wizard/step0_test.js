@@ -21,12 +21,17 @@ require('models/cluster_states');
 require('controllers/wizard/step0_controller');
 var wizardStep0Controller;
 
+if (!App.router) {
+  App.router = Em.Object.create({});
+}
+App.router.set('send', Em.K);
+
 describe('App.WizardStep0Controller', function () {
 
   beforeEach(function() {
     wizardStep0Controller = App.WizardStep0Controller.create({content: {cluster: {}}});
     sinon.stub(App.clusterStatus, 'set', Em.K);
-    sinon.stub(App.router, 'send', Em.K);
+    sinon.spy(App.router, 'send');
   });
 
   afterEach(function() {

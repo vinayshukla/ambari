@@ -46,10 +46,6 @@ public class BlueprintConfigEntity implements BlueprintConfiguration {
   @Basic
   private String configData;
 
-  @Column(name = "config_attributes", nullable = true, insertable = true, updatable = false)
-  @Basic
-  private String configAttributes;
-
   @ManyToOne
   @JoinColumn(name = "blueprint_name", referencedColumnName = "blueprint_name", nullable = false)
   private BlueprintEntity blueprint;
@@ -125,23 +121,5 @@ public class BlueprintConfigEntity implements BlueprintConfiguration {
    */
   public void setConfigData(String configData) {
     this.configData = configData;
-  }
-
-  /**
-   * Gets the attributes of configs.
-   *
-   * @return config attributes in JSON format
-   */
-  public String getConfigAttributes() {
-    return configAttributes;
-  }
-
-  /**
-   * Sets attributes of configs.
-   *
-   * @param configAttributes  all attribute values of configs in JSON format
-   */
-  public void setConfigAttributes(String configAttributes) {
-    this.configAttributes = configAttributes;
   }
 }

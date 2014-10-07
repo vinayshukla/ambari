@@ -21,7 +21,6 @@ var App = require('app');
 
 require('controllers/main/admin/security/add/step3');
 var stringUtils = require('utils/string_utils');
-var modelSetup = require('test/init_model_test');
 
 describe('App.MainAdminSecurityAddStep3Controller', function () {
 
@@ -68,16 +67,21 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
       });
     });
     afterEach(function(){
+      App.Host.find.restore();
       controller.getSecurityUsers.restore();
     });
 
     it('No hosts installed', function() {
-      controller.set('hosts', []);
+      sinon.stub(App.Host, 'find', function(){
+        return [];
+      });
       controller.loadStep();
       expect(controller.get('hostComponents')).to.be.empty;
     });
     it('One host installed', function () {
-      controller.set('hosts', [Em.Object.create({hostName: 'host1'})]);
+      sinon.stub(App.Host, 'find', function () {
+        return [Em.Object.create({hostName: 'host1'})];
+      });
       sinon.stub(controller, 'setMandatoryConfigs', function (result) {
         return result.push('setMandatoryConfigs');
       });
@@ -118,7 +122,6 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
   describe('#setComponentsConfig()', function() {
 
     beforeEach(function(){
-      modelSetup.setupStackServiceComponent();
       controller.set('content.serviceConfigProperties', [
         {
           serviceName: 'HDFS',
@@ -133,31 +136,23 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
       ]);
     });
 
-    afterEach(function() {
-      modelSetup.cleanStackServiceComponent();
-    });
-
     it('componentToConfigMap is empty', function() {
-      controller.reopen({
-        componentToConfigMap: []
-      });
+      controller.set('componentToConfigMap', []);
       var result = [];
-      controller.setComponentsConfig(result, Em.Object.create({hostName: 'c6401',hostComponents: []}), 'hadoopGroupId');
+      controller.setComponentsConfig(result, Em.Object.create(), 'hadoopGroupId');
       expect(result).to.be.empty;
     });
     it('isHadoop2Stack = false, when component from stack2', function() {
       sinon.stub(App, 'get', function () {
         return false;
       });
-      controller.reopen({
-        componentToConfigMap: [{
-          componentName: 'DATANODE',
-          principal: 'principal1',
-          keytab: 'keytab1',
-          displayName: 'displayName1',
-          isHadoop2Stack: true
-        }]
-      });
+      controller.set('componentToConfigMap', [{
+        componentName: 'DATANODE',
+        principal: 'principal1',
+        keytab: 'keytab1',
+        displayName: 'displayName1',
+        isHadoop2Stack: true
+      }]);
       var host = Em.Object.create({
         hostComponents: [{componentName: 'DATANODE'}],
         hostName: 'host1'
@@ -171,15 +166,13 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
       sinon.stub(App, 'get', function () {
         return true;
       });
-      controller.reopen({
-        componentToConfigMap: [{
-          componentName: 'DATANODE',
-          principal: 'principal1',
-          keytab: 'keytab1',
-          displayName: 'displayName1',
-          isHadoop2Stack: true
-        }]
-      });
+      controller.set('componentToConfigMap', [{
+        componentName: 'DATANODE',
+        principal: 'principal1',
+        keytab: 'keytab1',
+        displayName: 'displayName1',
+        isHadoop2Stack: true
+      }]);
       var host = Em.Object.create({
         hostComponents: [{componentName: 'DATANODE'}],
         hostName: 'host1'
@@ -190,14 +183,12 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
       App.get.restore();
     });
     it('Component does not match host-component', function() {
-      controller.reopen({
-        componentToConfigMap: [{
-          componentName: 'DATANODE',
-          principal: 'principal1',
-          keytab: 'keytab1',
-          displayName: 'displayName1'
-        }]
-      });
+      controller.set('componentToConfigMap', [{
+        componentName: 'DATANODE',
+        principal: 'principal1',
+        keytab: 'keytab1',
+        displayName: 'displayName1'
+      }]);
       var host = Em.Object.create({
         hostComponents: [{componentName: 'DATANODE1'}],
         hostName: 'host1'
@@ -207,14 +198,12 @@ describe('App.MainAdminSecurityAddStep3Controller', function () {
       expect(result).to.be.empty;
     });
     it('Component matches host-component', function() {
-      controller.reopen({
-        componentToConfigMap: [{
-          componentName: 'DATANODE',
-          principal: 'principal1',
-          keytab: 'keytab1',
-          displayName: 'displayName1'
-        }]
-      });
+      controller.set('componentToConfigMap', [{
+        componentName: 'DATANODE',
+        principal: 'principal1',
+        keytab: 'keytab1',
+        displayName: 'displayName1'
+      }]);
       var host = Em.Object.create({
         hostComponents: [{componentName: 'DATANODE'}],
         hostName: 'host1'

@@ -17,9 +17,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-from ambari_commons import OSCheck
 from mock.mock import MagicMock, patch
 from stacks.utils.RMFTestCase import *
+
 
 class TestJournalnode(RMFTestCase):
 
@@ -51,8 +51,9 @@ class TestJournalnode(RMFTestCase):
                               action = ['delete'],
                               not_if='ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
                               )
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  su - hdfs -c \'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf start journalnode\'',
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf start journalnode',
                               not_if = 'ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
+                              user = 'hdfs',
                               )
     self.assertNoMoreResources()
 
@@ -74,8 +75,9 @@ class TestJournalnode(RMFTestCase):
                               action = ['delete'],
                               not_if='ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
                               )
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  su - hdfs -c \'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf stop journalnode\'',
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf stop journalnode',
                               not_if = None,
+                              user = 'hdfs',
                               )
     self.assertResourceCalled('File', '/var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid',
                               action = ['delete'],
@@ -110,8 +112,9 @@ class TestJournalnode(RMFTestCase):
                               action = ['delete'],
                               not_if='ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
                               )
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  su - hdfs -c \'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf start journalnode\'',
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf start journalnode',
                               not_if = 'ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
+                              user = 'hdfs',
                               )
     self.assertNoMoreResources()
 
@@ -133,8 +136,9 @@ class TestJournalnode(RMFTestCase):
                               action = ['delete'],
                               not_if='ls /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid` >/dev/null 2>&1',
                               )
-    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  su - hdfs -c \'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf stop journalnode\'',
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited;  export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop/sbin/hadoop-daemon.sh --config /etc/hadoop/conf stop journalnode',
                               not_if = None,
+                              user = 'hdfs',
                               )
     self.assertResourceCalled('File', '/var/run/hadoop/hdfs/hadoop-hdfs-journalnode.pid',
                               action = ['delete'],
@@ -158,7 +162,6 @@ class TestJournalnode(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['hdfs-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/slaves',
                               content = Template('slaves.j2'),
@@ -182,7 +185,6 @@ class TestJournalnode(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['hdfs-site'],
-                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/slaves',
                               content = Template('slaves.j2'),

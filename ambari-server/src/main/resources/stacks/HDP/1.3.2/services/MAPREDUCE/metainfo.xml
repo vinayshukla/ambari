@@ -21,13 +21,11 @@
   <services>
     <service>
       <name>MAPREDUCE</name>
-      <displayName>MapReduce</displayName>
       <comment>Apache Hadoop Distributed Processing Framework</comment>
       <version>1.2.0.1.3.3.0</version>
       <components>
         <component>
           <name>JOBTRACKER</name>
-          <displayName>JobTracker</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <commandScript>
@@ -49,7 +47,6 @@
 
         <component>
           <name>TASKTRACKER</name>
-          <displayName>TaskTracker</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -61,36 +58,17 @@
 
         <component>
           <name>MAPREDUCE_CLIENT</name>
-          <displayName>MapReduce Client</displayName>
           <category>CLIENT</category>
-          <cardinality>1+</cardinality>
+          <cardinality>0+</cardinality> 
           <commandScript>
             <script>scripts/client.py</script>
             <scriptType>PYTHON</scriptType>
             <timeout>600</timeout>
           </commandScript>
-          <configFiles>
-            <configFile>
-              <type>xml</type>
-              <fileName>core-site.xml</fileName>
-              <dictionaryName>core-site</dictionaryName>
-            </configFile>
-            <configFile>
-              <type>xml</type>
-              <fileName>mapred-site.xml</fileName>
-              <dictionaryName>mapred-site</dictionaryName>
-            </configFile>                       
-            <configFile>
-              <type>env</type>
-              <fileName>log4j.properties</fileName>
-              <dictionaryName>hdfs-log4j,mapreduce-log4j</dictionaryName>
-            </configFile>            
-          </configFiles>
         </component>
               
         <component>
           <name>HISTORYSERVER</name>
-          <displayName>History Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
           <auto-deploy>
@@ -121,10 +99,6 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
-      
-      <requiredServices>
-        <service>HDFS</service>
-      </requiredServices>
 
       <configuration-dependencies>
         <config-type>capacity-scheduler</config-type>

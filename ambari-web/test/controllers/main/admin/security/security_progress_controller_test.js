@@ -155,21 +155,18 @@ describe('App.MainAdminSecurityProgressController', function () {
   describe('#startCommand()', function () {
 
     var command = Em.Object.create({
-      start: Em.K
+      start: function () {
+      }
     });
-
     beforeEach(function () {
       sinon.spy(command, "start");
       sinon.spy(controller, "loadClusterConfigs");
       sinon.spy(controller, "deleteComponents");
-      sinon.stub(controller, "saveCommands", Em.K);
     });
-
     afterEach(function () {
       command.start.restore();
       controller.loadClusterConfigs.restore();
       controller.deleteComponents.restore();
-      controller.saveCommands.restore();
     });
 
     it('number of commands doesn\'t match totalSteps', function () {
@@ -177,13 +174,11 @@ describe('App.MainAdminSecurityProgressController', function () {
       controller.set('totalSteps', 1);
       expect(controller.startCommand()).to.be.false;
     });
-
     it('commands is empty', function () {
       controller.set('commands', []);
       controller.set('totalSteps', 0);
       expect(controller.startCommand()).to.be.false;
     });
-
     it('command is started and completed', function () {
       controller.set('commands', [Em.Object.create({
         isStarted: true,
@@ -192,7 +187,6 @@ describe('App.MainAdminSecurityProgressController', function () {
       controller.set('totalSteps', 1);
       expect(controller.startCommand()).to.be.false;
     });
-
     it('command is started and incompleted', function () {
       controller.set('commands', [Em.Object.create({
         isStarted: true,
@@ -201,7 +195,6 @@ describe('App.MainAdminSecurityProgressController', function () {
       controller.set('totalSteps', 1);
       expect(controller.startCommand()).to.be.true;
     });
-
     it('command parameter passed, isPolling is true', function () {
       controller.set('commands', []);
       controller.set('totalSteps', 0);
@@ -211,43 +204,55 @@ describe('App.MainAdminSecurityProgressController', function () {
       expect(command.start.calledOnce).to.be.true;
       command.set('isPolling', false);
     });
-
     it('command parameter passed, name is "APPLY_CONFIGURATIONS"', function () {
       command.set('name', 'APPLY_CONFIGURATIONS');
       expect(controller.startCommand(command)).to.be.true;
       expect(command.get('isStarted')).to.be.true;
       expect(controller.loadClusterConfigs.calledOnce).to.be.true;
     });
-
+    it('command parameter passed, name is "APPLY_CONFIGURATIONS", testMode = true', function () {
+      App.testMode = true;
+      expect(controller.startCommand(command)).to.be.true;
+      expect(command.get('isStarted')).to.be.true;
+      expect(command.get('isError')).to.be.false;
+      expect(command.get('isSuccess')).to.be.true;
+      expect(controller.loadClusterConfigs.called).to.be.false;
+      App.testMode = false;
+    });
     it('command parameter passed, name is "DELETE_ATS"', function () {
       command.set('name', 'DELETE_ATS');
-
-      sinon.stub(App.HostComponent, 'find', function() {
-        return [Em.Object.create({
-          id: 'APP_TIMELINE_SERVER_ats_host',
-          componentName: 'APP_TIMELINE_SERVER',
-          hostName: 'ats_host'
-        })];
+      App.store.load(App.HostComponent, {
+        id: 'APP_TIMELINE_SERVER_ats_host',
+        component_name: 'APP_TIMELINE_SERVER',
+        host_id: 'ats_host'
+      });
+      App.store.load(App.Host, {
+        id: 'ats_host',
+        host_name: 'ats_host',
+        host_components: ['APP_TIMELINE_SERVER_ats_host']
       });
       expect(controller.startCommand(command)).to.be.true;
       expect(command.get('isStarted')).to.be.true;
       expect(controller.deleteComponents.calledWith('APP_TIMELINE_SERVER', 'ats_host')).to.be.true;
-
-      App.HostComponent.find.restore();
     });
-
+    it('command parameter passed, name is "DELETE_ATS", testMode = true', function () {
+      App.testMode = true;
+      expect(controller.startCommand(command)).to.be.true;
+      expect(command.get('isStarted')).to.be.true;
+      expect(command.get('isError')).to.be.false;
+      expect(command.get('isSuccess')).to.be.true;
+      expect(controller.deleteComponents.called).to.be.false;
+      App.testMode = false;
+    });
   });
 
   describe('#onCompleteCommand()', function () {
 
     beforeEach(function () {
       sinon.spy(controller, "moveToNextCommand");
-      sinon.stub(controller, "saveCommands", Em.K);
     });
     afterEach(function () {
       controller.moveToNextCommand.restore();
-      controller.saveCommands.restore();
-
     });
 
     it('number of commands doesn\'t match totalSteps', function () {
@@ -406,6 +411,77 @@ describe('App.MainAdminSecurityProgressController', function () {
       it(test.title, function () {
         expect(controller.setServiceTagNames(test.content.secureService, test.content.configs)).to.eql(test.result);
       });
+    });
+  });
+
+  describe('#setServerConfigValue()', function () {
+
+    beforeEach(function () {
+      sinon.spy(App.config, "escapeXMLCharacters");
+    });
+    afterEach(function () {
+      App.config.escapeXMLCharacters.restore();
+    });
+
+    it('Empty config', function () {
+      expect(controller.setServerConfigValue('', '')).to.equal('');
+      expect(App.config.escapeXMLCharacters.calledWith('')).to.be.true;
+    });
+    it('Config1, value = "value1"', function () {
+      expect(controller.setServerConfigValue('config1', 'value1')).to.equal('value1');
+      expect(App.config.escapeXMLCharacters.calledWith('value1')).to.be.true;
+    });
+    it('config = "storm.zookeeper.servers", value = "value1"', function () {
+      expect(controller.setServerConfigValue('storm.zookeeper.servers', 'value1')).to.equal('value1');
+      expect(App.config.escapeXMLCharacters.called).to.be.false;
+    });
+  });
+
+  describe('#escapeXMLCharacters()', function () {
+
+    beforeEach(function () {
+      sinon.spy(controller, "setServerConfigValue");
+    });
+    afterEach(function () {
+      controller.setServerConfigValue.restore();
+    });
+
+    it('serviceConfigTags is empty', function () {
+      var serviceConfigTags = [];
+      controller.escapeXMLCharacters(serviceConfigTags);
+      expect(controller.setServerConfigValue.called).to.be.false;
+    });
+    it('configs is empty', function () {
+      var serviceConfigTags = [
+        {
+          configs: {}
+        }
+      ];
+      controller.escapeXMLCharacters(serviceConfigTags);
+      expect(controller.setServerConfigValue.called).to.be.false;
+    });
+    it('serviceConfigTags has property', function () {
+      var serviceConfigTags = [
+        {
+          configs: {
+            'p1': 'value1'
+          }
+        }
+      ];
+      controller.escapeXMLCharacters(serviceConfigTags);
+      expect(controller.setServerConfigValue.withArgs('p1', 'value1').calledOnce).to.be.true;
+    });
+    it('serviceConfigTags has multiple properties', function () {
+      var serviceConfigTags = [
+        {
+          configs: {
+            'p1': 'value1',
+            'p2': 'value2'
+          }
+        }
+      ];
+      controller.escapeXMLCharacters(serviceConfigTags);
+      expect(controller.setServerConfigValue.callCount).to.equal(2);
     });
   });
 });

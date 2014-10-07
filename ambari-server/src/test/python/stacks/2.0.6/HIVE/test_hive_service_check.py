@@ -17,7 +17,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-import os
 from mock.mock import MagicMock, call, patch
 from stacks.utils.RMFTestCase import *
 import datetime, sys, socket
@@ -40,7 +39,7 @@ class TestServiceCheck(RMFTestCase):
     )
     self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /tmp/hcatSmoke.sh hcatsmoke prepare',
                         logoutput = True,
-                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin', os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin"],
+                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin'],
                         tries = 3,
                         user = 'ambari-qa',
                         try_sleep = 5,
@@ -51,26 +50,15 @@ class TestServiceCheck(RMFTestCase):
                         conf_dir = '/etc/hadoop/conf',
                         keytab=UnknownConfigurationMock(),
                         kinit_path_local='/usr/bin/kinit',
-                        bin_dir = os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin",
                         security_enabled=False
     )
     self.assertResourceCalled('Execute', ' /tmp/hcatSmoke.sh hcatsmoke cleanup',
                         logoutput = True,
-                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin', os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin"],
+                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin'],
                         tries = 3,
                         user = 'ambari-qa',
                         try_sleep = 5,
     )
-    self.assertResourceCalled('File', '/tmp/templetonSmoke.sh',
-                              content = StaticFile('templetonSmoke.sh'),
-                              mode = 0755,
-                              )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa no_keytab false /usr/bin/kinit',
-                              logoutput = True,
-                              path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
-                              tries = 3,
-                              try_sleep = 5,
-                              )
     self.assertNoMoreResources()
 
   @patch("sys.exit")
@@ -85,10 +73,9 @@ class TestServiceCheck(RMFTestCase):
                         content = StaticFile('hcatSmoke.sh'),
                         mode = 0755,
     )
-    self.maxDiff = None
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/smokeuser.headless.keytab ambari-qa; env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 /tmp/hcatSmoke.sh hcatsmoke prepare',
                         logoutput = True,
-                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin', os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin"],
+                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin'],
                         tries = 3,
                         user = 'ambari-qa',
                         try_sleep = 5,
@@ -99,26 +86,13 @@ class TestServiceCheck(RMFTestCase):
                         conf_dir = '/etc/hadoop/conf',
                         keytab='/etc/security/keytabs/hdfs.headless.keytab',
                         kinit_path_local='/usr/bin/kinit',
-                        security_enabled=True,
-                        bin_dir = os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin",
-                        principal='hdfs'
+                        security_enabled=True
     )
     self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/smokeuser.headless.keytab ambari-qa;  /tmp/hcatSmoke.sh hcatsmoke cleanup',
                         logoutput = True,
-                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin', os.environ['PATH'] + os.pathsep + "/usr/lib/hive/bin" + os.pathsep + "/usr/bin"],
+                        path = ['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin'],
                         tries = 3,
                         user = 'ambari-qa',
                         try_sleep = 5,
     )
-    self.assertResourceCalled('File', '/tmp/templetonSmoke.sh',
-                              content = StaticFile('templetonSmoke.sh'),
-                              mode = 0755,
-                              )
-    self.assertResourceCalled('Execute', '/tmp/templetonSmoke.sh c6402.ambari.apache.org ambari-qa /etc/security/keytabs/smokeuser.headless.keytab true /usr/bin/kinit',
-                              logoutput = True,
-                              path = ['/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin'],
-                              tries = 3,
-                              try_sleep = 5,
-                              )
-    self.assertNoMoreResources()
     self.assertNoMoreResources()

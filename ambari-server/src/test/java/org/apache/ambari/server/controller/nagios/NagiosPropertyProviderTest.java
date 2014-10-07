@@ -51,8 +51,6 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import java.util.Collection;
-import java.util.LinkedList;
 
 /**
  * Tests the nagios property provider
@@ -235,7 +233,6 @@ public class NagiosPropertyProviderTest {
   
   @Test
   public void testNagiosServiceAlerts() throws Exception {
-    module.properties.remove(Configuration.NAGIOS_IGNORE_FOR_SERVICES_KEY); // make sure NAGIOS_IGNORE_FOR_SERVICES_KEY is not set, which could be set by testNagiosServiceAlertsAddIgnore
 
     TestStreamProvider streamProvider = new TestStreamProvider("nagios_alerts.txt");
 
@@ -244,7 +241,6 @@ public class NagiosPropertyProviderTest {
         "ServiceInfo/cluster_name",
         "ServiceInfo/service_name");
     npp.forceReset();
-    NagiosPropertyProvider.init(injector);
     
     Resource resource = new ResourceImpl(Resource.Type.Service);
     resource.setProperty("ServiceInfo/cluster_name", "c1");
@@ -443,7 +439,7 @@ public class NagiosPropertyProviderTest {
     Assert.assertTrue(summary.get("WARNING").equals(Integer.valueOf(0)));
     Assert.assertTrue(summary.get("CRITICAL").equals(Integer.valueOf(1)));
   }
-
+  
   @Test
   public void testNagiosServiceAlertsWithPassive() throws Exception {
     Injector inj = Guice.createInjector(new GuiceModule());

@@ -18,6 +18,7 @@
 
 package org.apache.ambari.view.slider.rest.client;
 
+import org.apache.ambari.server.controller.jmx.JMXMetricHolder;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.map.DeserializationConfig;

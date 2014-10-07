@@ -17,11 +17,7 @@
  */
 package org.apache.ambari.server.orm.dao;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
@@ -29,12 +25,11 @@ import javax.persistence.TypedQuery;
 
 import org.apache.ambari.server.orm.RequiresSession;
 import org.apache.ambari.server.orm.entities.GroupEntity;
+
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
-
-import org.apache.ambari.server.orm.entities.PrincipalEntity;
 
 @Singleton
 public class GroupDAO {
@@ -65,33 +60,10 @@ public class GroupDAO {
     }
   }
 
-  /**
-   * Find the group entities for the given list of principals
-   *
-   * @param principalList  the list of principal entities
-   *
-   * @return the list of groups matching the query
-   */
-  public List<GroupEntity> findGroupsByPrincipal(List<PrincipalEntity> principalList) {
-    if (principalList == null || principalList.isEmpty()) {
-      return Collections.emptyList();
-    }
-    TypedQuery<GroupEntity> query = entityManagerProvider.get().createQuery("SELECT grp FROM GroupEntity grp WHERE grp.principal IN :principalList", GroupEntity.class);
-    query.setParameter("principalList", principalList);
-    return daoUtils.selectList(query);
-  }
-
   @Transactional
   public void create(GroupEntity group) {
-    create(new HashSet<GroupEntity>(Arrays.asList(group)));
-  }
-
-  @Transactional
-  public void create(Set<GroupEntity> groups) {
-    for (GroupEntity group: groups) {
-      group.setGroupName(group.getGroupName().toLowerCase());
-      entityManagerProvider.get().persist(group);
-    }
+    group.setGroupName(group.getGroupName().toLowerCase());
+    entityManagerProvider.get().persist(group);
   }
 
   @Transactional
@@ -101,24 +73,8 @@ public class GroupDAO {
   }
 
   @Transactional
-  public void merge(Set<GroupEntity> groups) {
-    for (GroupEntity group: groups) {
-      group.setGroupName(group.getGroupName().toLowerCase());
-      entityManagerProvider.get().merge(group);
-    }
-  }
-
-  @Transactional
   public void remove(GroupEntity group) {
     entityManagerProvider.get().remove(merge(group));
-    entityManagerProvider.get().getEntityManagerFactory().getCache().evictAll();
-  }
-
-  @Transactional
-  public void remove(Set<GroupEntity> groups) {
-    for (GroupEntity groupEntity: groups) {
-      entityManagerProvider.get().remove(entityManagerProvider.get().merge(groupEntity));
-    }
   }
 
   @Transactional

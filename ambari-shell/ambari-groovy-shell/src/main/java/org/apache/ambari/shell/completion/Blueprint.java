@@ -20,10 +20,15 @@ package org.apache.ambari.shell.completion;
 /**
  * Wrapper class for TAB completion to blueprint names.
  */
-public class Blueprint extends AbstractCompletion {
+public class Blueprint {
+
+  private final String name;
 
   public Blueprint(String name) {
-    super(name);
+    this.name = name;
   }
 
+  public String getName() {
+    return name;
+  }
 }

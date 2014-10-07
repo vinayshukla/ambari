@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -59,10 +58,6 @@ import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.Stack;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.StackInfo;
-import org.apache.ambari.server.state.alert.AlertDefinition;
-import org.apache.ambari.server.state.alert.MetricSource;
-import org.apache.ambari.server.state.alert.Source;
-import org.apache.ambari.server.state.alert.SourceType;
 import org.apache.ambari.server.state.stack.LatestRepoCallable;
 import org.apache.ambari.server.state.stack.MetricDefinition;
 import org.apache.ambari.server.state.stack.RepositoryXml;
@@ -72,12 +67,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -97,7 +86,6 @@ public class AmbariMetaInfo {
   public static final String SERVICE_CONFIG_FILE_NAME_POSTFIX = ".xml";
   public static final String RCO_FILE_NAME = "role_command_order.json";
   public static final String SERVICE_METRIC_FILE_NAME = "metrics.json";
-  public static final String SERVICE_ALERT_FILE_NAME = "alerts.json";
   /**
    * This string is used in placeholder in places that are common for
    * all operating systems or in situations where os type is not important.
@@ -125,7 +113,7 @@ public class AmbariMetaInfo {
   // all the supported OS'es
   private static final List<String> ALL_SUPPORTED_OS = Arrays.asList(
       "centos5", "redhat5", "centos6", "redhat6", "oraclelinux5",
-      "oraclelinux6", "suse11", "sles11", "ubuntu12");
+      "oraclelinux6", "suse11", "sles11", "ubuntu12", "debian12", "win2008server6", "win2008serverr26", "win2012server6", "win2012serverr26");
 
   private final ActionDefinitionManager adManager = new ActionDefinitionManager();
   private String serverVersion = "undefined";
@@ -402,7 +390,15 @@ public class AmbariMetaInfo {
   public boolean isValidServiceComponent(String stackName, String version,
                                          String serviceName, String componentName) throws AmbariException {
     ServiceInfo service = getServiceInfo(stackName, version, serviceName);
-    return service != null && service.getComponentByName(componentName) != null;
+    if (service == null) {
+      return false;
+    }
+    for (ComponentInfo compInfo : service.getComponents()) {
+      if (compInfo.getName().equals(componentName)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -428,12 +424,17 @@ public class AmbariMetaInfo {
         || services.isEmpty()) {
       return retService;
     }
+    boolean found = false;
     for (Map.Entry<String, ServiceInfo> entry : services.entrySet()) {
-      ComponentInfo vu = entry.getValue().getComponentByName(componentName);
-      if(vu != null){
-        retService = entry.getKey();
-        break;
+      for (ComponentInfo compInfo : entry.getValue().getComponents()) {
+        if (compInfo.getName().equals(componentName)) {
+          retService = entry.getKey();
+          found = true;
+          break;
+        }
       }
+      if (found)
+        break;
     }
     return retService;
   }
@@ -645,43 +646,17 @@ public class AmbariMetaInfo {
     return stackInfoResult;
   }
 
-  public List<String> getStackParentVersions(String stackName, String version) {
-    List<String> parents = new ArrayList<String>();
-    try {
-      StackInfo stackInfo = getStackInfo(stackName, version);
-      if (stackInfo != null) {
-        String parentVersion = stackInfo.getParentStackVersion();
-        if (parentVersion != null) {
-          parents.add(parentVersion);
-          parents.addAll(getStackParentVersions(stackName, parentVersion));
-        }
-      }
-    } catch (AmbariException e) {
-      // parent was not found. just returning empty list
-    } finally {
-      return parents;
-    }
-  }
-
   public Set<PropertyInfo> getProperties(String stackName, String version, String serviceName)
       throws AmbariException {
+
     ServiceInfo serviceInfo = getServiceInfo(stackName, version, serviceName);
     List<PropertyInfo> properties = serviceInfo.getProperties();
     Set<PropertyInfo> propertiesResult = new HashSet<PropertyInfo>(properties);
 
     return propertiesResult;
   }
-  
-  public Set<PropertyInfo> getStackProperties(String stackName, String version)
-      throws AmbariException {
-    StackInfo stackInfo = getStackInfo(stackName, version);
-    List<PropertyInfo> properties = stackInfo.getProperties();
-    Set<PropertyInfo> propertiesResult = new HashSet<PropertyInfo>(properties);
 
-    return propertiesResult;
-  }
-
-  public Set<PropertyInfo> getPropertiesByName(String stackName, String version, String serviceName, String propertyName)
+  public PropertyInfo getProperty(String stackName, String version, String serviceName, String propertyName)
       throws AmbariException {
     Set<PropertyInfo> properties = getProperties(stackName, version, serviceName);
 
@@ -691,41 +666,17 @@ public class AmbariMetaInfo {
           + ", serviceName=" + serviceName
           + ", propertyName=" + propertyName);
 
-    Set<PropertyInfo> propertyResult = new HashSet<PropertyInfo>();
+    PropertyInfo propertyResult = null;
 
     for (PropertyInfo property : properties) {
       if (property.getName().equals(propertyName))
-        propertyResult.add(property);
+        propertyResult = property;
     }
 
-    if (propertyResult.isEmpty())
+    if (propertyResult == null)
       throw new StackAccessException("stackName=" + stackName
           + ", stackVersion=" + version
           + ", serviceName=" + serviceName
-          + ", propertyName=" + propertyName);
-
-    return propertyResult;
-  }
-  
-  public Set<PropertyInfo> getStackPropertiesByName(String stackName, String version, String propertyName)
-      throws AmbariException {
-    Set<PropertyInfo> properties = getStackProperties(stackName, version);
-
-    if (properties.size() == 0)
-      throw new StackAccessException("stackName=" + stackName
-          + ", stackVersion=" + version
-          + ", propertyName=" + propertyName);
-
-    Set<PropertyInfo> propertyResult = new HashSet<PropertyInfo>();
-
-    for (PropertyInfo property : properties) {
-      if (property.getName().equals(propertyName))
-        propertyResult.add(property);
-    }
-
-    if (propertyResult.isEmpty())
-      throw new StackAccessException("stackName=" + stackName
-          + ", stackVersion=" + version
           + ", propertyName=" + propertyName);
 
     return propertyResult;
@@ -1098,74 +1049,5 @@ public class AmbariMetaInfo {
     }
     return requiredProperties;
   }
-  
-  /**
-   * @param stackName the stack name
-   * @param stackVersion the stack version
-   * @param serviceName the service name
-   * @return the alert definitions for a stack
-   * @throws AmbariException
-   */
-  public Set<AlertDefinition> getAlertDefinitions(String stackName, String stackVersion,
-      String serviceName) throws AmbariException {
-    
-    ServiceInfo svc = getService(stackName, stackVersion, serviceName);
 
-    if (null == svc.getAlertsFile() || !svc.getAlertsFile().exists()) {
-      LOG.debug("Alerts file for " + stackName + "/" + stackVersion + "/" + serviceName + " not found.");
-      return null;
-    }
-    
-    Map<String, List<AlertDefinition>> map = null;
-
-    GsonBuilder builder = new GsonBuilder().registerTypeAdapter(Source.class,
-        new JsonDeserializer<Source>() {
-          @Override
-          public Source deserialize(JsonElement json, Type typeOfT,
-              JsonDeserializationContext context) throws JsonParseException {
-            JsonObject jsonObj = (JsonObject) json;
-
-            SourceType type = SourceType.valueOf(jsonObj.get("type").getAsString());
-            Class<? extends Source> cls = null;
-            
-            switch (type) {
-              case METRIC:
-                cls = MetricSource.class;
-                break;
-              default:
-                break;
-            }
-
-            if (null != cls)
-              return context.deserialize(json, cls);
-            else
-              return null;
-          }
-        });
-    
-    Gson gson = builder.create();
-
-    try {
-      Type type = new TypeToken<Map<String, List<AlertDefinition>>>(){}.getType();
-      map = gson.fromJson(new FileReader(svc.getAlertsFile()), type);
-    } catch (Exception e) {
-      LOG.error ("Could not read the alert definition file", e);
-      throw new AmbariException("Could not read alert definition file", e);
-    }
-
-    Set<AlertDefinition> defs = new HashSet<AlertDefinition>();
-    
-    for (Entry<String, List<AlertDefinition>> entry : map.entrySet()) {
-      for (AlertDefinition ad : entry.getValue()) {
-        ad.setServiceName(serviceName);
-        if (!entry.getKey().equals("service")) {
-          ad.setComponentName(entry.getKey());
-        }
-      }
-      defs.addAll(entry.getValue());
-    }
-    
-    return defs;
-  }
-  
 }

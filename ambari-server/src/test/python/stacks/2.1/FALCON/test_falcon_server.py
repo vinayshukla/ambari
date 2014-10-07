@@ -71,10 +71,6 @@ class TestFalconServer(RMFTestCase):
     self.assertResourceCalled('Directory', '/usr/lib/falcon',
                               owner = 'falcon',
                               )
-    self.assertResourceCalled('Directory', '/etc/falcon/conf',
-                              owner = 'falcon',
-                              recursive = True
-    )
     self.assertResourceCalled('File', '/etc/falcon/conf/falcon-env.sh',
                               content = InlineTemplate(self.getConfig()['configurations']['falcon-env']['content']),
                               )
@@ -98,7 +94,6 @@ class TestFalconServer(RMFTestCase):
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0777,
                               owner = 'falcon',
-                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', None,
@@ -107,7 +102,6 @@ class TestFalconServer(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
-                              bin_dir = '/usr/bin',
                               action = ['create'],
                               )
     self.assertResourceCalled('Directory', '/hadoop/falcon',

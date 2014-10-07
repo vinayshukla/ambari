@@ -54,23 +54,7 @@ App.FlumeAgent = DS.Model.extend({
       return App.healthIconClassYellow;
       break;
     }
-  }.property('status'),
-
-  displayStatus : function() {
-    switch (this.get('status')) {
-      case 'RUNNING':
-        return "Running";
-        break;
-      case 'NOT_RUNNING':
-        return "Stopped";
-        break;
-      case 'UNKNOWN':
-      default:
-        return "Unknown";
-        break;
-    }
   }.property('status')
-
 });
 
 App.FlumeAgent.FIXTURES = [];

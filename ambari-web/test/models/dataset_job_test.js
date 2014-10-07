@@ -42,7 +42,7 @@ var dataSetJob,
       time: function () {
         return App.dateTime();
       },
-      result: 'a moment ago'
+      result: 'less than a minute ago'
     },
     {
       title: 'should be empty',

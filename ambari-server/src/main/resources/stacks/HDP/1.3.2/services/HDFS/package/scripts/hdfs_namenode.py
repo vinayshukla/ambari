@@ -39,7 +39,7 @@ def namenode(action=None, do_format=True):
 
     namenode_safe_mode_off = format("su - {hdfs_user} -c 'hadoop dfsadmin -safemode get' | grep 'Safe mode is OFF'")
     if params.security_enabled:
-      Execute(format("{kinit_path_local} -kt {hdfs_user_keytab} {hdfs_principal_name}"),
+      Execute(format("{kinit_path_local} -kt {hdfs_user_keytab} {hdfs_user}"),
               user = params.hdfs_user)
     Execute(namenode_safe_mode_off,
             tries=40,
@@ -95,11 +95,11 @@ def format_namenode(force=None):
       ExecuteHadoop('namenode -format',
                     kinit_override=True)
     else:
-      File(format("{tmp_dir}/checkForFormat.sh"),
+      File('/tmp/checkForFormat.sh',
            content=StaticFile("checkForFormat.sh"),
            mode=0755)
       Execute(format(
-        "sh {tmp_dir}/checkForFormat.sh {hdfs_user} {hadoop_conf_dir} {mark_dir} "
+        "sh /tmp/checkForFormat.sh {hdfs_user} {hadoop_conf_dir} {mark_dir} "
         "{dfs_name_dir}"),
               not_if=format("test -d {mark_dir}"),
               path="/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin")

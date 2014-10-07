@@ -35,28 +35,29 @@ App.ChartServiceMetricsHDFS_SpaceUtilization = App.ChartLinearTimeView.extend({
 
   transformToSeries: function (jsonData) {
     var seriesArray = [];
+    var GB = Math.pow(2, 30);
     if (jsonData && jsonData.metrics && jsonData.metrics.dfs && jsonData.metrics.dfs.FSNamesystem) {
       for ( var name in jsonData.metrics.dfs.FSNamesystem) {
         var displayName;
         var seriesData = jsonData.metrics.dfs.FSNamesystem[name];
         switch (name) {
-          case "CapacityRemaining":
-            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityRemaining');
+          case "CapacityRemainingGB":
+            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityRemainingGB');
             break;
-          case "CapacityUsed":
-            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityUsed');
+          case "CapacityUsedGB":
+            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityUsedGB');
             break;
-          case "CapacityTotal":
-            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityTotal');
+          case "CapacityTotalGB":
+            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityTotalGB');
             break;
-          case "CapacityNonDFSUsed":
-            displayName = Em.I18n.t('services.service.info.metrics.hdfs.spaceUtilization.displayNames.capacityNonDFSUsed');
-            break;            
           default:
             break;
         }
         if (seriesData) {
           var s = this.transformData(seriesData, displayName);
+          for (var i = 0; i < s.data.length; i++) {
+            s.data[i].y *= GB;
+          }
           seriesArray.push(s);
         }
       }

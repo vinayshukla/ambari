@@ -18,19 +18,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 import os
+import re
 import signal
+import socket
 import sys
 import time
-import glob
-import subprocess
 from ambari_commons import OSConst
 
-# PostgreSQL settings
-PG_STATUS_RUNNING_DEFAULT = "running"
+#PostgreSQL settings
+UBUNTU_PG_HBA_ROOT = "/etc/postgresql"
 PG_HBA_ROOT_DEFAULT = "/var/lib/pgsql/data"
-PG_HBA_INIT_FILES = {'ubuntu': '/etc/postgresql',
-                     'redhat': '/etc/rc.d/init.d/postgresql',
-                     'suse': '/etc/init.d/postgresql'}
+PG_STATUS_RUNNING_DEFAULT = "running"
 
 #Environment
 ENV_PATH_DEFAULT = ['/bin', '/usr/bin', '/sbin', '/usr/sbin']  # default search path
@@ -69,6 +67,22 @@ def check_exitcode(exitcode_file_path):
     except IOError:
       pass
   return exitcode
+
+
+def save_pid(pid, pidfile):
+  """
+    Save pid to pidfile.
+  """
+  try:
+    pfile = open(pidfile, "w")
+    pfile.write("%s\n" % pid)
+  except IOError:
+    pass
+  finally:
+    try:
+      pfile.close()
+    except:
+      pass
 
 
 def save_main_pid_ex(pids, pidfile, exclude_list=[], kill_exclude_list=False):
@@ -171,52 +185,47 @@ def get_ubuntu_pg_version():
   """
   postgre_ver = ""
 
-  if os.path.isdir(PG_HBA_INIT_FILES[
-    'ubuntu']):  # detect actual installed versions of PG and select a more new one
+  if os.path.isdir(UBUNTU_PG_HBA_ROOT):  # detect actual installed versions of PG and select a more new one
     postgre_ver = sorted(
-      [fld for fld in os.listdir(PG_HBA_INIT_FILES[OSConst.UBUNTU_FAMILY]) if
-       os.path.isdir(os.path.join(PG_HBA_INIT_FILES[OSConst.UBUNTU_FAMILY], fld))],
-      reverse=True)
+    [fld for fld in os.listdir(UBUNTU_PG_HBA_ROOT) if os.path.isdir(os.path.join(UBUNTU_PG_HBA_ROOT, fld))], reverse=True)
     if len(postgre_ver) > 0:
       return postgre_ver[0]
   return postgre_ver
 
 
-def get_postgre_hba_dir(OS_FAMILY):
-  """Return postgre hba dir location depends on OS.
-  Also depends on version of postgres creates symlink like postgresql-->postgresql-9.3
-  1) /etc/rc.d/init.d/postgresql --> /etc/rc.d/init.d/postgresql-9.3
-  2) /etc/init.d/postgresql --> /etc/init.d/postgresql-9.1
-  """
-  if OS_FAMILY == OSConst.UBUNTU_FAMILY:
-    # Like: /etc/postgresql/9.1/main/
-    return os.path.join(PG_HBA_INIT_FILES[OS_FAMILY], get_ubuntu_pg_version(),
-                        "main")
+def get_postgre_hba_dir(OS):
+  """Return postgre hba dir location depends on OS"""
+  if OS == OSConst.OS_UBUNTU:
+    return os.path.join(UBUNTU_PG_HBA_ROOT, get_ubuntu_pg_version(), "main")
   else:
-    if not os.path.isfile(PG_HBA_INIT_FILES[OS_FAMILY]):
-      # Link: /etc/init.d/postgresql --> /etc/init.d/postgresql-9.1
-      os.symlink(glob.glob(PG_HBA_INIT_FILES[OS_FAMILY] + '*')[0],
-                 PG_HBA_INIT_FILES[OS_FAMILY])
-
-    # Get postgres_data location (default: /var/lib/pgsql/data)
-    cmd = "alias exit=return; source " + PG_HBA_INIT_FILES[
-      OS_FAMILY] + " status &>/dev/null; echo $PGDATA"
-    p = subprocess.Popen(cmd,
-                         stdout=subprocess.PIPE,
-                         stdin=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         shell=True)
-    (PG_HBA_ROOT, err) = p.communicate()
-
-    if PG_HBA_ROOT and len(PG_HBA_ROOT.strip()) > 0:
-      return PG_HBA_ROOT.strip()
-    else:
-      return PG_HBA_ROOT_DEFAULT
+    return PG_HBA_ROOT_DEFAULT
 
 
-def get_postgre_running_status(OS_FAMILY):
+def get_postgre_running_status(OS):
   """Return postgre running status indicator"""
-  if OS_FAMILY == OSConst.UBUNTU_FAMILY:
+  if OS == OSConst.OS_UBUNTU:
     return os.path.join(get_ubuntu_pg_version(), "main")
   else:
     return PG_STATUS_RUNNING_DEFAULT
+
+
+def compare_versions(version1, version2):
+  def normalize(v):
+    return [int(x) for x in re.sub(r'(\.0+)*$', '', v).split(".")]
+  return cmp(normalize(version1), normalize(version2))
+  pass
+
+
+def check_reverse_lookup():
+  """
+  Check if host fqdn resolves to current host ip
+  """
+  try:
+    host_name = socket.gethostname().lower()
+    host_ip = socket.gethostbyname(host_name)
+    host_fqdn = socket.getfqdn().lower()
+    fqdn_ip = socket.gethostbyname(host_fqdn)
+    return host_ip == fqdn_ip
+  except socket.error:
+    pass
+  return False
