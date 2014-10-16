@@ -18,21 +18,40 @@
 
 package org.apache.ambari.server.state.cluster;
 
-import com.google.gson.Gson;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.persist.Transactional;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import javax.persistence.RollbackException;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
 import org.apache.ambari.server.DuplicateResourceException;
 import org.apache.ambari.server.HostNotFoundException;
 import org.apache.ambari.server.agent.DiskInfo;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
 import org.apache.ambari.server.orm.dao.ConfigGroupHostMappingDAO;
 import org.apache.ambari.server.orm.dao.HostDAO;
+import org.apache.ambari.server.orm.dao.ResourceDAO;
+import org.apache.ambari.server.orm.dao.ResourceTypeDAO;
 import org.apache.ambari.server.orm.entities.ClusterEntity;
 import org.apache.ambari.server.orm.entities.HostEntity;
+import org.apache.ambari.server.orm.entities.PermissionEntity;
+import org.apache.ambari.server.orm.entities.PrivilegeEntity;
+import org.apache.ambari.server.orm.entities.ResourceEntity;
+import org.apache.ambari.server.orm.entities.ResourceTypeEntity;
+import org.apache.ambari.server.security.SecurityHelper;
+import org.apache.ambari.server.security.authorization.AmbariGrantedAuthority;
 import org.apache.ambari.server.state.AgentVersion;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
@@ -46,18 +65,12 @@ import org.apache.ambari.server.state.configgroup.ConfigGroup;
 import org.apache.ambari.server.state.host.HostFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.persistence.RollbackException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.springframework.security.core.GrantedAuthority;
+
+import com.google.gson.Gson;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.persist.Transactional;
 
 @Singleton
 public class ClustersImpl implements Clusters {
@@ -82,15 +95,23 @@ public class ClustersImpl implements Clusters {
   @Inject
   HostDAO hostDAO;
   @Inject
+  ResourceDAO resourceDAO;
+  @Inject
+  ResourceTypeDAO resourceTypeDAO;
+  @Inject
   ClusterFactory clusterFactory;
   @Inject
   HostFactory hostFactory;
+  @Inject
+  Configuration configuration;
   @Inject
   AmbariMetaInfo ambariMetaInfo;
   @Inject
   Gson gson;
   @Inject
   private ConfigGroupHostMappingDAO configGroupHostMappingDAO;
+  @Inject
+  private SecurityHelper securityHelper;
 
   @Inject
   public ClustersImpl() {
@@ -156,11 +177,24 @@ public class ClustersImpl implements Clusters {
         throw new DuplicateResourceException("Attempted to create a Cluster which already exists"
             + ", clusterName=" + clusterName);
       }
+
+      // create an admin resource to represent this cluster
+      ResourceTypeEntity resourceTypeEntity = resourceTypeDAO.findById(ResourceTypeEntity.CLUSTER_RESOURCE_TYPE);
+      if (resourceTypeEntity == null) {
+        resourceTypeEntity = new ResourceTypeEntity();
+        resourceTypeEntity.setId(ResourceTypeEntity.CLUSTER_RESOURCE_TYPE);
+        resourceTypeEntity.setName(ResourceTypeEntity.CLUSTER_RESOURCE_TYPE_NAME);
+        resourceTypeEntity = resourceTypeDAO.merge(resourceTypeEntity);
+      }
+      ResourceEntity resourceEntity = new ResourceEntity();
+      resourceEntity.setResourceType(resourceTypeEntity);
+
       // retrieve new cluster id
       // add cluster id -> cluster mapping into clustersById
       ClusterEntity clusterEntity = new ClusterEntity();
       clusterEntity.setClusterName(clusterName);
       clusterEntity.setDesiredStackVersion(gson.toJson(new StackId()));
+      clusterEntity.setResource(resourceEntity);
 
       try {
         clusterDAO.create(clusterEntity);
@@ -316,15 +350,10 @@ public class ClustersImpl implements Clusters {
     Map<String, List<RepositoryInfo>> repos =
         ambariMetaInfo.getRepository(c.getDesiredStackVersion().getStackName(),
             c.getDesiredStackVersion().getStackVersion());
-    if (repos == null || repos.isEmpty()) {
-      return false;
-    }
-    
-    return repos.containsKey(h.getOsFamily());
+    return !(repos == null || repos.isEmpty()) && repos.containsKey(h.getOsFamily());
   }
 
   @Override
-  @Transactional
   public void updateHostWithClusterAndAttributes(Map<String, Set<String>> hostClusters, Map<String,
       Map<String, String>> hostAttributes)
       throws AmbariException {
@@ -370,7 +399,8 @@ public class ClustersImpl implements Clusters {
               }
 
               mapHostClusterEntities(hostname, cluster.getClusterId());
-
+              host.refresh();
+              cluster.refresh();
               hostClusterMap.get(hostname).add(cluster);
               clusterHostMap.get(clusterName).add(host);
 
@@ -458,7 +488,8 @@ public class ClustersImpl implements Clusters {
       }
 
       mapHostClusterEntities(hostname, cluster.getClusterId());
-
+      host.refresh();
+      cluster.refresh();
       hostClusterMap.get(hostname).add(cluster);
       clusterHostMap.get(clusterName).add(host);
 
@@ -472,7 +503,7 @@ public class ClustersImpl implements Clusters {
       w.unlock();
     }
   }
-  
+
   @Transactional
   void mapHostClusterEntities(String hostName, Long clusterId) {
     HostEntity hostEntity = hostDAO.findByName(hostName);
@@ -531,8 +562,8 @@ public class ClustersImpl implements Clusters {
       for (Cluster c : clusters.values()) {
         if (!first) {
           sb.append(" , ");
-          first = false;
         }
+        first = false;
         sb.append("\n  ");
         c.debugDump(sb);
         sb.append(" ");
@@ -607,11 +638,15 @@ public class ClustersImpl implements Clusters {
             + ", clusterId=" + cluster.getClusterId()
             + ", hostname=" + hostname);
       }
-      
+
       unmapHostClusterEntities(hostname, cluster.getClusterId());
+      host.refresh();
+      cluster.refresh();
 
       hostClusterMap.get(hostname).remove(cluster);
       clusterHostMap.get(clusterName).remove(host);
+      host.refresh();
+      cluster.refresh();
 
       deleteConfigGroupHostMapping(hostname);
 
@@ -666,4 +701,49 @@ public class ClustersImpl implements Clusters {
     
   }
 
+  @Override
+  public boolean checkPermission(String clusterName, boolean readOnly) {
+
+    Cluster cluster = null;
+    try {
+      cluster = clusterName == null ? null : getCluster(clusterName);
+    } catch (AmbariException e) {
+      // do nothing
+    }
+
+    return (cluster == null && readOnly) || !configuration.getApiAuthentication()
+      || checkPermission(cluster, readOnly);
+  }
+
+  /**
+   * Determine whether or not access to the given cluster resource should be allowed based
+   * on the privileges of the current user.
+   *
+   * @param cluster   the cluster
+   * @param readOnly  indicate whether or not this check is for a read only operation
+   *
+   * @return true if the access to this cluster is allowed
+   */
+  private boolean checkPermission(Cluster cluster, boolean readOnly) {
+    for (GrantedAuthority grantedAuthority : securityHelper.getCurrentAuthorities()) {
+      if (grantedAuthority instanceof AmbariGrantedAuthority) {
+
+        AmbariGrantedAuthority authority       = (AmbariGrantedAuthority) grantedAuthority;
+        PrivilegeEntity        privilegeEntity = authority.getPrivilegeEntity();
+        Integer                permissionId    = privilegeEntity.getPermission().getId();
+
+        // admin has full access
+        if (permissionId.equals(PermissionEntity.AMBARI_ADMIN_PERMISSION)) {
+          return true;
+        }
+        if (cluster != null) {
+          if (cluster.checkPermission(privilegeEntity, readOnly)) {
+            return true;
+          }
+        }
+      }
+    }
+    // TODO : should we log this?
+    return false;
+  }
 }

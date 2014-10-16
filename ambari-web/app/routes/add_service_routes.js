@@ -45,18 +45,16 @@ module.exports = App.WizardRoute.extend({
             this.set('showCloseButton', false); // prevent user to click "Close" many times
             App.router.get('updateController').set('isWorking', true);
             var self = this;
+            App.router.get('updateController').updateServices(function(){
+              App.router.get('updateController').updateServiceMetric();
+            });
+            addServiceController.finish();
+            // We need to do recovery based on whether we are in Add Host or Installer wizard
             App.clusterStatus.setClusterStatus({
               clusterName: App.router.get('content.cluster.name'),
-              clusterState: 'DEFAULT',
-              wizardControllerName: App.router.get('addServiceController.name'),
-              localdb: App.db.data
-            });
-            App.router.get('updateController').updateServices(function(){
-              App.router.get('updateController').updateServiceMetric(function(){
-                self.hide();
-              });
-            });
-            App.router.transitionTo('main.services.index');
+              clusterState: 'DEFAULT'
+            }, {alwaysCallback: function() {self.hide();App.router.transitionTo('main.services.index');location.reload();}});
+
           },
           didInsertElement: function(){
             this.fitHeight();
@@ -115,6 +113,9 @@ module.exports = App.WizardRoute.extend({
       addServiceController.saveServices(wizardStep4Controller);
       addServiceController.saveClients(wizardStep4Controller);
       addServiceController.setDBProperty('masterComponentHosts', undefined);
+
+      var wizardStep5Controller = router.get('wizardStep5Controller');
+      wizardStep5Controller.clearRecommendations(); // Force reload recommendation between steps 1 and 2
       router.transitionTo('step2');
     }
   }),
@@ -136,8 +137,10 @@ module.exports = App.WizardRoute.extend({
     next: function (router) {
       var addServiceController = router.get('addServiceController');
       var wizardStep5Controller = router.get('wizardStep5Controller');
+      var wizardStep6Controller = router.get('wizardStep6Controller');
       addServiceController.saveMasterComponentHosts(wizardStep5Controller);
       addServiceController.setDBProperty('slaveComponentHosts', undefined);
+      wizardStep6Controller.set('isClientsSet', false);
       router.transitionTo('step3');
     }
   }),
@@ -167,13 +170,15 @@ module.exports = App.WizardRoute.extend({
       var addServiceController = router.get('addServiceController');
       var wizardStep6Controller = router.get('wizardStep6Controller');
 
-      if (wizardStep6Controller.validate()) {
-        addServiceController.saveSlaveComponentHosts(wizardStep6Controller);
-        addServiceController.get('content').set('serviceConfigProperties', null);
-        addServiceController.setDBProperty('serviceConfigProperties', null);
-        addServiceController.setDBProperty('groupsToDelete', []);
-        router.transitionTo('step4');
-      }
+      wizardStep6Controller.callValidation(function() {
+        wizardStep6Controller.showValidationIssuesAcceptBox(function() {
+          addServiceController.saveSlaveComponentHosts(wizardStep6Controller);
+          addServiceController.get('content').set('serviceConfigProperties', null);
+          addServiceController.setDBProperty('serviceConfigProperties', null);
+          addServiceController.setDBProperty('groupsToDelete', []);
+          router.transitionTo('step4');
+        });
+      });
     }
   }),
 
@@ -248,7 +253,7 @@ module.exports = App.WizardRoute.extend({
     next: function (router) {
       var addServiceController = router.get('addServiceController');
       var wizardStep8Controller = router.get('wizardStep8Controller');
-      addServiceController.installServices(false, function () {
+      addServiceController.installServices(function () {
         addServiceController.setInfoForStep9();
 
         addServiceController.saveClusterState('ADD_SERVICES_INSTALLING_3');
@@ -268,7 +273,7 @@ module.exports = App.WizardRoute.extend({
         controller.loadAllPriorSteps();
         var wizardStep9Controller = router.get('wizardStep9Controller');
         wizardStep9Controller.set('wizardController', controller);
-        if (!App.testMode) {              //if test mode is ON don't disable prior steps link.
+        if (!App.get('testMode')) {              //if test mode is ON don't disable prior steps link.
           controller.setLowerStepsDisable(6);
         }
         controller.connectOutlet('wizardStep9', controller.get('content'));
@@ -280,8 +285,7 @@ module.exports = App.WizardRoute.extend({
       var wizardStep9Controller = router.get('wizardStep9Controller');
       if (wizardStep9Controller.get('showRetry')) {
         if (wizardStep9Controller.get('content.cluster.status') === 'INSTALL FAILED') {
-          var isRetry = true;
-          addServiceController.installServices(isRetry, function () {
+          addServiceController.installServices(function () {
             addServiceController.setInfoForStep9();
             wizardStep9Controller.resetHostsForRetry();
             // We need to do recovery based on whether we are in Add Host or Installer wizard
@@ -324,10 +328,6 @@ module.exports = App.WizardRoute.extend({
     complete: function (router, context) {
       var addServiceController = router.get('addServiceController');
       addServiceController.get('popup').onClose();
-      addServiceController.finish();
-      // We need to do recovery based on whether we are in Add Host or Installer wizard
-      addServiceController.saveClusterState('DEFAULT');
-      location.reload();
     }
   }),
 

@@ -47,7 +47,7 @@ import java.util.Collection;
     "WHERE configgroup.tag=:tagName")
 })
 @TableGenerator(name = "configgroup_id_generator",
-  table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "value"
+  table = "ambari_sequences", pkColumnName = "sequence_name", valueColumnName = "sequence_value"
   , pkColumnValue = "configgroup_id_seq"
   , initialValue = 1
   , allocationSize = 1
@@ -72,6 +72,9 @@ public class ConfigGroupEntity {
 
   @Column(name = "create_timestamp", nullable=false, insertable=true, updatable=false)
   private long timestamp;
+
+  @Column(name = "service_name")
+  private String serviceName;
 
   @ManyToOne
   @JoinColumn(name = "cluster_id", referencedColumnName = "cluster_id", nullable = false)
@@ -177,5 +180,13 @@ public class ConfigGroupEntity {
     result = 31 * result + groupName.hashCode();
     result = 31 * result + tag.hashCode();
     return result;
+  }
+
+  public String getServiceName() {
+    return serviceName;
+  }
+
+  public void setServiceName(String serviceName) {
+    this.serviceName = serviceName;
   }
 }

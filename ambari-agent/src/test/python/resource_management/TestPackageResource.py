@@ -17,26 +17,48 @@ limitations under the License.
 '''
 
 from unittest import TestCase
-from mock.mock import patch, MagicMock
+from mock.mock import patch, MagicMock, call
 
 from resource_management.core import Environment, Fail
 from resource_management.core.system import System
 from resource_management.core.resources import Package
 
 from resource_management.core import shell
+from resource_management.core.providers.package.apt import replace_underscores
 
 class TestPackageResource(TestCase):
-
   @patch.object(shell, "call")
   @patch.object(shell, "checked_call")
-  @patch.object(System, "os_family", new = 'debian')
-  def test_action_install_debian(self, shell_mock, call_mock):
+  @patch.object(System, "os_family", new = 'ubuntu')
+  def test_action_install_ubuntu_update(self, shell_mock, call_mock):
     call_mock.return_value= (1, None)
     with Environment('/') as env:
       Package("some_package",
       )
-    call_mock.assert_called_with('dpkg --get-selections some_package | grep -v deinstall')
-    shell_mock.assert_called_with("env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get -q -o Dpkg::Options::='--force-confdef' --allow-unauthenticated --assume-yes install some_package")
+    call_mock.assert_has_calls([call("dpkg --get-selections some-package | grep -v deinstall"),
+                                call("DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get -q -o Dpkg::Options::='--force-confdef'"
+                                      " --allow-unauthenticated --assume-yes install some-package"),
+                                call("apt-get update -qq")
+                              ])
+
+    shell_mock.assert_has_calls([call("DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get -q -o Dpkg::Options::='--force-confdef' --allow-unauthenticated --assume-yes install some-package")
+                              ])
+
+  @patch.object(shell, "call")
+  @patch.object(shell, "checked_call")
+  @patch.object(System, "os_family", new = 'ubuntu')
+  def test_action_install_ubuntu(self, shell_mock, call_mock):
+    call_mock.side_effect = [(1, None), (0, None)]
+    with Environment('/') as env:
+      Package("some_package",
+      )
+    call_mock.assert_has_calls([call("dpkg --get-selections some-package | grep -v deinstall"),
+                                call("DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get -q -o Dpkg::Options::='--force-confdef'"
+                                      " --allow-unauthenticated --assume-yes install some-package")
+                              ])
+
+    self.assertEqual(shell_mock.call_count, 0, "shell.checked_call shouldn't be called")
+
 
 
   @patch.object(shell, "call")
@@ -108,3 +130,12 @@ class TestPackageResource(TestCase):
               version = "3.5.0"
       )
     shell_mock.assert_called_with("/usr/bin/yum -d 0 -e 0 -y install some_package-3.5.0")
+
+  @replace_underscores
+  def func_to_test(self, name):
+    return name
+
+  def testReplaceUnderscore(self):
+    self.assertEqual("-", self.func_to_test("_"))
+    self.assertEqual("hadoop-x-x-x-*", self.func_to_test("hadoop_x_x_x-*"))
+    self.assertEqual("hadoop", self.func_to_test("hadoop"))

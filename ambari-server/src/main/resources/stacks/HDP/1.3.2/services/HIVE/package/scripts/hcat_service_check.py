@@ -34,12 +34,12 @@ def hcat_service_check():
     else:
       kinit_cmd = ""
 
-    File('/tmp/hcatSmoke.sh',
+    File(format("{tmp_dir}/hcatSmoke.sh"),
          content=StaticFile("hcatSmoke.sh"),
          mode=0755
     )
 
-    prepare_cmd = format("{kinit_cmd}sh /tmp/hcatSmoke.sh hcatsmoke{unique} prepare")
+    prepare_cmd = format("{kinit_cmd}sh {tmp_dir}/hcatSmoke.sh hcatsmoke{unique} prepare")
 
     Execute(prepare_cmd,
             tries=3,
@@ -48,16 +48,27 @@ def hcat_service_check():
             path=['/usr/sbin', '/usr/local/nin', '/bin', '/usr/bin'],
             logoutput=True)
 
-    ExecuteHadoop(test_cmd,
-                  user=params.hdfs_user,
-                  logoutput=True,
-                  conf_dir=params.hadoop_conf_dir,
-                  security_enabled=params.security_enabled,
-                  kinit_path_local=params.kinit_path_local,
-                  keytab=params.hdfs_user_keytab
-    )
+    if params.security_enabled:
+      ExecuteHadoop(test_cmd,
+                    user=params.hdfs_user,
+                    logoutput=True,
+                    conf_dir=params.hadoop_conf_dir,
+                    security_enabled=params.security_enabled,
+                    kinit_path_local=params.kinit_path_local,
+                    keytab=params.hdfs_user_keytab,
+                    principal=params.hdfs_principal_name
+      )
+    else:
+      ExecuteHadoop(test_cmd,
+                    user=params.hdfs_user,
+                    logoutput=True,
+                    conf_dir=params.hadoop_conf_dir,
+                    security_enabled=params.security_enabled,
+                    kinit_path_local=params.kinit_path_local,
+                    keytab=params.hdfs_user_keytab
+      )
 
-    cleanup_cmd = format("{kinit_cmd}sh /tmp/hcatSmoke.sh hcatsmoke{unique} cleanup")
+    cleanup_cmd = format("{kinit_cmd}sh {tmp_dir}/hcatSmoke.sh hcatsmoke{unique} cleanup")
 
     Execute(cleanup_cmd,
             tries=3,

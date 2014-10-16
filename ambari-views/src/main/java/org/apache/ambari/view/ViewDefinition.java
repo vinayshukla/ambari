@@ -38,6 +38,13 @@ public interface ViewDefinition {
   public String getLabel();
 
   /**
+   * Get the view description.
+   *
+   * @return the description
+   */
+  public String getDescription();
+
+  /**
    * Get the view version.
    *
    * @return the version
@@ -50,4 +57,31 @@ public interface ViewDefinition {
    * @return the mask class name.
    */
   public String getMask();
+
+  /**
+   * Get the view status.
+   *
+   * @return the view status
+   */
+  public ViewStatus getStatus();
+
+  /**
+   * Get the view status detail.
+   *
+   * @return the view status detail
+   */
+  public String getStatusDetail();
+
+
+  // ----- ViewStatus enum ---------------------------------------------------
+
+  /**
+   * View status
+   */
+  public enum ViewStatus {
+    PENDING,   // view has been created but not loaded from the archive
+    DEPLOYING, // view is in the process of being deployed from the archive
+    DEPLOYED,  // view is completely deployed and ready to use
+    ERROR      // an error occurred deploying the view
+  }
 }

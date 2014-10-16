@@ -23,6 +23,7 @@ import status_params
 
 # server configurations
 config = Script.get_config()
+tmp_dir = Script.get_tmp_dir()
 
 hive_metastore_user_name = config['configurations']['hive-site']['javax.jdo.option.ConnectionUserName']
 hive_server_conf_dir = "/etc/hive/conf.server"
@@ -56,15 +57,13 @@ hive_server_host = config['clusterHostInfo']['hive_server_host'][0]
 hive_server_port = default('/configurations/hive-site/hive.server2.thrift.port',"10000")
 hive_url = format("jdbc:hive2://{hive_server_host}:{hive_server_port}")
 
-smokeuser = config['configurations']['hadoop-env']['smokeuser']
-smoke_test_sql = "/tmp/hiveserver2.sql"
-smoke_test_path = "/tmp/hiveserver2Smoke.sh"
-smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
+smokeuser = config['configurations']['cluster-env']['smokeuser']
+smoke_test_sql = format("{tmp_dir}/hiveserver2.sql")
+smoke_test_path = format("{tmp_dir}/hiveserver2Smoke.sh")
+smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
 
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 
-kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 hive_metastore_keytab_path =  config['configurations']['hive-site']['hive.metastore.kerberos.keytab.file']
 
 #hive_env
@@ -73,6 +72,10 @@ hive_dbroot = config['configurations']['hive-env']['hive_dbroot']
 hive_log_dir = config['configurations']['hive-env']['hive_log_dir']
 hive_pid_dir = status_params.hive_pid_dir
 hive_pid = status_params.hive_pid
+#Default conf dir for client
+hive_config_dir = hive_conf_dir
+if 'role' in config and config['role'] in ["HIVE_SERVER", "HIVE_METASTORE"]:
+  hive_config_dir = hive_server_conf_dir
 
 #hive-site
 hive_database_name = config['configurations']['hive-env']['hive_database_name']
@@ -89,16 +92,16 @@ java_share_dir = '/usr/share/java'
 driver_curl_target = format("{java_share_dir}/{jdbc_jar_name}")
 
 hdfs_user =  config['configurations']['hadoop-env']['hdfs_user']
-user_group = config['configurations']['hadoop-env']['user_group']
-artifact_dir = "/tmp/HDP-artifacts/"
+user_group = config['configurations']['cluster-env']['user_group']
+artifact_dir = format("{tmp_dir}/AMBARI-artifacts/")
 
 target = format("{hive_lib}/{jdbc_jar_name}")
 
 jdk_location = config['hostLevelParams']['jdk_location']
 driver_curl_source = format("{jdk_location}/{jdbc_symlink_name}")
 
-start_hiveserver2_path = "/tmp/start_hiveserver2_script"
-start_metastore_path = "/tmp/start_metastore_script"
+start_hiveserver2_path = format("{tmp_dir}/start_hiveserver2_script")
+start_metastore_path = format("{tmp_dir}/start_metastore_script")
 
 hive_aux_jars_path = config['configurations']['hive-env']['hive_aux_jars_path']
 hadoop_heapsize = config['configurations']['hadoop-env']['hadoop_heapsize']
@@ -113,7 +116,7 @@ mysql_user = "mysql"
 mysql_group = 'mysql'
 mysql_host = config['clusterHostInfo']['hive_mysql_host']
 
-mysql_adduser_path = "/tmp/addMysqlUser.sh"
+mysql_adduser_path = format("{tmp_dir}/addMysqlUser.sh")
 
 ########## HCAT
 
@@ -130,6 +133,8 @@ hcat_pid_dir = status_params.hcat_pid_dir
 hcat_log_dir = config['configurations']['hive-env']['hcat_log_dir']   #hcat_log_dir
 
 hadoop_conf_dir = '/etc/hadoop/conf'
+
+hcat_env_sh_template = config['configurations']['hcat-env']['content']
 
 #hive-log4j.properties.template
 if (('hive-log4j' in config['configurations']) and ('content' in config['configurations']['hive-log4j'])):
@@ -151,10 +156,37 @@ hive_hdfs_user_dir = format("/user/{hive_user}")
 hive_hdfs_user_mode = 0700
 #for create_hdfs_directory
 hostname = config["hostname"]
-hadoop_conf_dir = "/etc/hadoop/conf"
 hdfs_user_keytab = config['configurations']['hadoop-env']['hdfs_user_keytab']
-hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
+hdfs_principal_name = config['configurations']['hadoop-env']['hdfs_principal_name']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
+
+#################################################
+################## WebHCat ######################
+#################################################
+webhcat_env_sh_template = config['configurations']['webhcat-env']['content']
+
+config_dir = '/etc/hcatalog/conf'
+
+templeton_log_dir = config['configurations']['hive-env']['hcat_log_dir']
+templeton_pid_dir = status_params.templeton_pid_dir
+
+webhcat_pid_file = status_params.webhcat_pid_file
+
+templeton_jar = config['configurations']['webhcat-site']['templeton.jar']
+
+
+webhcat_server_host = config['clusterHostInfo']['webhcat_server_host']
+
+webhcat_apps_dir = "/apps/webhcat"
+
+#hdfs directories
+hcat_hdfs_user_dir = format("/user/{hcat_user}")
+hcat_hdfs_user_mode = 0755
+webhcat_hdfs_user_dir = format("/user/{webhcat_user}")
+webhcat_hdfs_user_mode = 0755
+#for create_hdfs_directory
+security_param = "true" if security_enabled else "false"
+
 import functools
 #create partial functions with common arguments for every HdfsDirectory call
 #to create hdfs directory we need to call params.HdfsDirectory in code

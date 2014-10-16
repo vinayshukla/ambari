@@ -20,8 +20,12 @@ package org.apache.ambari.server.security.authorization;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.orm.dao.RoleDAO;
+import org.apache.ambari.server.orm.dao.MemberDAO;
+import org.apache.ambari.server.orm.dao.PrivilegeDAO;
 import org.apache.ambari.server.orm.dao.UserDAO;
+import org.apache.ambari.server.orm.entities.MemberEntity;
+import org.apache.ambari.server.orm.entities.PrincipalEntity;
+import org.apache.ambari.server.orm.entities.PrivilegeEntity;
 import org.apache.ambari.server.orm.entities.UserEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +33,9 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import java.util.LinkedList;
+import java.util.List;
 
 
 public class AmbariLocalUserDetailsService implements UserDetailsService {
@@ -38,16 +45,19 @@ public class AmbariLocalUserDetailsService implements UserDetailsService {
   Configuration configuration;
   private AuthorizationHelper authorizationHelper;
   UserDAO userDAO;
-  RoleDAO roleDAO;
+  MemberDAO memberDAO;
+  PrivilegeDAO privilegeDAO;
 
   @Inject
   public AmbariLocalUserDetailsService(Injector injector, Configuration configuration,
-                                       AuthorizationHelper authorizationHelper, UserDAO userDAO, RoleDAO roleDAO) {
+                                       AuthorizationHelper authorizationHelper, UserDAO userDAO,
+                                       MemberDAO memberDAO, PrivilegeDAO privilegeDAO) {
     this.injector = injector;
     this.configuration = configuration;
     this.authorizationHelper = authorizationHelper;
     this.userDAO = userDAO;
-    this.roleDAO = roleDAO;
+    this.memberDAO = memberDAO;
+    this.privilegeDAO = privilegeDAO;
   }
 
   /**
@@ -66,13 +76,22 @@ public class AmbariLocalUserDetailsService implements UserDetailsService {
     if (user == null) {
       log.info("user not found ");
       throw new UsernameNotFoundException("Username " + username + " not found");
-    }else if (user.getRoleEntities().isEmpty()) {
-      log.info("No authorities for user");
-      throw new UsernameNotFoundException("Username " + username + " has no roles");
     }
 
-    return new User(user.getUserName(), user.getUserPassword(),
-            authorizationHelper.convertRolesToAuthorities(user.getRoleEntities()));
-  }
+    // get all of the privileges for the user
+    List<PrincipalEntity> principalEntities = new LinkedList<PrincipalEntity>();
 
+    principalEntities.add(user.getPrincipal());
+
+    List<MemberEntity> memberEntities = memberDAO.findAllMembersByUser(user);
+
+    for (MemberEntity memberEntity : memberEntities) {
+      principalEntities.add(memberEntity.getGroup().getPrincipal());
+    }
+
+    List<PrivilegeEntity> privilegeEntities = privilegeDAO.findAllByPrincipal(principalEntities);
+
+    return new User(user.getUserName(), user.getUserPassword(), user.getActive(),
+        true, true, true, authorizationHelper.convertPrivilegesToAuthorities(privilegeEntities));
+  }
 }

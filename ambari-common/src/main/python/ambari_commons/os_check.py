@@ -20,13 +20,25 @@ limitations under the License.
 
 import os
 import sys
+import json
 import platform
+
+# path to resources dir
+RESOURCES_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources")
+
+# family JSON data
+OSFAMILY_JSON_RESOURCE = "os_family.json"
+JSON_OS_TYPE = "distro"
+JSON_OS_VERSION = "versions"
+
 
 def linux_distribution():
   PYTHON_VER = sys.version_info[0] * 10 + sys.version_info[1]
 
   if PYTHON_VER < 26:
     (distname, version, id)  = platform.dist()
+  elif os.path.exists('/etc/redhat-release'):
+        (distname, version, id)  = platform.dist()
   else:
     (distname, version, id) = platform.linux_distribution()
 
@@ -60,41 +72,32 @@ class OS_CONST_TYPE(type):
   WINSRV_FAMILY = 'winsrv'
 
   # Declare here os type mapping
-  OS_FAMILY_COLLECTION = [
-                            {'name': REDHAT_FAMILY,
-                             'os_list':
-                                ['redhat', 'fedora', 'centos', 'oraclelinux',
-                                 'ascendos', 'amazon', 'xenserver', 'oel', 'ovs',
-                                 'cloudlinux', 'slc', 'scientific', 'psbm',
-                                 'centos linux']
-                             },
-                            {'name': DEBIAN_FAMILY,
-                             'os_list': ['ubuntu', 'debian']
-                             },
-                            {'name': SUSE_FAMILY,
-                             'os_list': ['sles', 'sled', 'opensuse', 'suse']
-                             }
-                           ]
-  WIN_OS_FAMILY_COLLECTION = [
-                            {'name': WINSRV_FAMILY,
-                             'os_list':
-                                ['win2008Server', 'win2008ServerR2', 'win2012Server', 'win2012ServerR2']
-                             },
-                           ]
+  OS_FAMILY_COLLECTION = []
   # Would be generated from Family collection definition
   OS_COLLECTION = []
+  FAMILY_COLLECTION = []
+
+  def initialize_data(cls):
+    """
+      Initialize internal data structures from file
+    """
+    try:
+      fpath = os.path.join(RESOURCES_DIR, OSFAMILY_JSON_RESOURCE)
+      f = open(fpath)
+      json_data = json.load(f)
+      f.close()
+      for family in json_data:
+        cls.FAMILY_COLLECTION += [family]
+        cls.OS_COLLECTION += json_data[family][JSON_OS_TYPE]
+        cls.OS_FAMILY_COLLECTION += [{
+          'name': family,
+          'os_list': json_data[family][JSON_OS_TYPE]
+        }]
+    except:
+      raise Exception("Couldn't load '%s' file" % fpath)
 
   def __init__(cls, name, bases, dct):
-    if platform.system() == 'Windows':
-      for item in cls.WIN_OS_FAMILY_COLLECTION:
-        cls.OS_COLLECTION += item['os_list']
-    else:
-      if platform.system() == 'Mac':
-        raise Exception("MacOS not supported. Exiting...")
-      else:
-        dist = linux_distribution()
-        for item in cls.OS_FAMILY_COLLECTION:
-          cls.OS_COLLECTION += item['os_list']
+    cls.initialize_data()
 
   def __getattr__(cls, name):
     """
@@ -107,8 +110,9 @@ class OS_CONST_TYPE(type):
     name = name.lower()
     if "os_" in name and name[3:] in cls.OS_COLLECTION:
       return name[3:]
-    else:
-      raise Exception("Unknown class property '%s'" % name)
+    if "_family" in name and name[:-7] in cls.FAMILY_COLLECTION:
+      return name[:-7]
+    raise Exception("Unknown class property '%s'" % name)
 
 def get_os_distribution():
   if platform.system() == 'Windows':
@@ -180,14 +184,11 @@ class OSCheck:
 
     In case cannot detect raises exception( from self.get_operating_system_type() ).
     """
-    if(OSCheck._dist[0] == 'Windows'):
-      os_family = OSConst.WIN_OS_FAMILY_COLLECTION[0]['name']
-    else:
-      os_family = OSCheck.get_os_type()
-      for os_family_item in OSConst.OS_FAMILY_COLLECTION:
-        if os_family in os_family_item['os_list']:
-          os_family = os_family_item['name']
-          break
+    os_family = OSCheck.get_os_type()
+    for os_family_item in OSConst.OS_FAMILY_COLLECTION:
+      if os_family in os_family_item['os_list']:
+        os_family = os_family_item['name']
+        break
 
     return os_family.lower()
 
@@ -231,14 +232,14 @@ class OSCheck:
   #  Exception safe family check functions
 
   @staticmethod
-  def is_debian_family():
+  def is_ubuntu_family():
     """
      Return true if it is so or false if not
 
      This is safe check for debian family, doesn't generate exception
     """
     try:
-      if OSCheck.get_os_family() == OSConst.DEBIAN_FAMILY:
+      if OSCheck.get_os_family() == OSConst.UBUNTU_FAMILY:
         return True
     except Exception:
       pass
@@ -314,6 +315,19 @@ class OSCheck:
       pass
     return False
 
+  def is_redhat7():
+    """
+     Return true if it is so or false if not
+
+     This is safe check for redhat7 , doesn't generate exception
+    """
+    try:
+      ostemp=OSCheck.get_os_family()+OSCheck().get_os_major_version()
+      if ostemp == 'redhat7':
+        return True
+    except Exception:
+      pass
+    return False
 
 # OS info
 OS_VERSION = OSCheck().get_os_major_version()

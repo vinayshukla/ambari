@@ -31,6 +31,7 @@ class TestFalconServer(RMFTestCase):
     )
     self.assert_configure_default()
     self.assertResourceCalled('Execute', '/usr/lib/falcon/bin/falcon-start -port 15000',
+                              path = ['/usr/bin'],
                               user = 'falcon',
                               )
     self.assertNoMoreResources()
@@ -42,6 +43,7 @@ class TestFalconServer(RMFTestCase):
                        config_file="default.json"
     )
     self.assertResourceCalled('Execute', '/usr/lib/falcon/bin/falcon-stop',
+                              path = ['/usr/bin'],
                               user = 'falcon',
                               )
     self.assertResourceCalled('File', '/var/run/falcon/falcon.pid',
@@ -71,6 +73,10 @@ class TestFalconServer(RMFTestCase):
     self.assertResourceCalled('Directory', '/usr/lib/falcon',
                               owner = 'falcon',
                               )
+    self.assertResourceCalled('Directory', '/etc/falcon/conf',
+                              owner = 'falcon',
+                              recursive = True
+    )
     self.assertResourceCalled('File', '/etc/falcon/conf/falcon-env.sh',
                               content = InlineTemplate(self.getConfig()['configurations']['falcon-env']['content']),
                               )
@@ -94,6 +100,7 @@ class TestFalconServer(RMFTestCase):
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0777,
                               owner = 'falcon',
+                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', None,
@@ -102,6 +109,7 @@ class TestFalconServer(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
+                              bin_dir = '/usr/bin',
                               action = ['create'],
                               )
     self.assertResourceCalled('Directory', '/hadoop/falcon',

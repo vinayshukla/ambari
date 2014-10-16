@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,23 +65,27 @@ import com.google.inject.Injector;
 /**
  * Used to populate resources that have Nagios alertable properties.
  */
+@Deprecated
 public class NagiosPropertyProvider extends BaseProvider implements PropertyProvider {
   
   private static final Logger LOG = LoggerFactory.getLogger(NagiosPropertyProvider.class);
   private static final Set<String> NAGIOS_PROPERTY_IDS = new HashSet<String>();
   private static final String NAGIOS_TEMPLATE = "http://%s/ambarinagios/nagios/nagios_alerts.php?q1=alerts&alert_type=all";
   
-  private static final String ALERT_DETAIL_PROPERTY_ID = "alerts/detail";
-  private static final String ALERT_SUMMARY_OK_PROPERTY_ID = "alerts/summary/OK";
-  private static final String ALERT_SUMMARY_WARNING_PROPERTY_ID = "alerts/summary/WARNING";
-  private static final String ALERT_SUMMARY_CRITICAL_PROPERTY_ID = "alerts/summary/CRITICAL";
-  private static final String ALERT_SUMMARY_PASSIVE_PROPERTY_ID = "alerts/summary/PASSIVE";
+  private static final String ALERT_DETAIL_PROPERTY_ID = "legacy_alerts/detail";
+  private static final String ALERT_SUMMARY_PROPERTY_ID = "legacy_alerts/summary";
+  private static final String ALERT_SUMMARY_OK_PROPERTY_ID = "legacy_alerts/summary/OK";
+  private static final String ALERT_SUMMARY_WARNING_PROPERTY_ID = "legacy_alerts/summary/WARNING";
+  private static final String ALERT_SUMMARY_CRITICAL_PROPERTY_ID = "legacy_alerts/summary/CRITICAL";
+  private static final String ALERT_SUMMARY_PASSIVE_PROPERTY_ID = "legacy_alerts/summary/PASSIVE";
   private static final String PASSIVE_TOKEN = "AMBARIPASSIVE=";
   
-  private static final List<String> IGNORABLE_FOR_SERVICES = new ArrayList<String>(
+  private static final List<String> DEFAULT_IGNORABLE_FOR_SERVICES = Collections.unmodifiableList(new ArrayList<String>(
       Arrays.asList("NodeManager health", "NodeManager process", "TaskTracker process",
       "RegionServer process", "DataNode process", "DataNode space",
-      "ZooKeeper Server process", "Supervisors process"));
+      "ZooKeeper Server process", "Supervisors process")));
+
+  private static List<String> IGNORABLE_FOR_SERVICES;
   
   private static final List<String> IGNORABLE_FOR_HOSTS = new ArrayList<String>(
     Collections.singletonList("percent"));
@@ -95,8 +100,9 @@ public class NagiosPropertyProvider extends BaseProvider implements PropertyProv
   private static final Set<String> CLUSTER_NAMES = new CopyOnWriteArraySet<String>();
   
   static {
-    NAGIOS_PROPERTY_IDS.add("alerts/summary");
-    NAGIOS_PROPERTY_IDS.add("alerts/detail");
+    NAGIOS_PROPERTY_IDS.add(ALERT_SUMMARY_PROPERTY_ID);
+    NAGIOS_PROPERTY_IDS.add(ALERT_DETAIL_PROPERTY_ID);
+    IGNORABLE_FOR_SERVICES = new ArrayList<String>(DEFAULT_IGNORABLE_FOR_SERVICES);
 
     scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
       @Override
@@ -119,6 +125,7 @@ public class NagiosPropertyProvider extends BaseProvider implements PropertyProv
     clusters = injector.getInstance(Clusters.class);
     Configuration config = injector.getInstance(Configuration.class);
     
+    IGNORABLE_FOR_SERVICES = new ArrayList<String>(DEFAULT_IGNORABLE_FOR_SERVICES);
     String ignores = config.getProperty(Configuration.NAGIOS_IGNORE_FOR_SERVICES_KEY);
     if (null != ignores) {
       Collections.addAll(IGNORABLE_FOR_SERVICES, COMMA_PATTERN.split(ignores));
@@ -147,17 +154,18 @@ public class NagiosPropertyProvider extends BaseProvider implements PropertyProv
       @Override
       public void run() {
         for (String clusterName : CLUSTER_NAMES) {
+          List<NagiosAlert> alerts = new LinkedList<NagiosAlert>();
           try {
-            List<NagiosAlert> alerts = populateAlerts(clusterName);
-            
-            CLUSTER_ALERTS.put(clusterName, alerts);
+            alerts = populateAlerts(clusterName);
           } catch (Exception e) {
             LOG.error("Could not load Nagios alerts: " + e.getMessage());
           }
+          CLUSTER_ALERTS.put(clusterName, alerts);
         }
       }
     }, 0L, 30L, TimeUnit.SECONDS);    
   }
+
   
   /**
    * Use only for testing to remove all cached alerts.

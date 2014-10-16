@@ -63,21 +63,6 @@ describe('App.ServiceConfigView', function () {
           App.ServiceConfigCategory.create({ name: 'category3', siteFileName: 'xml', canAddProperty: false})
         ]
       }
-    },
-    {
-      title: 'selectedConfigGroup is not default group',
-      result: {
-        'category1': false,
-        'category2': false
-      },
-      selectedConfigGroup: {},
-      selectedService: {
-        serviceName: 'TEST',
-        configCategories: [
-          App.ServiceConfigCategory.create({ name: 'category1', siteFileName: 'xml', canAddProperty: true}),
-          App.ServiceConfigCategory.create({ name: 'category2', siteFileName: 'xml', canAddProperty: false})
-        ]
-      }
     }
   ];
   describe('#checkCanEdit', function () {
@@ -256,4 +241,63 @@ describe('App.ServiceConfigsByCategoryView', function () {
       expect(overrides.findProperty('name', 'override2').get('isEditable')).to.equal(false);
     })
   })
+});
+
+describe('App.ServiceConfigContainerView', function () {
+  var view,
+    selectedService = {
+      configCategories: []
+    };
+  beforeEach(function () {
+    view = App.ServiceConfigContainerView.create();
+  });
+  describe('#pushView', function () {
+    it('shouldn\'t be launched before selectedService is set', function () {
+      view.set('controller', {});
+      view.pushView();
+      expect(view.get('childViews')).to.be.empty;
+    });
+  });
+  describe('#selectedServiceObserver', function () {
+    it('should add a child view', function () {
+      view.set('controller', {
+        selectedService: {
+          configCategories: []
+        }
+      });
+      expect(view.get('childViews')).to.have.length(1);
+    });
+    it('should set controller for the view', function () {
+      view.set('controller', {
+        name: 'controller',
+        selectedService: {
+          configCategories: []
+        }
+      });
+      expect(view.get('childViews.firstObject.controller.name')).to.equal('controller');
+    });
+    it('should add config categories', function () {
+      view.set('controller', {
+        selectedService: {
+          configCategories: [Em.Object.create(), Em.Object.create()]
+        }
+      });
+      expect(view.get('childViews.firstObject.serviceConfigsByCategoryView.childViews')).to.have.length(2);
+    });
+    it('shouldn\'t add category with custom view if capacitySchedulerUi isn\'t active', function () {
+      sinon.stub(App, 'get', function(k) {
+        if (k === 'supports.capacitySchedulerUi') return false;
+        return Em.get(App, k);
+      });
+      view.set('controller', {
+        selectedService: {
+          configCategories: [Em.Object.create({
+            isCustomView: true
+          })]
+        }
+      });
+      expect(view.get('childViews.firstObject.serviceConfigsByCategoryView.childViews')).to.be.empty;
+      App.get.restore();
+    });
+  });
 });

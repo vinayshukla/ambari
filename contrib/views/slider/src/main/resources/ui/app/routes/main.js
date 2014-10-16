@@ -16,6 +16,18 @@
  * limitations under the License.
  */
 
+App.ApplicationRoute = Ember.Route.extend({
+  renderTemplate: function() {
+    this.render();
+    var controller = this.controllerFor('tooltip-box');
+    this.render("bs-tooltip-box", {
+      outlet: "bs-tooltip-box",
+      controller: controller,
+      into: "application"
+    });
+  }
+});
+
 App.IndexRoute = Ember.Route.extend({
 
   model: function () {
@@ -32,6 +44,18 @@ App.SliderAppsRoute = Ember.Route.extend({
 
   model: function () {
     return this.store.all('sliderApp');
+  },
+
+
+  setupController: function(controller, model) {
+    controller.set('model', model);
+
+    // Load sliderConfigs to storage
+    App.SliderApp.store.pushMany('sliderConfig', Em.A([
+      Em.Object.create({id: 1, required: false, viewConfigName: 'ganglia.server.hostname', displayName: 'gangliaServer'}),
+      Em.Object.create({id: 2, required: false, viewConfigName: 'ganglia.additional.clusters', displayName: 'gangliaClusters'}),
+      Em.Object.create({id: 3, required: false, viewConfigName: 'yarn.rm.webapp.url', displayName: 'yarnRmWebappUrl'})
+    ]));
   },
 
   actions: {

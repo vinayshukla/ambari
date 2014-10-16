@@ -51,6 +51,7 @@ App.AddServiceController = App.WizardController.extend({
     advancedServiceConfig: null,
     controllerName: 'addServiceController',
     configGroups: [],
+    clients: [],
     additionalClients: []
   }),
 
@@ -72,7 +73,7 @@ App.AddServiceController = App.WizardController.extend({
         selectedServices: [],
         installedServices: []
       };
-      App.StackService.find().forEach(function(item){
+      App.StackService.find().forEach(function (item) {
         var isInstalled = App.Service.find().someProperty('id', item.get('serviceName'));
         item.set('isSelected', isInstalled);
         item.set('isInstalled', isInstalled);
@@ -80,18 +81,18 @@ App.AddServiceController = App.WizardController.extend({
           services.selectedServices.push(item.get('serviceName'));
           services.installedServices.push(item.get('serviceName'));
         }
-      },this);
-      this.setDBProperty('services',services);
+      }, this);
+      this.setDBProperty('services', services);
     } else {
-      App.StackService.find().forEach(function(item) {
-        var isSelected =   services.selectedServices.contains(item.get('serviceName'));
+      App.StackService.find().forEach(function (item) {
+        var isSelected = services.selectedServices.contains(item.get('serviceName'));
         var isInstalled = services.installedServices.contains(item.get('serviceName'));
         item.set('isSelected', isSelected);
         item.set('isInstalled', isInstalled);
-      },this);
+      }, this);
       var isServiceWithSlave = App.StackService.find().filterProperty('isSelected').filterProperty('hasSlave').filterProperty('isInstalled', false).mapProperty('serviceName').length;
-
-      this.set('content.skipSlavesStep', !isServiceWithSlave);
+      var isServiceWithClient = App.StackService.find().filterProperty('isSelected').filterProperty('hasClient').filterProperty('isInstalled', false).mapProperty('serviceName').length;
+      this.set('content.skipSlavesStep', !isServiceWithSlave && !isServiceWithClient);
       if (this.get('content.skipSlavesStep')) {
         this.get('isStepDisabled').findProperty('step', 3).set('value', this.get('content.skipSlavesStep'));
       }
@@ -108,16 +109,17 @@ App.AddServiceController = App.WizardController.extend({
       selectedServices: [],
       installedServices: []
     };
-    var selectedServices = stepController.get('content').filterProperty('isSelected',true).filterProperty('isInstalled', false).mapProperty('serviceName');
+    var selectedServices = stepController.get('content').filterProperty('isSelected', true).filterProperty('isInstalled', false).mapProperty('serviceName');
     services.selectedServices.pushObjects(selectedServices);
-    services.installedServices.pushObjects(stepController.get('content').filterProperty('isInstalled',true).mapProperty('serviceName'));
-    this.setDBProperty('services',services);
+    services.installedServices.pushObjects(stepController.get('content').filterProperty('isInstalled', true).mapProperty('serviceName'));
+    this.setDBProperty('services', services);
     console.log('AddServiceController.saveServices: saved data', stepController.get('content'));
 
     this.set('content.selectedServiceNames', selectedServices);
-    this.setDBProperty('selectedServiceNames',selectedServices);
+    this.setDBProperty('selectedServiceNames', selectedServices);
     var isServiceWithSlave = stepController.get('content').filterProperty('isSelected').filterProperty('hasSlave').filterProperty('isInstalled', false).mapProperty('serviceName').length;
-    this.set('content.skipSlavesStep', !isServiceWithSlave);
+    var isServiceWithClient = App.StackService.find().filterProperty('isSelected').filterProperty('hasClient').filterProperty('isInstalled', false).mapProperty('serviceName').length;
+    this.set('content.skipSlavesStep', !isServiceWithSlave && !isServiceWithClient);
     if (this.get('content.skipSlavesStep')) {
       this.get('isStepDisabled').findProperty('step', 3).set('value', this.get('content.skipSlavesStep'));
     }
@@ -133,13 +135,13 @@ App.AddServiceController = App.WizardController.extend({
     var installedComponents = App.HostComponent.find();
 
     obj.forEach(function (_component) {
-        masterComponentHosts.push({
-          display_name: _component.display_name,
-          component: _component.component_name,
-          hostName: _component.selectedHost,
-          serviceId: _component.serviceId,
-          isInstalled: installedComponents.someProperty('componentName', _component.component_name)
-        });
+      masterComponentHosts.push({
+        display_name: _component.display_name,
+        component: _component.component_name,
+        hostName: _component.selectedHost,
+        serviceId: _component.serviceId,
+        isInstalled: installedComponents.someProperty('componentName', _component.component_name)
+      });
     });
 
     console.log("AddServiceController.saveMasterComponentHosts: saved hosts ", masterComponentHosts);
@@ -164,7 +166,7 @@ App.AddServiceController = App.WizardController.extend({
    * @param {string} serviceName
    * @returns {boolean}
    */
-  isServiceNotConfigurable: function(serviceName) {
+  isServiceNotConfigurable: function (serviceName) {
     return App.get('services.noConfigTypes').contains(serviceName);
   },
 
@@ -172,16 +174,16 @@ App.AddServiceController = App.WizardController.extend({
    * Should Config Step be skipped (based on selected services list)
    * @returns {boolean}
    */
-  skipConfigStep: function() {
+  skipConfigStep: function () {
     var skipConfigStep = true;
     var selectedServices = this.get('content.services').filterProperty('isSelected', true).filterProperty('isInstalled', false).mapProperty('serviceName');
-    selectedServices.map(function(serviceName) {
+    selectedServices.map(function (serviceName) {
       skipConfigStep = skipConfigStep && this.isServiceNotConfigurable(serviceName);
     }, this);
     return skipConfigStep;
   },
 
-  loadServiceConfigProperties: function() {
+  loadServiceConfigProperties: function () {
     this._super();
     if (!this.get('content.services')) {
       this.loadServices();
@@ -192,7 +194,7 @@ App.AddServiceController = App.WizardController.extend({
     }
   },
 
-  saveServiceConfigProperties: function(stepController) {
+  saveServiceConfigProperties: function (stepController) {
     this._super(stepController);
     if (this.get('currentStep') > 1 && this.get('currentStep') < 6) {
       this.set('content.skipConfigStep', this.skipConfigStep());
@@ -208,8 +210,8 @@ App.AddServiceController = App.WizardController.extend({
       hosts = this.getDBProperty('hosts'),
       host_names = Em.keys(hosts);
     if (!Em.isNone(slaveComponentHosts)) {
-      slaveComponentHosts.forEach(function(component) {
-        component.hosts.forEach(function(host) {
+      slaveComponentHosts.forEach(function (component) {
+        component.hosts.forEach(function (host) {
           //Em.set(host, 'hostName', hosts[host.host_id].name);
           for (var i = 0; i < host_names.length; i++) {
             if (hosts[host_names[i]].id === host.host_id) {
@@ -220,7 +222,7 @@ App.AddServiceController = App.WizardController.extend({
         });
       });
     }
-    if(!slaveComponentHosts){
+    if (!slaveComponentHosts) {
       slaveComponentHosts = this.getSlaveComponentHosts();
     }
     this.set("content.slaveComponentHosts", slaveComponentHosts);
@@ -239,6 +241,8 @@ App.AddServiceController = App.WizardController.extend({
     var installedComponentsMap = {};
     var uninstalledComponents = [];
     var hosts = this.get('content.hosts');
+    var masterComponents = App.get('components.masters');
+    var nonMasterComponentHosts = [];
 
     components.forEach(function (component) {
       if (installedServices.contains(component.get('serviceName'))) {
@@ -247,23 +251,28 @@ App.AddServiceController = App.WizardController.extend({
         uninstalledComponents.push(component);
       }
     }, this);
-    installedComponentsMap['HDFS_CLIENT'] = [];
 
     for (var hostName in hosts) {
       if (hosts[hostName].isInstalled) {
+        var isMasterComponentHosted = false;
         hosts[hostName].hostComponents.forEach(function (component) {
           if (installedComponentsMap[component.HostRoles.component_name]) {
             installedComponentsMap[component.HostRoles.component_name].push(hostName);
           }
+          if (masterComponents.contains(component.HostRoles.component_name)) {
+            isMasterComponentHosted = true;
+          }
         }, this);
+        if (!isMasterComponentHosted) {
+          nonMasterComponentHosts.push(hostName);
+        }
       }
     }
 
     for (var componentName in installedComponentsMap) {
-      var name = (componentName === 'HDFS_CLIENT') ? 'CLIENT' : componentName;
       var component = {
-        componentName: name,
-        displayName: App.format.role(name),
+        componentName: componentName,
+        displayName: App.format.role(componentName),
         hosts: [],
         isInstalled: true
       };
@@ -277,13 +286,21 @@ App.AddServiceController = App.WizardController.extend({
       result.push(component);
     }
 
+    if (!nonMasterComponentHosts.length) {
+      nonMasterComponentHosts.push(Object.keys(this.get('content.hosts'))[0]);
+    }
+    var uninstalledComponentHosts =  nonMasterComponentHosts.map(function(_hostName){
+      return {
+        group: "Default",
+        hostName: _hostName,
+        isInstalled: false
+      }
+    });
     uninstalledComponents.forEach(function (component) {
-      var hosts = jQuery.extend(true, [], result.findProperty('componentName', 'DATANODE').hosts);
-      hosts.setEach('isInstalled', false);
       result.push({
         componentName: component.get('componentName'),
         displayName: App.format.role(component.get('componentName')),
-        hosts: hosts,
+        hosts: uninstalledComponentHosts,
         isInstalled: false
       })
     });
@@ -295,7 +312,7 @@ App.AddServiceController = App.WizardController.extend({
    * Generate clients list for selected services and save it to model
    * @param stepController step4WizardController
    */
-  saveClients: function(stepController){
+  saveClients: function (stepController) {
     var clients = [];
     var serviceComponents = App.StackServiceComponent.find();
     this.get('content.services').filterProperty('isSelected').filterProperty('isInstalled',false).forEach(function (_service) {
@@ -354,27 +371,35 @@ App.AddServiceController = App.WizardController.extend({
    * Clear all temporary data
    */
   finish: function () {
-    this.setCurrentStep('1');
     this.clearAllSteps();
     this.clearStorageData();
+    this.resetDbNamespace();
     App.router.get('updateController').updateAll();
   },
 
-  installServices: function (isRetry, callback) {
+  /**
+   * genarates data for ajax request to launch install services
+   * @method generateDataForInstallServices
+   * @param {Array} selectedServices
+   * @returns {{context: *, ServiceInfo: {state: string}, urlParams: string}}
+   */
+  generateDataForInstallServices: function(selectedServices) {
+    if (selectedServices.contains('OOZIE')) {
+      selectedServices = selectedServices.concat(['HDFS', 'YARN', 'MAPREDUCE', 'MAPREDUCE2']);
+    }
+    return {
+      "context": Em.I18n.t('requestInfo.installServices'),
+      "ServiceInfo": {"state": "INSTALLED"},
+      "urlParams": "ServiceInfo/service_name.in(" + selectedServices.join(',')  + ")"
+    };
+  },
+  installServices: function (callback) {
     this.set('content.cluster.oldRequestsId', []);
     this.installAdditionalClients();
-    if (isRetry) {
-      this.getFailedHostComponents(callback);
-    }
-    else {
-      var name = 'common.services.update';
-      var data = {
-        "context": Em.I18n.t('requestInfo.installServices'),
-        "ServiceInfo": {"state": "INSTALLED"},
-        "urlParams": "ServiceInfo/state=INIT"
-      };
-      this.installServicesRequest(name, data, callback);
-    }
+    var name = 'common.services.update';
+    var selectedServices = this.get('content.services').filterProperty('isInstalled', false).filterProperty('isSelected', true).mapProperty('serviceName');
+    var data = this.generateDataForInstallServices(selectedServices);
+    this.installServicesRequest(name, data, callback);
   },
 
   installServicesRequest: function (name, data, callback) {
@@ -395,69 +420,20 @@ App.AddServiceController = App.WizardController.extend({
    */
   installAdditionalClients: function () {
     this.get('content.additionalClients').forEach(function (c) {
-      App.ajax.send({
-        name: 'common.host.host_component.update',
-        sender: this,
-        data: {
-          hostName: c.hostName,
-          componentName: c.componentName,
-          serviceName: c.componentName.slice(0, -7),
-          context: Em.I18n.t('requestInfo.installHostComponent') + " " + c.hostName,
-          HostRoles: {
-            state: 'INSTALLED'
+      if (c.hostNames.length > 0) {
+        var queryStr = 'HostRoles/component_name='+ c.componentName + '&HostRoles/host_name.in(' + c.hostNames.join() + ')';
+        App.ajax.send({
+          name: 'common.host_component.update',
+          sender: this,
+          data: {
+            query: queryStr,
+            context: 'Install ' + App.format.role(c.componentName),
+            HostRoles: {
+              state: 'INSTALLED'
+            }
           }
-        }
-      });
-    }, this);
-  },
-
-  /**
-   * List of failed to install HostComponents while adding Service
-   */
-  failedHostComponents: [],
-
-  getFailedHostComponents: function(callback) {
-    callback = this.sendInstallServicesRequest(callback);
-    App.ajax.send({
-      name: 'wizard.install_services.add_service_controller.get_failed_host_components',
-      sender: this,
-      success: 'getFailedHostComponentsSuccessCallback',
-      error: 'getFailedHostComponentsErrorCallback'
-    }).then(callback, callback);
-  },
-
-  /**
-   * Parse all failed components and filter out installed earlier components (based on selected to install services)
-   * @param {Object} json
-   */
-  getFailedHostComponentsSuccessCallback: function(json) {
-    var allFailed = json.items.filterProperty('HostRoles.state', 'INSTALL_FAILED');
-    var currentFailed = [];
-    var selectedServices = this.getDBProperty('service').filterProperty('isInstalled', false).filterProperty('isSelected', true).mapProperty('serviceName');
-    allFailed.forEach(function(failed) {
-      if (selectedServices.contains(failed.component[0].ServiceComponentInfo.service_name)) {
-        currentFailed.push(failed.HostRoles.component_name);
+        });
       }
-    });
-    this.set('failedHostComponents', currentFailed);
-  },
-
-  getFailedHostComponentsErrorCallback: function(request, ajaxOptions, error) {
-    console.warn(error);
-  },
-
-  sendInstallServicesRequest: function (callback) {
-    console.log('failedHostComponents', this.get('failedHostComponents'));
-    var name = 'common.host_components.update';
-    var data = {
-      "context" : Em.I18n.t('requestInfo.installComponents'),
-      "query": "HostRoles/component_name.in(" + this.get('failedHostComponents').join(',') + ")",
-      "HostRoles": {
-        "state": "INSTALLED"
-      },
-      "urlParams": "HostRoles/state=INSTALLED"
-    };
-    this.installServicesRequest(name, data, callback);
+    }, this);
   }
-
 });

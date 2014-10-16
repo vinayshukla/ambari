@@ -28,4 +28,3 @@ class BeforeAnyHook(Hook):
 
 if __name__ == "__main__":
   BeforeAnyHook().execute()
-

@@ -18,19 +18,49 @@
 
 var Ember = require('ember');
 var App = require('app');
-require('controllers/wizard/step4_controller');
+var modelSetup = require('test/init_model_test');
 
+require('controllers/wizard/step4_controller');
 describe('App.WizardStep4Controller', function () {
 
   var services = [
-    'HDFS', 'MAPREDUCE', 'NAGIOS', 'GANGLIA', 'OOZIE', 'HIVE', 'HBASE', 'PIG', 'SCOOP', 'ZOOKEEPER', 'HCATALOG',
-    'WEBHCAT', 'YARN', 'MAPREDUCE2', 'FALCON', 'TEZ', 'STORM'
+    'HDFS', 'MAPREDUCE', 'NAGIOS', 'GANGLIA', 'OOZIE', 'HIVE', 'HBASE', 'PIG', 'SCOOP', 'ZOOKEEPER',
+    'YARN', 'MAPREDUCE2', 'FALCON', 'TEZ', 'STORM'
   ];
 
   var controller = App.WizardStep4Controller.create();
+
+  var generateSelectedServicesContent = function(selectedServiceNames) {
+    var allServices = services.slice(0);
+    modelSetup.setupStackServiceComponent();
+    if (selectedServiceNames.contains('GLUSTERFS')) allServices.push('GLUSTERFS');
+    allServices = allServices.map(function(serviceName) {
+      return [Ember.Object.create({
+        'serviceName': serviceName,
+        'isSelected': false,
+        'canBeSelected': true,
+        'isInstalled': false,
+        isPrimaryDFS: serviceName == 'HDFS',
+        isDFS: ['HDFS','GLUSTERFS'].contains(serviceName),
+        isMonitoringService: ['NAGIOS','GANGLIA'].contains(serviceName),
+        requiredServices: App.StackService.find(serviceName).get('requiredServices'),
+        displayNameOnSelectServicePage: App.format.role(serviceName),
+        coSelectedServices: function() {
+          return App.StackService.coSelected[this.get('serviceName')] || [];
+        }.property('serviceName')
+      })];
+    }).reduce(function(current, prev) { return current.concat(prev); });
+
+    selectedServiceNames.forEach(function(serviceName) {
+      allServices.findProperty('serviceName', serviceName).set('isSelected', true);
+    });
+
+    return allServices;
+  };
+
   services.forEach(function(serviceName, index){
     controller.pushObject(Ember.Object.create({
-      'serviceName':serviceName, 'isSelected': true, 'canBeSelected': true, 'isInstalled': false, 'isDisabled': 'HDFS' === serviceName, isDFS: 'HDFS' === serviceName
+      'serviceName':serviceName, 'isSelected': true, 'isHiddenOnSelectServicePage': false, 'isInstalled': false, 'isDisabled': 'HDFS' === serviceName, isDFS: 'HDFS' === serviceName
     }));
   });
 
@@ -47,6 +77,7 @@ describe('App.WizardStep4Controller', function () {
 
   describe('#isAll', function () {
     it('should return true if all services are selected', function () {
+      controller.setEach('isInstalled', false);
       controller.findProperty('serviceName', 'HDFS').set('isSelected', true);
       expect(controller.get('isAll')).to.equal(true);
     });
@@ -86,41 +117,17 @@ describe('App.WizardStep4Controller', function () {
     });
   });
 
-  describe('#noDFSs()', function () {
-    it('should return true if HDFS is not selected and GLUSTERFS is absent', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', false);
-      expect(controller.noDFSs()).to.equal(true);
-    });
-    it('should return false if HDFS is selected and GLUSTERFS is absent', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', true);
-      expect(controller.noDFSs()).to.equal(false);
-    });
-    it('should return true if HDFS is not selected and GLUSTERFS is not selected, but present', function () {
-      controller.pushObject(Ember.Object.create({
-        'serviceName':'GLUSTERFS', 'isSelected': false, 'canBeSelected': true, 'isInstalled': false, 'isDisabled': false, 'isDFS': true
-      }));
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', false);
-      expect(controller.noDFSs()).to.equal(true);
-    });
-    it('should return false if HDFS is not selected and GLUSTERFS is selected', function () {
-      controller.findProperty('serviceName', 'GLUSTERFS').set('isSelected', true);
-      expect(controller.noDFSs()).to.equal(false);
-    });
-  });
-
   describe('#multipleDFSs()', function () {
     it('should return true if HDFS is selected and GLUSTERFS is selected', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', true);
-      controller.findProperty('serviceName', 'GLUSTERFS').set('isSelected', true);
+      controller.set('content', generateSelectedServicesContent(['HDFS', 'GLUSTERFS']));
       expect(controller.multipleDFSs()).to.equal(true);
     });
     it('should return false if HDFS is not selected and GLUSTERFS is selected', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', false);
+      controller.set('content', generateSelectedServicesContent(['GLUSTERFS']));
       expect(controller.multipleDFSs()).to.equal(false);
     });
     it('should return false if HDFS is selected and GLUSTERFS is not selected', function () {
-      controller.findProperty('serviceName', 'HDFS').set('isSelected', true);
-      controller.findProperty('serviceName', 'GLUSTERFS').set('isSelected', false);
+      controller.set('content', generateSelectedServicesContent(['HDFS']));
       expect(controller.multipleDFSs()).to.equal(false);
     });
   });
@@ -128,31 +135,29 @@ describe('App.WizardStep4Controller', function () {
   describe('#setGroupedServices()', function () {
     var testCases = [
       {
-        title: 'should set HCATALOG and WEBHCAT isSelected to true when HIVE is selected',
+        title: 'should set MapReduce2 isSelected to true when YARN is selected',
         condition: {
+          'YARN': true,
           'HBASE': true,
           'ZOOKEEPER': true,
           'HIVE': true,
-          'HCATALOG': true,
-          'WEBHCAT': true
+          'MAPREDUCE2': true
         },
         result: {
-          'HCATALOG': true,
-          'WEBHCAT': true
+          'MAPREDUCE2': true
         }
       },
       {
-        title: 'should set HCATALOG and WEBHCAT isSelected to false when HIVE is not selected',
+        title: 'should set MapReduce2 isSelected to false when YARN is not selected',
         condition: {
+          'YARN': false,
           'HBASE': true,
           'ZOOKEEPER': true,
           'HIVE': false,
-          'HCATALOG': true,
-          'WEBHCAT': true
+          'MAPREDUCE2': true
         },
         result: {
-          'HCATALOG': false,
-          'WEBHCAT': false
+          'MAPREDUCE2': false
         }
       },
       {
@@ -161,15 +166,11 @@ describe('App.WizardStep4Controller', function () {
           'HBASE': true,
           'ZOOKEEPER': true,
           'HIVE': false,
-          'HCATALOG': true,
-          'WEBHCAT': true,
           'YARN': true,
           'MAPREDUCE2': true
         },
         result: {
-          'MAPREDUCE2': true,
-          'HCATALOG': false,
-          'WEBHCAT': false
+          'MAPREDUCE2': true
         }
       },
       {
@@ -178,15 +179,11 @@ describe('App.WizardStep4Controller', function () {
           'HBASE': true,
           'ZOOKEEPER': true,
           'HIVE': true,
-          'HCATALOG': true,
-          'WEBHCAT': true,
           'YARN': false,
           'MAPREDUCE2': true
         },
         result: {
-          'MAPREDUCE2': false,
-          'HCATALOG': true,
-          'WEBHCAT': true
+          'MAPREDUCE2': false
         }
       }
     ];
@@ -210,19 +207,181 @@ describe('App.WizardStep4Controller', function () {
     }, this);
   });
 
-  describe('#monitoringCheckPopup', function() {
-    it('should show App.ModalPopup', function() {
-      sinon.spy(App.ModalPopup, 'show');
-      controller.monitoringCheckPopup();
-      expect(App.ModalPopup.show.calledOnce).to.equal(true);
-      App.ModalPopup.show.restore();
+  describe('#addValidationError()', function() {
+    var tests = [
+      {
+        errorObjects: [
+          {
+            id: 'serviceCheck_ZOOKEEPER',
+            shouldBeAdded: true
+          },
+          {
+            id: 'serviceCheck_YARN',
+            shouldBeAdded: true
+          }
+        ],
+        expectedIds: ['serviceCheck_ZOOKEEPER', 'serviceCheck_YARN']
+      },
+      {
+        errorObjects: [
+          {
+            id: 'fsCheck',
+            shouldBeAdded: true
+          },
+          {
+            id: 'fsCheck',
+            shouldBeAdded: false
+          }
+        ],
+        expectedIds: ['fsCheck']
+      }
+    ];
+
+    beforeEach(function() {
+      controller.clear();
+      controller.set('errorStack', []);
     });
-    it('onPrimary should proceed to next step', function() {
+
+    tests.forEach(function(test) {
+      var message = 'Erorrs {0} thrown. errorStack property should contains ids: {1}'
+        .format(test.errorObjects.mapProperty('id').join(', '), test.expectedIds.join(', '));
+      it(message, function() {
+        test.errorObjects.forEach(function(errorObject) {
+          expect(controller.addValidationError(errorObject)).to.equal(errorObject.shouldBeAdded);
+        });
+        expect(controller.get('errorStack').mapProperty('id')).to.eql(test.expectedIds);
+      });
+    })
+  });
+
+  describe('#validate()', function() {
+    var tests = [
+      {
+        services: ['HDFS','ZOOKEEPER'],
+        errorsExpected: ['monitoringCheck']
+      },
+      {
+        services: ['ZOOKEEPER'],
+        errorsExpected: ['monitoringCheck']
+      },
+      {
+        services: ['HDFS'],
+        errorsExpected: ['serviceCheck_ZOOKEEPER', 'monitoringCheck']
+      },
+      {
+        services: ['HDFS', 'TEZ', 'ZOOKEEPER'],
+        errorsExpected: ['serviceCheck_YARN', 'monitoringCheck']
+      },
+      {
+        services: ['HDFS', 'ZOOKEEPER', 'FALCON', 'NAGIOS'],
+        errorsExpected: ['serviceCheck_OOZIE', 'monitoringCheck']
+      },
+      {
+        services: ['HDFS', 'ZOOKEEPER', 'GANGLIA', 'NAGIOS', 'HIVE'],
+        errorsExpected: ['serviceCheck_YARN']
+      },
+      {
+        services: ['HDFS', 'GLUSTERFS', 'ZOOKEEPER', 'HIVE'],
+        errorsExpected: ['serviceCheck_YARN', 'multipleDFS', 'monitoringCheck']
+      },
+      {
+        services: ['HDFS','ZOOKEEPER', 'NAGIOS', 'GANGLIA'],
+        errorsExpected: []
+      }
+    ];
+
+    tests.forEach(function(test) {
+      var message = '{0} selected validation should be {1}, errors with ids: {2} present'
+        .format(test.services.join(','), !!test.validationPassed ? 'passed' : 'failed', test.errorsExpected.join(','));
+      it(message, function() {
+        controller.clear();
+        controller.set('content', generateSelectedServicesContent(test.services));
+        controller.validate();
+        expect(controller.get('errorStack').mapProperty('id')).to.be.eql(test.errorsExpected);
+      });
+    })
+  });
+
+  describe('#onPrimaryPopupCallback()', function() {
+    var c;
+    var tests = [
+      {
+        services: ['HDFS','ZOOKEEPER'],
+        confirmPopupCount: 1,
+        errorsExpected: ['monitoringCheck']
+      },
+      {
+        services: ['ZOOKEEPER'],
+        confirmPopupCount: 1,
+        errorsExpected: ['monitoringCheck']
+      },
+      {
+        services: ['HDFS', 'GLUSTERFS', 'ZOOKEEPER', 'HIVE'],
+        confirmPopupCount: 3,
+        errorsExpected: ['serviceCheck_YARN', 'serviceCheck_TEZ', 'multipleDFS', 'monitoringCheck']
+      },
+      {
+        services: ['HDFS','ZOOKEEPER', 'NAGIOS', 'GANGLIA'],
+        confirmPopupCount: 0,
+        errorsExpected: []
+      }
+    ];
+
+    beforeEach(function() {
+      c = App.WizardStep4Controller.create({});
       sinon.stub(App.router, 'send', Em.K);
-      controller.monitoringCheckPopup().onPrimary();
-      expect(App.router.send.calledWith('next')).to.equal(true);
-      App.router.send.restore();
+      sinon.stub(c, 'submit', Em.K);
+      sinon.spy(c, 'onPrimaryPopupCallback');
     });
+
+    afterEach(function() {
+      App.router.send.restore();
+      c.submit.restore();
+      c.onPrimaryPopupCallback.restore();
+    });
+
+
+    tests.forEach(function(test) {
+      var message = 'Selected services: {0}. {1} errors should be confirmed'
+        .format(test.services.join(', '), test.confirmPopupCount);
+
+      it(message, function() {
+        var runValidations = function() {
+          c.serviceDependencyValidation();
+          c.fileSystemServiceValidation();
+          c.serviceMonitoringValidation();
+        }
+
+        c.set('content', generateSelectedServicesContent(test.services));
+        runValidations();
+        // errors count validation
+        expect(c.get('errorStack.length')).to.equal(test.confirmPopupCount);
+        // if errors detected than it should be shown
+        if (test.errorsExpected) {
+          test.errorsExpected.forEach(function(error, index, errors) {
+            // validate current error
+            var currentErrorObject = c.get('errorStack').findProperty('isShown', false);
+            if (currentErrorObject) {
+              expect(error).to.be.equal(currentErrorObject.id);
+              // show current error
+              var popup = c.showError(currentErrorObject);
+              // submit popup
+              popup.onPrimary();
+              // onPrimaryPopupCallback should be called
+              expect(c.onPrimaryPopupCallback.called).to.equal(true);
+              // submit called
+              expect(c.submit.called).to.equal(true);
+              if (c.get('errorStack').length) {
+                // current error isShown flag changed to true
+                expect(currentErrorObject.isShown).to.equal(true);
+              }
+              runValidations();
+            }
+          });
+        }
+      });
+    });
+
   });
 
   describe('#needToAddServicePopup', function() {
@@ -252,112 +411,90 @@ describe('App.WizardStep4Controller', function () {
       });
   });
 
-  describe('#validateMonitoring', function() {
+  describe('#submit', function() {
+    var c;
+    var tests = [
+      {
+        isSubmitDisabled: true,
+        validate: false,
+        userCanProceed: false
+      },
+      {
+        isSubmitDisabled: false,
+        validate: false,
+        userCanProceed: false
+      },
+      {
+        isSubmitDisabled: false,
+        validate: true,
+        userCanProceed: true
+      }
+    ];
+
     beforeEach(function() {
-      sinon.stub(controller, 'monitoringCheckPopup', Em.K);
+      c = App.WizardStep4Controller.create();
       sinon.stub(App.router, 'send', Em.K);
     });
+
     afterEach(function() {
-      controller.monitoringCheckPopup.restore();
       App.router.send.restore();
     });
-    Em.A([
-        {
-          gangliaOrNagiosNotSelected: true,
-          e: {
-            monitoringCheckPopup: true,
-            send: false
-          }
-        },
-        {
-          gangliaOrNagiosNotSelected: false,
-          e: {
-            monitoringCheckPopup: false,
-            send: true
-          }
-        }
-      ]).forEach(function (test) {
-        it(test.m, function () {
-          sinon.stub(controller, 'gangliaOrNagiosNotSelected', function() {
-            return test.gangliaOrNagiosNotSelected;
-          });
-          controller.validateMonitoring();
-          controller.gangliaOrNagiosNotSelected.restore();
-          if (test.e.monitoringCheckPopup) {
-           expect(controller.monitoringCheckPopup.calledOnce).to.equal(true);
-          }
-          else {
-            expect(controller.monitoringCheckPopup.called).to.equal(false);
-          }
-          if (test.e.send) {
-            expect(App.router.send.calledWith('next')).to.equal(true);
-          }
-          else {
-            expect(App.router.send.called).to.equal(false);
-          }
+
+    tests.forEach(function(test) {
+      var messageFormat = [
+        test.isSubmitDisabled ? 'disabled' : 'enabled',
+        test.validate ? 'success' : 'failed',
+        test.userCanProceed ? '' : 'not'
+      ];
+      var message = String.prototype.format.apply('Submit btn: {0}. Validation: {1}. Can{2} move to the next step.', messageFormat);
+
+      it(message, function() {
+        c.reopen({
+          isSubmitDisabled: test.isSubmitDisabled,
+          validate: function() { return test.validate; }
         });
+        c.clear();
+        c.submit();
+
+        expect(App.router.send.calledOnce).to.equal(test.userCanProceed);
       });
+
+    })
   });
 
-  describe('#submit', function() {
-    beforeEach(function() {
-      sinon.stub(controller, 'validateMonitoring', Em.K);
-      sinon.stub(controller, 'setGroupedServices', Em.K);
-    });
-    afterEach(function() {
-      controller.validateMonitoring.restore();
-      controller.setGroupedServices.restore();
-    });
-    it('if not isSubmitDisabled shound\'t do nothing', function() {
-      controller.reopen({isSubmitDisabled: true});
-      controller.submit();
-      expect(controller.validateMonitoring.called).to.equal(false);
-    });
-    it('if isSubmitDisabled and not submitChecks should call validateMonitoring', function() {
-      sinon.stub(controller, 'isSubmitChecksFailed', function() { return false; });
-      controller.reopen({
-        isSubmitDisabled: false,
-        submitChecks: []
+  describe('#dependencies', function() {
+    var tests = [
+      {
+        services: ['HDFS'],
+        dependencies: ['ZOOKEEPER']
+      },
+      {
+        services: ['STORM'],
+        dependencies: ['ZOOKEEPER']
+      }
+    ];
+    tests.forEach(function(test) {
+      var message = '{0} dependency should be {1}'.format(test.services.join(','), test.dependencies.join(','));
+      it(message, function() {
+
+        controller.clear();
+        controller.set('content', generateSelectedServicesContent(test.services));
+
+        var dependentServicesTest = [];
+
+        test.services.forEach(function(serviceName) {
+          var service = controller.filterProperty('serviceName', serviceName);
+          service.forEach(function(item) {
+            var dependencies = item.get('requiredServices');
+            if(!!dependencies) {
+              dependentServicesTest = dependentServicesTest.concat(dependencies);
+            }
+          });
+        });
+
+        expect(dependentServicesTest).to.be.eql(test.dependencies);
       });
-      controller.submit();
-      expect(controller.validateMonitoring.calledOnce).to.equal(true);
-      controller.isSubmitChecksFailed.restore();
-    });
-    it('if isSubmitDisabled and some submitChecks true shouldn\'t call validateMonitoring', function() {
-      controller.reopen({
-        isSubmitDisabled: false,
-        submitChecks: [
-          {
-            popupParams: [
-              {serviceName: 'MAPREDUCE', selected: true},
-              'mapreduceCheck'
-            ]
-          }
-        ]
-      });
-      sinon.stub(controller, 'isSubmitChecksFailed', function() { return true; });
-      controller.submit();
-      controller.isSubmitChecksFailed.restore();
-      expect(controller.validateMonitoring.called).to.equal(false);
-    });
-    it('if isSubmitDisabled and some submitChecks false should call validateMonitoring', function() {
-      controller.reopen({
-        isSubmitDisabled: false,
-        submitChecks: [
-          {
-            checkCallback: 'needToAddMapReduce',
-            popupParams: [
-              {serviceName: 'MAPREDUCE', selected: true},
-              'mapreduceCheck'
-            ]
-          }
-        ]
-      });
-      sinon.stub(controller, 'isSubmitChecksFailed', function() { return false; });
-      controller.submit();
-      controller.isSubmitChecksFailed.restore();
-      expect(controller.validateMonitoring.calledOnce).to.equal(true);
-    });
+    })
   });
 
 });

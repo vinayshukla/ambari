@@ -20,7 +20,7 @@ var App = require('app');
 var misc = require('utils/misc');
 
 App.MainServiceMenuView = Em.CollectionView.extend({
-  disabledServices: ['HCATALOG'],
+  disabledServices: [],
 
   content:function () {
     var items = App.router.get('mainServiceController.content').filter(function(item){
@@ -75,20 +75,20 @@ App.MainServiceMenuView = Em.CollectionView.extend({
     }.property('content.criticalAlertsCount'),
 
     isConfigurable: function () {
-      return !App.get('services.noConfigTypes').concat('HCATALOG').contains(this.get('content.serviceName'));
+      return !App.get('services.noConfigTypes').contains(this.get('content.serviceName'));
     }.property('App.services.noConfigTypes','content.serviceName'),
 
     link: function() {
       var stateName = (['summary','configs'].contains(App.router.get('currentState.name')))
-        ? this.get('isConfigurable') ?  App.router.get('currentState.name') : 'summary'
+        ? this.get('isConfigurable') && this.get('parentView.activeServiceId') != this.get('content.id') ?  App.router.get('currentState.name') : 'summary'
         : 'summary';
       return "#/main/services/" + this.get('content.id') + "/" + stateName;
     }.property('App.router.currentState.name', 'parentView.activeServiceId', 'isConfigurable'),
 
     goToConfigs: function () {
-      this.set('content.routeToConfigs', true);
+      App.router.set('mainServiceItemController.routeToConfigs', true);
       App.router.transitionTo('services.service.configs', this.get('content'));
-      this.set('content.routeToConfigs', false);
+      App.router.set('mainServiceItemController.routeToConfigs', false);
     },
 
     refreshRestartRequiredMessage: function() {
@@ -120,7 +120,7 @@ App.MainServiceMenuView = Em.CollectionView.extend({
 });
 
 App.TopNavServiceMenuView = Em.CollectionView.extend({
-  disabledServices: ['HCATALOG'],
+  disabledServices: [],
 
   content:function () {
     var items = App.router.get('mainServiceController.content').filter(function(item){
@@ -173,7 +173,7 @@ App.TopNavServiceMenuView = Em.CollectionView.extend({
     }.property('content.criticalAlertsCount'),
 
     isConfigurable: function () {
-      return !App.get('services.noConfigTypes').concat('HCATALOG').contains(this.get('content.serviceName'));
+      return !App.get('services.noConfigTypes').contains(this.get('content.serviceName'));
     }.property('App.services.noConfigTypes','content.serviceName'),
 
     link: function() {
@@ -184,9 +184,9 @@ App.TopNavServiceMenuView = Em.CollectionView.extend({
     }.property('App.router.currentState.name', 'parentView.activeServiceId','isConfigurable'),
 
     goToConfigs: function () {
-      this.set('content.routeToConfigs', true);
+      App.router.set('mainServiceItemController.routeToConfigs', true);
       App.router.transitionTo('services.service.configs', this.get('content'));
-      this.set('content.routeToConfigs', false);
+      App.router.set('mainServiceItemController.routeToConfigs', false);
     },
 
     refreshRestartRequiredMessage: function() {

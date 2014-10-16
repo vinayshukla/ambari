@@ -25,27 +25,29 @@ import java.util.Set;
  */
 public class UserResponse {
 
-  private Set<String> roles = Collections.emptySet();
   private final String userName;
   private final boolean isLdapUser;
   private final boolean isActive;
+  private final boolean isAdmin;
+  private Set<String> groups = Collections.emptySet();
 
-  public UserResponse(String name, boolean isLdapUser, boolean isActive) {
+  public UserResponse(String name, boolean isLdapUser, boolean isActive, boolean isAdmin) {
     this.userName = name;
     this.isLdapUser = isLdapUser;
     this.isActive = isActive;
+    this.isAdmin = isAdmin;
   }
 
   public String getUsername() {
     return userName;
   }
 
-  public Set<String> getRoles() {
-    return roles;
+  public Set<String> getGroups() {
+    return groups;
   }
 
-  public void setRoles(Set<String> userRoles) {
-    roles = userRoles;
+  public void setGroups(Set<String> groups) {
+    this.groups = groups;
   }
 
   @Override
@@ -78,5 +80,9 @@ public class UserResponse {
 
   public boolean isActive() {
     return isActive;
+  }
+
+  public boolean isAdmin() {
+    return isAdmin;
   }
 }

@@ -58,4 +58,3 @@ def hdfs(component=None):
        owner=params.hdfs_user,
        mode="f"
   )
-

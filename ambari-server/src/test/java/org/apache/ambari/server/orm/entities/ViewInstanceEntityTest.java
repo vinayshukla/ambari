@@ -20,6 +20,8 @@ package org.apache.ambari.server.orm.entities;
 
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.security.SecurityHelper;
+import org.apache.ambari.server.security.authorization.AmbariAuthorizationFilter;
 import org.apache.ambari.server.view.ViewRegistryTest;
 import org.apache.ambari.server.view.configuration.InstanceConfig;
 import org.apache.ambari.server.view.configuration.InstanceConfigTest;
@@ -28,7 +30,10 @@ import org.apache.ambari.server.view.configuration.ViewConfigTest;
 import org.apache.ambari.view.ResourceProvider;
 import org.junit.Assert;
 import org.junit.Test;
+import org.springframework.security.core.GrantedAuthority;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -290,15 +295,15 @@ public class ViewInstanceEntityTest {
   public void testContextPath() throws Exception {
     ViewInstanceEntity viewInstanceDefinition = getViewInstanceEntity();
 
-    Assert.assertEquals(ViewInstanceEntity.VIEWS_CONTEXT_PATH_PREFIX + "MY_VIEW/1.0.0/INSTANCE1",
+    Assert.assertEquals(AmbariAuthorizationFilter.VIEWS_CONTEXT_PATH_PREFIX + "MY_VIEW/1.0.0/INSTANCE1",
         viewInstanceDefinition.getContextPath());
   }
 
   @Test
   public void testInstanceData() throws Exception {
-    TestUserNameProvider userNameProvider = new TestUserNameProvider("user1");
+    TestSecurityHelper securityHelper = new TestSecurityHelper("user1");
 
-    ViewInstanceEntity viewInstanceDefinition = getViewInstanceEntity(userNameProvider);
+    ViewInstanceEntity viewInstanceDefinition = getViewInstanceEntity(securityHelper);
 
     viewInstanceDefinition.putInstanceData("key1", "foo");
 
@@ -329,7 +334,7 @@ public class ViewInstanceEntityTest {
     Assert.assertEquals(4, dataMap.size());
     Assert.assertFalse(dataMap.containsKey("key3"));
 
-    userNameProvider.setUser("user2");
+    securityHelper.setUser("user2");
 
     dataMap = viewInstanceDefinition.getInstanceDataMap();
     Assert.assertTrue(dataMap.isEmpty());
@@ -346,7 +351,7 @@ public class ViewInstanceEntityTest {
     Assert.assertEquals("bbb", dataMap.get("key2"));
     Assert.assertEquals("ccc", dataMap.get("key3"));
 
-    userNameProvider.setUser("user1");
+    securityHelper.setUser("user1");
 
     dataMap = viewInstanceDefinition.getInstanceDataMap();
     Assert.assertEquals(4, dataMap.size());
@@ -361,7 +366,20 @@ public class ViewInstanceEntityTest {
   public static ViewInstanceEntity getViewInstanceEntity() throws Exception {
     InstanceConfig instanceConfig = InstanceConfigTest.getInstanceConfigs().get(0);
     ViewEntity viewDefinition = ViewEntityTest.getViewEntity();
-    return new ViewInstanceEntity(viewDefinition, instanceConfig);
+    ViewInstanceEntity viewInstanceEntity = new ViewInstanceEntity(viewDefinition, instanceConfig);
+
+    ResourceTypeEntity resourceTypeEntity = new ResourceTypeEntity();
+    resourceTypeEntity.setId(10);
+    resourceTypeEntity.setName(viewDefinition.getName());
+
+    viewDefinition.setResourceType(resourceTypeEntity);
+
+    ResourceEntity resourceEntity = new ResourceEntity();
+    resourceEntity.setId(20L);
+    resourceEntity.setResourceType(resourceTypeEntity);
+    viewInstanceEntity.setResource(resourceEntity);
+
+    return viewInstanceEntity;
   }
 
   public static Set<ViewInstanceEntity> getViewInstanceEntities(ViewEntity viewDefinition) throws Exception {
@@ -410,18 +428,18 @@ public class ViewInstanceEntityTest {
     }
   }
 
-  public static ViewInstanceEntity getViewInstanceEntity(ViewInstanceEntity.UserNameProvider userNameProvider)
+  public static ViewInstanceEntity getViewInstanceEntity(SecurityHelper securityHelper)
       throws Exception {
     ViewInstanceEntity viewInstanceEntity = getViewInstanceEntity();
-    viewInstanceEntity.setUserNameProvider(userNameProvider);
+    viewInstanceEntity.setSecurityHelper(securityHelper);
     return viewInstanceEntity;
   }
 
-  protected static class TestUserNameProvider extends ViewInstanceEntity.UserNameProvider {
+  protected static class TestSecurityHelper implements SecurityHelper {
 
     private String user;
 
-    public TestUserNameProvider(String user) {
+    public TestSecurityHelper(String user) {
       this.user = user;
     }
 
@@ -430,8 +448,13 @@ public class ViewInstanceEntityTest {
     }
 
     @Override
-    public String getUsername() {
+    public String getCurrentUserName() {
       return user;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getCurrentAuthorities() {
+      return Collections.emptyList();
     }
   }
 }

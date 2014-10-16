@@ -18,7 +18,6 @@
 
 var App = require('app');
 var filters = require('views/common/filter_view');
-var sort = require('views/common/sort_view');
 
 App.TableView = Em.View.extend(App.UserPref, {
 
@@ -90,14 +89,20 @@ App.TableView = Em.View.extend(App.UserPref, {
     var name = this.get('controller.name');
     var self = this;
     var filterConditions = App.db.getFilterConditions(name);
-    if ((filterConditions && name != 'mainHostController') || (filterConditions && this.get('controller.showFilterConditionsFirstLoad'))) {
+    if (filterConditions) {
       this.set('filterConditions', filterConditions);
-      this.get('controller').set('showFilterConditionsFirstLoad', false);
+
       var childViews = this.get('childViews');
+
       filterConditions.forEach(function (condition, index, filteredConditions) {
         var view = !Em.isNone(condition.iColumn) && childViews.findProperty('column', condition.iColumn);
         if (view) {
-          view.set('value', condition.value);
+          if (view.get('emptyValue')) {
+            view.set('value', view.get('emptyValue'));
+            self.saveFilterConditions(condition.iColumn, view.get('appliedEmptyValue'), condition.type, false);
+          } else {
+            view.set('value', condition.value);
+          }
           Em.run.next(function () {
             view.showClearFilter();
             // check if it is the last iteration
@@ -108,7 +113,6 @@ App.TableView = Em.View.extend(App.UserPref, {
         }
       });
     } else {
-      this.clearFilters();
       this.set('tableFilteringComplete', true);
     }
   },
@@ -321,24 +325,33 @@ App.TableView = Em.View.extend(App.UserPref, {
    * @param {String} type
    */
   updateFilter: function (iColumn, value, type) {
+    this.saveFilterConditions(iColumn, value, type, false);
+    this.filtersUsedCalc();
+    this.filter();
+  },
+
+  /**
+   * save filter conditions to local storage
+   * @param iColumn {Number}
+   * @param value {String|Array}
+   * @param type {String}
+   * @param skipFilter {Boolean}
+   */
+  saveFilterConditions: function(iColumn, value, type, skipFilter) {
     var filterCondition = this.get('filterConditions').findProperty('iColumn', iColumn);
+
     if (filterCondition) {
       filterCondition.value = value;
-    }
-    else {
+      filterCondition.skipFilter = skipFilter;
+    } else {
       filterCondition = {
+        skipFilter: skipFilter,
         iColumn: iColumn,
         value: value,
         type: type
       };
       this.get('filterConditions').push(filterCondition);
     }
-    this.saveFilterConditions();
-    this.filtersUsedCalc();
-    this.filter();
-  },
-
-  saveFilterConditions: function() {
     App.db.setFilterConditions(this.get('controller.name'), this.get('filterConditions'));
   },
 
@@ -346,7 +359,7 @@ App.TableView = Em.View.extend(App.UserPref, {
     var self = this;
     Em.run.next(function() {
       App.db.setDisplayLength(self.get('controller.name'), self.get('displayLength'));
-      if (!App.testMode) {
+      if (!App.get('testMode')) {
         if (App.get('isAdmin')) {
           self.postUserPref(self.displayLengthKey(), self.get('displayLength'));
         }
@@ -410,6 +423,26 @@ App.TableView = Em.View.extend(App.UserPref, {
       this.set('filteredContent', content.toArray());
     }
   }.observes('content.length'),
+
+  /**
+   * sort content by active sort column
+   */
+  sortContent: function() {
+    var activeSort = App.db.getSortingStatuses(this.get('controller.name')).find(function (sort) {
+      return (sort.status === 'sorting_asc' || sort.status === 'sorting_desc');
+    });
+    var sortIndexes = {
+      'sorting_asc': 1,
+      'sorting_desc': -1
+    };
+
+    this.get('content').sort(function (a, b) {
+      if (a.get(activeSort.name) > b.get(activeSort.name)) return sortIndexes[activeSort.status];
+      if (a.get(activeSort.name) < b.get(activeSort.name)) return -(sortIndexes[activeSort.status]);
+      return 0;
+    });
+    this.filter();
+  },
 
   /**
    * Does any filter is used on the page

@@ -27,6 +27,7 @@ App.ServiceConfig = Ember.Object.extend({
   restartRequiredMessage: '',
   restartRequiredHostsAndComponents: {},
   configGroups: [],
+  initConfigsLength: 0, // configs length after initialization in order to watch changes
   errorCount: function () {
     var overrideErrors = 0;
     this.get('configs').filterProperty("overrides").forEach(function (e) {
@@ -45,7 +46,14 @@ App.ServiceConfig = Ember.Object.extend({
       slaveErrors += _category.get('slaveErrorCount');
     }, this);
     return masterErrors + slaveErrors + overrideErrors;
-  }.property('configs.@each.isValid', 'configs.@each.isVisible', 'configCategories.@each.slaveErrorCount', 'configs.@each.overrideErrorTrigger')
+  }.property('configs.@each.isValid', 'configs.@each.isVisible', 'configCategories.@each.slaveErrorCount', 'configs.@each.overrideErrorTrigger'),
+
+  isPropertiesChanged: function() {
+    return this.get('configs').someProperty('isNotDefaultValue') ||
+           this.get('configs').someProperty('isOverrideChanged') ||
+           this.get('configs.length') !== this.get('initConfigsLength') ||
+           (this.get('configs.length') === this.get('initConfigsLength') && this.get('configs').someProperty('defaultValue', null));
+  }.property('configs.@each.isNotDefaultValue', 'configs.@each.isOverrideChanged', 'configs.length')
 });
 
 App.ServiceConfigCategory = Ember.Object.extend({
@@ -149,9 +157,15 @@ App.ServiceConfigProperty = Ember.Object.extend({
   isRequired: true, // by default a config property is required
   isReconfigurable: true, // by default a config property is reconfigurable
   isEditable: true, // by default a config property is editable
+  isNotEditable: Ember.computed.not('isEditable'),
   isFinal: false,
+  hideFinalIcon: function () {
+    return (!this.get('isFinal'))&& this.get('isNotEditable');
+  }.property('isFinal', 'isNotEditable'),
+  defaultIsFinal: false,
   supportsFinal: false,
   isVisible: true,
+  isMock: false, // mock config created created only to displaying
   isRequiredByAgent: true, // Setting it to true implies property will be stored in configuration
   isSecureConfig: false,
   errorMessage: '',
@@ -162,9 +176,13 @@ App.ServiceConfigProperty = Ember.Object.extend({
   parentSCP: null, // This is the main SCP which is overridden by this. Set only when isOriginalSCP is false.
   selectedHostOptions : null, // contain array of hosts configured with overridden value
   overrides : null,
+  overrideValues: [],
   group: null, // Contain group related to this property. Set only when isOriginalSCP is false.
   isUserProperty: null, // This property was added by user. Hence they get removal actions etc.
   isOverridable: true,
+  compareConfigs: [],
+  isComparison: false,
+  hasCompareDiffs: false,
   showLabel: true,
   error: false,
   warn: false,
@@ -204,6 +222,10 @@ App.ServiceConfigProperty = Ember.Object.extend({
     var overrides = this.get('overrides');
     return (overrides != null && overrides.get('length')>0) || !this.get('isOriginalSCP');
   }.property('overrides', 'overrides.length', 'isOriginalSCP'),
+  isOverrideChanged: function () {
+    if (Em.isNone(this.get('overrides')) && this.get('overrideValues.length') === 0) return false;
+    return JSON.stringify(this.get('overrides').mapProperty('value')) !== JSON.stringify(this.get('overrideValues'));
+  }.property('isOverridden', 'overrides.@each.isNotDefaultValue'),
   isRemovable: function() {
     var isOriginalSCP = this.get('isOriginalSCP');
     var isUserProperty = this.get('isUserProperty');
@@ -228,10 +250,13 @@ App.ServiceConfigProperty = Ember.Object.extend({
    */
   isNotDefaultValue: function () {
     var value = this.get('value');
-    var dValue = this.get('defaultValue');
+    var defaultValue = this.get('defaultValue');
+    var supportsFinal = this.get('supportsFinal');
+    var isFinal = this.get('isFinal');
+    var defaultIsFinal = this.get('defaultIsFinal');
     var isEditable = this.get('isEditable');
-    return isEditable && dValue != null && value !== dValue;
-  }.property('value', 'defaultValue', 'isEditable'),
+    return isEditable && ((defaultValue != null && value !== defaultValue) || (supportsFinal && isFinal !== defaultIsFinal));
+  }.property('value', 'defaultValue', 'isEditable', 'isFinal', 'defaultIsFinal'),
 
   /**
    * Don't show "Undo" for hosts on Installer Step7
@@ -462,11 +487,17 @@ App.ServiceConfigProperty = Ember.Object.extend({
       case 'supervisor_hosts':
         this.set('value', slaveComponentHostsInDB.findProperty('componentName', 'SUPERVISOR').hosts.mapProperty('hostName'));
         break;
+      case 'knox_gateway_host':
+        this.set('value', masterComponentHostsInDB.findProperty('component', 'KNOX_GATEWAY').hostName);
+        break;
       case 'hbase.zookeeper.quorum':
         var zkHosts = masterComponentHostsInDB.filterProperty('component', 'ZOOKEEPER_SERVER').mapProperty('hostName');
         this.setDefaultValue("(\\w*)", zkHosts);
         break;
+      case 'hive.zookeeper.quorum':
       case 'templeton.zookeeper.hosts':
+      case 'slider.zookeeper.quorum':
+      case 'hive.cluster.delegation.token.store.zookeeper.connectString':
         var zkHosts = masterComponentHostsInDB.filterProperty('component', 'ZOOKEEPER_SERVER').mapProperty('hostName');
         var zkHostPort = zkHosts;
         var regex = "\\w*:(\\d+)";   //regex to fetch the port
@@ -478,6 +509,13 @@ App.ServiceConfigProperty = Ember.Object.extend({
           }
         }
         this.setDefaultValue("(.*)", zkHostPort);
+        break;
+      case 'templeton.hive.properties':
+        var hiveMetaStoreHost = masterComponentHostsInDB.findProperty('component', 'HIVE_METASTORE').hostName;
+        if (/\/\/localhost:/g.test(this.get('value'))) {
+          this.set('defaultValue', this.get('value') + ', hive.metastore.execute.setugi=true');
+          this.setDefaultValue("(localhost)", hiveMetaStoreHost);
+        }
         break;
       case 'dfs.name.dir':
       case 'dfs.namenode.name.dir':
@@ -496,6 +534,10 @@ App.ServiceConfigProperty = Ember.Object.extend({
       case 'hbase.tmp.dir':
       case 'storm.local.dir':
         this.unionAllMountPoints(isOnlyFirstOneNeeded, localDB);
+        break;
+      case '*.broker.url':
+        var falconServerHost = masterComponentHostsInDB.findProperty('component', 'FALCON_SERVER').hostName;
+        this.setDefaultValue('localhost', falconServerHost);
         break;
     }
   },
@@ -729,6 +771,8 @@ App.ServiceConfigProperty = Ember.Object.extend({
         return App.ServiceConfigBigTextArea;
       case 'masterHost':
         return App.ServiceConfigMasterHostView;
+      case 'label':
+        return App.ServiceConfigLabelView;
       case 'masterHosts':
         return App.ServiceConfigMasterHostsView;
       case 'slaveHosts':
@@ -744,6 +788,8 @@ App.ServiceConfigProperty = Ember.Object.extend({
 
   validate: function () {
     var value = this.get('value');
+    var supportsFinal = this.get('supportsFinal');
+    var isFinal = this.get('isFinal');
     var valueRange = this.get('valueRange');
     var values = [];//value split by "," to check UNIX users, groups list
 
@@ -857,28 +903,31 @@ App.ServiceConfigProperty = Ember.Object.extend({
       var parentSCP = this.get('parentSCP');
       if (!isOriginalSCP) {
         if (!isError && parentSCP != null) {
-          if (value === parentSCP.get('value')) {
+          if (value === parentSCP.get('value') && supportsFinal && isFinal === parentSCP.get('isFinal')) {
             this.set('errorMessage', 'Configuration overrides must have different value');
             isError = true;
           } else {
             var overrides = parentSCP.get('overrides');
-            overrides.forEach(function (override) {
-              if (self != override && value === override.get('value')) {
-                self.set('errorMessage', 'Multiple configuration overrides cannot have same value');
-                isError = true;
-              }
-            });
+            if (overrides) {
+              overrides.forEach(function (override) {
+                if (self != override && value === override.get('value')  && supportsFinal && isFinal === parentSCP.get('isFinal')) {
+                  self.set('errorMessage', 'Multiple configuration overrides cannot have same value');
+                  isError = true;
+                }
+              });
+            }
           }
         }
       }
     }
-    
-    var serviceValidator = this.get('serviceValidator');
-    if (serviceValidator!=null) {
-      var validationIssue = serviceValidator.validateConfig(this);
-      if (validationIssue) {
-    	this.set('warnMessage', validationIssue);
-    	isWarn = true;
+    if (!App.get('supports.serverRecommendValidate')) {
+      var serviceValidator = this.get('serviceValidator');
+      if (serviceValidator!=null) {
+        var validationIssue = serviceValidator.validateConfig(this);
+        if (validationIssue) {
+          this.set('warnMessage', validationIssue);
+          isWarn = true;
+        }
       }
     }
 
@@ -895,7 +944,7 @@ App.ServiceConfigProperty = Ember.Object.extend({
       } else {
         this.set('error', true);
       }
-  }.observes('value', 'retypedPassword')
+  }.observes('value', 'isFinal', 'retypedPassword')
 
 });
 

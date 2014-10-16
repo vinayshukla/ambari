@@ -21,11 +21,15 @@ var App = require('app');
 module.exports = App.WizardRoute.extend({
   route: '/host/add',
 
-  clearData: function (router) {
+  leaveWizard: function (router,context) {
     var addHostController = router.get('addHostController');
     App.router.get('updateController').set('isWorking', true);
     addHostController.finish();
-    router.transitionTo('hosts.index');
+    App.clusterStatus.setClusterStatus({
+      clusterName: App.router.get('content.cluster.name'),
+      clusterState: 'DEFAULT',
+      localdb: App.db.data
+    }, {alwaysCallback: function() {context.hide();App.router.transitionTo('hosts.index');location.reload();}});
   },
 
   enter: function (router) {
@@ -52,19 +56,17 @@ module.exports = App.WizardRoute.extend({
           router.transitionTo('hosts.index');
         },
         onClose: function() {
+          var popupContext = this;
           if (addHostController.get('currentStep') == '6') {
             App.ModalPopup.show({
               header: Em.I18n.t('hosts.add.exit.header'),
               body: Em.I18n.t('hosts.add.exit.body'),
               onPrimary: function () {
-                this.hide();
-                self.clearData(router);
-                location.reload();
+                self.leaveWizard(router,popupContext);
               }
             });
           } else {
-            this.hide();
-            self.clearData(router);
+            self.leaveWizard(router,this);
           }
         },
         didInsertElement: function(){
@@ -152,11 +154,13 @@ module.exports = App.WizardRoute.extend({
     next: function (router, context) {
       var addHostController = router.get('addHostController');
       var wizardStep3Controller = router.get('wizardStep3Controller');
+      var wizardStep6Controller = router.get('wizardStep6Controller');
       addHostController.saveConfirmedHosts(wizardStep3Controller);
       addHostController.saveClients();
 
       addHostController.setDBProperty('bootStatus', true);
       addHostController.setDBProperty('slaveComponentHosts', undefined);
+      wizardStep6Controller.set('isClientsSet', false);
       router.transitionTo('step3');
     },
     /**
@@ -190,14 +194,16 @@ module.exports = App.WizardRoute.extend({
       var addHostController = router.get('addHostController');
       var wizardStep6Controller = router.get('wizardStep6Controller');
 
-      if (wizardStep6Controller.validate()) {
-        addHostController.saveSlaveComponentHosts(wizardStep6Controller);
-        if(App.supports.hostOverrides){
-          router.transitionTo('step4');
-        }else{
-          router.transitionTo('step5');
-        }
-      }
+      wizardStep6Controller.callValidation(function() {
+        wizardStep6Controller.showValidationIssuesAcceptBox(function() {
+          addHostController.saveSlaveComponentHosts(wizardStep6Controller);
+          if(App.supports.hostOverrides){
+            router.transitionTo('step4');
+          }else{
+            router.transitionTo('step5');
+          }
+        });
+      });
     }
   }),
 
@@ -209,6 +215,7 @@ module.exports = App.WizardRoute.extend({
       var addHostStep4Controller = router.get('addHostStep4Controller');
       controller.setCurrentStep('4');
       addHostStep4Controller.loadConfigGroups();
+      addHostStep4Controller.set('isConfigGroupLoaded', false);
       addHostStep4Controller.configGroupsLoading().done(function () {
         controller.dataLoading().done(function () {
           controller.loadAllPriorSteps();
@@ -277,7 +284,7 @@ module.exports = App.WizardRoute.extend({
         var wizardStep9Controller = router.get('wizardStep9Controller');
         wizardStep9Controller.set('wizardController', controller);
         controller.loadAllPriorSteps();
-        if (!App.testMode) {              //if test mode is ON don't disable prior steps link.
+        if (!App.get('testMode')) {              //if test mode is ON don't disable prior steps link.
           controller.setLowerStepsDisable(6);
         }
         controller.connectOutlet('wizardStep9', controller.get('content'));
@@ -328,7 +335,7 @@ module.exports = App.WizardRoute.extend({
         controller.loadAllPriorSteps();
         var wizardStep10Controller = router.get('wizardStep10Controller');
         wizardStep10Controller.set('wizardController', controller);
-        if (!App.testMode) {              //if test mode is ON don't disable prior steps link.
+        if (!App.get('testMode')) {              //if test mode is ON don't disable prior steps link.
           controller.setLowerStepsDisable(7);
         }
         controller.connectOutlet('wizardStep10', controller.get('content'));
@@ -346,7 +353,6 @@ module.exports = App.WizardRoute.extend({
       });
       router.get('updateController').updateAll();
       $(context.currentTarget).parents("#modal").find(".close").trigger('click');
-      location.reload();
     }
   }),
 

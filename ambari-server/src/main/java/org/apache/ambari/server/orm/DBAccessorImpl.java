@@ -17,20 +17,7 @@
  */
 package org.apache.ambari.server.orm;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
+import com.google.inject.Inject;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.helpers.ScriptRunner;
 import org.apache.ambari.server.orm.helpers.dbms.DbmsHelper;
@@ -54,7 +41,23 @@ import org.eclipse.persistence.sessions.DatabaseSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 public class DBAccessorImpl implements DBAccessor {
   private static final Logger LOG = LoggerFactory.getLogger(DBAccessorImpl.class);
@@ -63,6 +66,9 @@ public class DBAccessorImpl implements DBAccessor {
   private final DbmsHelper dbmsHelper;
   private Configuration configuration;
   private DatabaseMetaData databaseMetaData;
+  private static final String dbURLPatternString = "jdbc:(.*?):.*";
+  private Pattern dbURLPattern = Pattern.compile(dbURLPatternString, Pattern.CASE_INSENSITIVE);
+  private DbType dbType;
 
   @Inject
   public DBAccessorImpl(Configuration configuration) {
@@ -97,20 +103,36 @@ public class DBAccessorImpl implements DBAccessor {
 
   protected DbmsHelper loadHelper(DatabasePlatform databasePlatform) {
     if (databasePlatform instanceof OraclePlatform) {
+      dbType = DbType.ORACLE;
       return new OracleHelper(databasePlatform);
     }else if (databasePlatform instanceof MySQLPlatform) {
+      dbType = DbType.MYSQL;
       return new MySqlHelper(databasePlatform);
     }else if (databasePlatform instanceof PostgreSQLPlatform) {
+      dbType = DbType.POSTGRES;
       return new PostgresHelper(databasePlatform);
     }else if (databasePlatform instanceof DerbyPlatform) {
+      dbType = DbType.DERBY;
       return new DerbyHelper(databasePlatform);
     } else {
+      dbType = DbType.UNKNOWN;
       return new GenericDbmsHelper(databasePlatform);
     }
   }
 
   protected Connection getConnection() {
     return connection;
+  }
+
+  @Override
+  public Connection getNewConnection() {
+    try {
+      return DriverManager.getConnection(configuration.getDatabaseUrl(),
+        configuration.getDatabaseUser(),
+        configuration.getDatabasePassword());
+    } catch (SQLException e) {
+      throw new RuntimeException("Unable to connect to database", e);
+    }
   }
 
   @Override
@@ -174,22 +196,7 @@ public class DBAccessorImpl implements DBAccessor {
     return result;
   }
 
-  protected String getDbType() {
-    String dbUrl = configuration.getDatabaseUrl();
-    String dbType;
-
-    if (dbUrl.contains(Configuration.POSTGRES_DB_NAME)) {
-      dbType = Configuration.POSTGRES_DB_NAME;
-    } else if (dbUrl.contains(Configuration.ORACLE_DB_NAME)) {
-      dbType = Configuration.ORACLE_DB_NAME;
-    } else if (dbUrl.contains(Configuration.MYSQL_DB_NAME)) {
-      dbType = Configuration.MYSQL_DB_NAME;
-    } else if (dbUrl.contains(Configuration.DERBY_DB_NAME)) {
-      dbType = Configuration.DERBY_DB_NAME;
-    } else {
-      throw new RuntimeException("Unable to determine database type.");
-    }
-
+  public DbType getDbType() {
     return dbType;
   }
 
@@ -383,11 +390,61 @@ public class DBAccessorImpl implements DBAccessor {
   }
 
   @Override
-  public void alterColumn(String tableName, DBColumnInfo columnInfo) throws SQLException {
+  public void alterColumn(String tableName, DBColumnInfo columnInfo)
+      throws SQLException {
     //varchar extension only (derby limitation, but not too much for others),
-    //use addColumn-update-drop-rename for more
-    String statement = dbmsHelper.getAlterColumnStatement(tableName, columnInfo);
-    executeQuery(statement);
+    if (dbmsHelper.supportsColumnTypeChange()) {
+      String statement = dbmsHelper.getAlterColumnStatement(tableName,
+          columnInfo);
+      executeQuery(statement);
+    } else {
+      //use addColumn: add_tmp-update-drop-rename for Derby
+      DBColumnInfo columnInfoTmp = new DBColumnInfo(
+          columnInfo.getName() + "_TMP",
+          columnInfo.getType(),
+          columnInfo.getLength());
+      String statement = dbmsHelper.getAddColumnStatement(tableName, columnInfoTmp);
+      executeQuery(statement);
+      updateTable(tableName, columnInfo, columnInfoTmp);
+      dropColumn(tableName, columnInfo.getName());
+      renameColumn(tableName, columnInfoTmp.getName(), columnInfo);
+    }
+  }
+
+  @Override
+  public void updateTable(String tableName, DBColumnInfo columnNameFrom,
+      DBColumnInfo columnNameTo) throws SQLException {
+    LOG.info("Executing query: UPDATE TABLE " + tableName + " SET "
+        + columnNameTo.getName() + "=" + columnNameFrom.getName());
+
+    String statement = "SELECT * FROM " + tableName;
+    int typeFrom = getColumnType(tableName, columnNameFrom.getName());
+    int typeTo = getColumnType(tableName, columnNameTo.getName());
+    ResultSet rs = executeSelect(statement, ResultSet.TYPE_SCROLL_SENSITIVE,
+        ResultSet.CONCUR_UPDATABLE);
+
+    while (rs.next()) {
+      convertUpdateData(rs, columnNameFrom, typeFrom, columnNameTo, typeTo);
+      rs.updateRow();
+    }
+    rs.close();
+  }
+
+  private void convertUpdateData(ResultSet rs, DBColumnInfo columnNameFrom,
+      int typeFrom,
+      DBColumnInfo columnNameTo, int typeTo) throws SQLException {
+    if (typeFrom == Types.BLOB && typeTo == Types.CLOB) {
+      //BLOB-->CLOB
+      Blob data = rs.getBlob(columnNameFrom.getName());
+      if (data != null) {
+        rs.updateClob(columnNameTo.getName(),
+            new BufferedReader(new InputStreamReader(data.getBinaryStream())));
+      }
+    } else {
+      Object data = rs.getObject(columnNameFrom.getName());
+      rs.updateObject(columnNameTo.getName(), data);
+    }
+
   }
 
   @Override
@@ -491,6 +548,11 @@ public class DBAccessorImpl implements DBAccessor {
   }
 
   @Override
+  public ResultSet executeSelect(String query, int resultSetType, int resultSetConcur) throws SQLException {
+    Statement statement = getConnection().createStatement(resultSetType, resultSetConcur);
+    return statement.executeQuery(query);
+  }
+
   public void truncateTable(String tableName) throws SQLException {
     String query = "DELETE FROM " + tableName;
     executeQuery(query);
@@ -498,7 +560,9 @@ public class DBAccessorImpl implements DBAccessor {
 
   @Override
   public void dropColumn(String tableName, String columnName) throws SQLException {
-    throw new UnsupportedOperationException("Drop column not supported");
+    if (tableHasColumn(tableName, columnName)) {
+      executeQuery("ALTER TABLE " + tableName + " DROP COLUMN " + columnName);
+    }
   }
 
   @Override
@@ -563,10 +627,9 @@ public class DBAccessorImpl implements DBAccessor {
   }
 
   @Override
-  public void setNullable(String tableName, String columnName, boolean nullable)
+  public void setNullable(String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable)
       throws SQLException {
-    String statement = dbmsHelper.getSetNullableStatement(tableName,
-        columnName, nullable);
+    String statement = dbmsHelper.getSetNullableStatement(tableName, columnInfo, nullable);
 
     executeQuery(statement);
   }

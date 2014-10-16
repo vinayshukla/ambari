@@ -272,77 +272,11 @@ describe('App.MainHostSummaryView', function() {
 
   });
 
-  describe('#installableClientComponents', function() {
-
-    it('delete host not supported', function() {
-      App.set('supports.deleteHost', false);
-      expect(mainHostSummaryView.get('installableClientComponents')).to.eql([]);
-      App.set('supports.deleteHost', true);
-    });
-
-    var tests = Em.A([
-      {
-        content: Em.Object.create({
-          hostComponents: Em.A([])
-        }),
-        services: ['HDFS', 'YARN', 'MAPREDUCE2'],
-        e: ['HDFS_CLIENT', 'YARN_CLIENT', 'MAPREDUCE2_CLIENT'],
-        m: 'no one client installed'
-      },
-      {
-        content: Em.Object.create({
-          hostComponents: Em.A([
-            Em.Object.create({
-              componentName: 'HDFS_CLIENT'
-            })
-          ])
-        }),
-        services: ['HDFS', 'YARN', 'MAPREDUCE2'],
-        e: ['YARN_CLIENT', 'MAPREDUCE2_CLIENT'],
-        m: 'some clients are already installed'
-      },
-      {
-        content: Em.Object.create({
-          hostComponents: Em.A([
-            Em.Object.create({
-              componentName: 'HDFS_CLIENT'
-            }),
-            Em.Object.create({
-              componentName: 'YARN_CLIENT'
-            }),
-            Em.Object.create({
-              componentName: 'MAPREDUCE2_CLIENT'
-            })
-          ])
-        }),
-        services: ['HDFS', 'YARN', 'MAPREDUCE2'],
-        e: [],
-        m: 'all clients are already installed'
-      }
-    ]);
-
-    tests.forEach(function(test) {
-      it(test.m, function() {
-        mainHostSummaryView.set('content', test.content);
-        mainHostSummaryView.set('installedServices', test.services);
-        expect(mainHostSummaryView.get('installableClientComponents')).to.include.members(test.e);
-        expect(test.e).to.include.members(mainHostSummaryView.get('installableClientComponents'));
-      });
-    });
-
-  });
-
   describe('#addableComponents', function() {
+
     var tests = Em.A([
       {
-        content: Em.Object.create({
-          hostComponents: Em.A([])
-        }),
-        services: ['HDFS', 'YARN', 'MAPREDUCE2'],
-        e: ['DATANODE', 'NODEMANAGER', 'CLIENTS'],
-        m: 'no components on host (impossible IRL, but should be tested)'
-      },
-      {
+        installableClientComponents: [{}, {}],
         content: Em.Object.create({
           hostComponents: Em.A([
             Em.Object.create({
@@ -354,10 +288,11 @@ describe('App.MainHostSummaryView', function() {
           ])
         }),
         services: ['HDFS', 'YARN', 'MAPREDUCE2'],
-        e: ['NODEMANAGER', 'CLIENTS'],
+        e: ['MAPREDUCE2_CLIENT', 'NODEMANAGER', 'YARN_CLIENT', 'CLIENTS'],
         m: 'some components are already installed'
       },
       {
+        installableClientComponents: [],
         content: Em.Object.create({
           hostComponents: Em.A([
             Em.Object.create({
@@ -382,6 +317,7 @@ describe('App.MainHostSummaryView', function() {
 
     tests.forEach(function(test) {
       it(test.m, function() {
+        mainHostSummaryView.reopen({installableClientComponents: test.installableClientComponents});
         mainHostSummaryView.set('content', test.content);
         mainHostSummaryView.set('installedServices', test.services);
         expect(mainHostSummaryView.get('addableComponents').mapProperty('componentName')).to.eql(test.e);
@@ -390,4 +326,55 @@ describe('App.MainHostSummaryView', function() {
 
   });
 
+  describe("#clientsWithCustomCommands", function() {
+    before(function() {
+      sinon.stub(App.StackServiceComponent, 'find', function(component) {
+        var customCommands = [];
+
+        if (component == 'WITH_CUSTOM_COMMANDS') {
+          customCommands = ['CUSTOMCOMMAND'];
+        }
+
+        var obj = Em.Object.create({
+          customCommands: customCommands,
+          filterProperty: function () {
+            return {
+              mapProperty: Em.K
+            };
+          }
+        });
+        return obj;
+      });
+    });
+
+    after(function() {
+      App.StackServiceComponent.find.restore();
+    });
+    var content = Em.Object.create({
+      hostComponents: Em.A([
+        Em.Object.create({
+          componentName: 'WITH_CUSTOM_COMMANDS',
+          displayName: 'WITH_CUSTOM_COMMANDS',
+          hostName: 'c6401',
+          service: Em.Object.create({
+            serviceName: 'TESTSRV'
+          })
+        }),
+        Em.Object.create({
+          componentName: 'WITHOUT_CUSTOM_COMMANDS',
+          displayName: 'WITHOUT_CUSTOM_COMMANDS',
+          hostName: 'c6401',
+          service: Em.Object.create({
+            serviceName: 'TESTSRV'
+          })
+        })
+      ])
+    });
+
+    it("Clients with custom commands only", function() {
+      mainHostSummaryView.set('content', content);
+      expect(mainHostSummaryView.get('clientsWithCustomCommands').length).to.eql(1);
+      expect(mainHostSummaryView.get('clientsWithCustomCommands')).to.have.deep.property('[0].commands[0].command', 'CUSTOMCOMMAND');
+    });
+  });
 });

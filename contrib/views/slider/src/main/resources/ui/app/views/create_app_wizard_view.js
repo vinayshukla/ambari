@@ -18,7 +18,11 @@
 
 App.CreateAppWizardView = Ember.View.extend({
 
+  classNames: ['create-app-wizard-wrapper'],
+
   didInsertElement: function(){
+    this.setHeight();
+    $(window).resize(this.setHeight);
     this.get('controller').loadStep();
   },
 
@@ -66,5 +70,11 @@ App.CreateAppWizardView = Ember.View.extend({
   hidePopup: function () {
     $(this.get('element')).find('.modal').hide();
     this.get('controller').transitionToRoute('slider_apps');
+  },
+
+  setHeight: function () {
+    var height = $(window).height() * 0.8;
+    $('.slider-modal-body').css('max-height', height + 'px');
+    $('#createAppWizard').css('margin-top', -(height / 2) + 'px');
   }
 });

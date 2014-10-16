@@ -207,6 +207,10 @@ Function _pstart_ioredir($cmd_args)
 	$process.WaitForExit()
 }
 
+Function _upgrade($cmd_args){
+  _pstart($cmd_args)
+}
+
 Function _stop($cmd_args){
 	echo "Stopping $AMBARI_SVC_NAME..."
 
@@ -263,7 +267,12 @@ switch ($($args[0])){
         _start @("start")
         echo "Ambari Server Restart finished"
     }
-#    "upgrade" {_pstart $args}
+    "upgrade"
+    {
+        echo "Upgrade Ambari Server"
+        _upgrade $args
+        echo "Ambari Server Upgrade finished"
+    }
     "status"
     {
         echo "Checking Ambari Server status"

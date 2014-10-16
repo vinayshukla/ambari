@@ -24,11 +24,13 @@ exports.config = {
     javascripts: {
       joinTo: {
         'javascripts/app.js': /^(app|envs\/development)/,
-        'javascripts/vendor.js': /^(vendor\/scripts\/(common|development)|vendor\\scripts\\(common|development))/
+        'javascripts/vendor.js': /^(vendor\/scripts\/(common|development)|vendor\\scripts\\(common|development))/,
+        'javascripts/test.js': /^test(\/|\\)(?!vendor)/
       },
       order: {
         before: [
           'vendor/scripts/common/d3.v2.js',
+          'vendor/scripts/common/tv4.js',
           'vendor/scripts/common/cubism.v1.js',
           'vendor/scripts/common/rickshaw.js',
           'vendor/scripts/common/console-polyfill.js',
@@ -37,6 +39,7 @@ exports.config = {
           'vendor/scripts/common/jquery.ui.widget.js',
           'vendor/scripts/common/jquery.ui.mouse.js',
           'vendor/scripts/common/jquery.ui.sortable.js',
+          'vendor/scripts/common/jquery.timeago.js',
           'vendor/scripts/common/handlebars.js',
           'vendor/scripts/development/ember.js',
           'vendor/scripts/production/ember-data.js',
@@ -45,8 +48,10 @@ exports.config = {
           'vendor/scripts/common/bs-basic.min.js',
           'vendor/scripts/common/bs-button.min.js',
           'vendor/scripts/common/bs-modal.min.js',
+          'vendor/scripts/common/bs-popover.min.js',
           'vendor/scripts/common/ember-i18n-1.4.1.js',
-          'vendor/scripts/common/bootstrap.js'
+          'vendor/scripts/common/bootstrap.js',
+          'vendor/scripts/common/moment.js'
         ]
       }
     },
@@ -97,8 +102,10 @@ exports.config = {
               'vendor/scripts/common/bs-basic.min.js',
               'vendor/scripts/common/bs-button.min.js',
               'vendor/scripts/common/bs-modal.min.js',
+              'vendor/scripts/common/bs-popover.min.js',
               'vendor/scripts/common/ember-i18n-1.4.1.js',
-              'vendor/scripts/common/bootstrap.js'
+              'vendor/scripts/common/bootstrap.js',
+              'vendor/scripts/common/moment.js'
             ]
           }
         }

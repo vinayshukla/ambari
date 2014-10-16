@@ -151,23 +151,24 @@ App.UpdateController = Em.Controller.extend({
     var testUrl = App.get('isHadoop2Stack') ? '/data/hosts/HDP2/hosts.json' : '/data/hosts/hosts.json',
       self = this,
       hostDetailsFilter = '';
-    var realUrl = '/hosts?<parameters>fields=Hosts/host_name,Hosts/maintenance_state,Hosts/public_host_name,Hosts/cpu_count,Hosts/ph_cpu_count,Hosts/total_mem,' +
-      'Hosts/host_status,Hosts/last_heartbeat_time,Hosts/os_arch,Hosts/os_type,Hosts/ip,host_components/HostRoles/state,host_components/HostRoles/maintenance_state,' +
-      'host_components/HostRoles/stale_configs,host_components/HostRoles/service_name,metrics/disk,metrics/load/load_one,metrics/cpu/cpu_system,metrics/cpu/cpu_user,' +
-      'metrics/memory/mem_total,metrics/memory/mem_free,alerts/summary&minimal_response=true';
+    var realUrl = '/hosts?<parameters>fields=Hosts/host_name,Hosts/maintenance_state,Hosts/public_host_name,Hosts/cpu_count,Hosts/ph_cpu_count,' +
+      'Hosts/host_status,Hosts/last_heartbeat_time,Hosts/ip,host_components/HostRoles/state,host_components/HostRoles/maintenance_state,' +
+      'host_components/HostRoles/stale_configs,host_components/HostRoles/service_name,metrics/disk,metrics/load/load_one,Hosts/total_mem,' +
+      'legacy_alerts/summary<hostAuxiliaryInfo>&minimal_response=true';
+    var hostAuxiliaryInfo = ',Hosts/os_arch,Hosts/os_type,metrics/cpu/cpu_system,metrics/cpu/cpu_user,metrics/memory/mem_total,metrics/memory/mem_free';
 
     if (App.router.get('currentState.name') == 'index' && App.router.get('currentState.parentState.name') == 'hosts') {
       App.updater.updateInterval('updateHost', App.get('contentUpdateInterval'));
     }
     else {
-      if(App.router.get('currentState.name') == 'summary' && App.router.get('currentState.parentState.name') == 'hostDetails') {
+      if (App.router.get('currentState.name') == 'summary' && App.router.get('currentState.parentState.name') == 'hostDetails') {
         hostDetailsFilter = App.router.get('location.lastSetURL').match(/\/hosts\/(.*)\/summary/)[1];
         App.updater.updateInterval('updateHost', App.get('componentsUpdateInterval'));
       }
       else {
         callback();
         // On pages except for hosts/hostDetails, making sure hostsMapper loaded only once on page load, no need to update, but at least once
-        if (this.get('queryParams.Hosts') && this.get('queryParams.Hosts').length > 0) {
+        if (App.router.get('clusterController.isLoaded')) {
           return;
         }
       }
@@ -184,8 +185,11 @@ App.UpdateController = Em.Controller.extend({
         }
       ]);
     } else {
+      hostAuxiliaryInfo = '';
       this.get('queryParams').set('Hosts', mainHostController.getQueryParameters(true));
     }
+    realUrl = realUrl.replace('<hostAuxiliaryInfo>', hostAuxiliaryInfo);
+
     var clientCallback = function (skipCall, queryParams) {
       if (skipCall) {
         //no hosts match filter by component
@@ -207,6 +211,9 @@ App.UpdateController = Em.Controller.extend({
             realUrl.replace('<parameters>', '') +
             (paginationProps.length > 0 ? '&' + paginationProps.substring(0, paginationProps.length - 1) : '') +
             (sortProps.length > 0 ? '&' + sortProps.substring(0, sortProps.length - 1) : '');
+          if (App.get('testMode')) {
+            realUrl = testUrl;
+          }
           App.HttpClient.get(realUrl, App.hostsMapper, {
             complete: callback,
             doGetAsPost: true,
@@ -330,16 +337,18 @@ App.UpdateController = Em.Controller.extend({
   updateServiceMetric: function (callback) {
     var self = this;
     self.set('isUpdated', false);
+    var isATSPresent = App.StackServiceComponent.find().findProperty('componentName','APP_TIMELINE_SERVER');
 
     var conditionalFields = this.getConditionalFields(),
       conditionalFieldsString = conditionalFields.length > 0 ? ',' + conditionalFields.join(',') : '',
       testUrl = App.get('isHadoop2Stack') ? '/data/dashboard/HDP2/master_components.json' : '/data/dashboard/services.json',
       isFlumeInstalled = App.cache['services'].mapProperty('ServiceInfo.service_name').contains('FLUME'),
-      //isATSInstalled = App.cache['services'].mapProperty('ServiceInfo.service_name').contains('YARN') && App.get('isHadoop21Stack'),
+
+      isATSInstalled = App.cache['services'].mapProperty('ServiceInfo.service_name').contains('YARN') && isATSPresent,
       flumeHandlerParam = isFlumeInstalled ? 'ServiceComponentInfo/component_name=FLUME_HANDLER|' : '',
-      //atsHandlerParam = isATSInstalled ? 'ServiceComponentInfo/component_name=APP_TIMELINE_SERVER|' : '',
-      atsHandlerParam = '',
-      haComponents = App.get('isHaEnabled') ? 'ServiceComponentInfo/component_name=JOURNALNODE|' : '',
+      atsHandlerParam = isATSInstalled ? 'ServiceComponentInfo/component_name=APP_TIMELINE_SERVER|' : '',
+      haComponents = App.get('isHaEnabled') ? 'ServiceComponentInfo/component_name=JOURNALNODE|ServiceComponentInfo/component_name=ZKFC|' : '',
+
       realUrl = '/components/?' + flumeHandlerParam + atsHandlerParam + haComponents +
         'ServiceComponentInfo/category=MASTER&fields=' +
         'ServiceComponentInfo/Version,' +
@@ -351,6 +360,7 @@ App.UpdateController = Em.Controller.extend({
         'host_components/HostRoles/state,' +
         'host_components/HostRoles/maintenance_state,' +
         'host_components/HostRoles/stale_configs,' +
+        'host_components/HostRoles/ha_state,' +
         'host_components/metrics/jvm/memHeapUsedM,' +
         'host_components/metrics/jvm/HeapMemoryMax,' +
         'host_components/metrics/jvm/HeapMemoryUsed,' +
@@ -402,7 +412,7 @@ App.UpdateController = Em.Controller.extend({
         "ServiceComponentInfo/GrayListedNodes," +
         "ServiceComponentInfo/BlackListedNodes," +
         "ServiceComponentInfo/jobtracker/*,",
-      'STORM': "metrics/api/cluster/summary,"
+      'STORM': /^2.1/.test(App.get('currentStackVersionNumber')) ? 'metrics/api/cluster/summary' : 'metrics/api/v1/cluster/summary,metrics/api/v1/topology/summary'
     };
     var services = App.cache['services'];
     services.forEach(function (service) {
@@ -415,7 +425,7 @@ App.UpdateController = Em.Controller.extend({
   },
   updateServices: function (callback) {
     var testUrl = '/data/services/HDP2/services.json';
-    var componentConfigUrl = this.getUrl(testUrl, '/services?fields=alerts/summary,ServiceInfo/state,ServiceInfo/maintenance_state&minimal_response=true');
+    var componentConfigUrl = this.getUrl(testUrl, '/services?fields=legacy_alerts/summary,ServiceInfo/state,ServiceInfo/maintenance_state&minimal_response=true');
     App.HttpClient.get(componentConfigUrl, App.serviceMapper, {
       complete: callback
     });

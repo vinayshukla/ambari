@@ -32,7 +32,7 @@ def oozie_service(action = 'start'): # 'start' or 'stop'
     if params.jdbc_driver_name == "com.mysql.jdbc.Driver" or \
        params.jdbc_driver_name == "org.postgresql.Driver" or \
        params.jdbc_driver_name == "oracle.jdbc.driver.OracleDriver":
-      db_connection_check_command = format("{java_home}/bin/java -cp {check_db_connection_jar}:{jdbc_driver_jar} org.apache.ambari.server.DBConnectionVerification {oozie_jdbc_connection_url} {oozie_metastore_user_name} {oozie_metastore_user_passwd!p} {jdbc_driver_name}")
+      db_connection_check_command = format("{java_home}/bin/java -cp {check_db_connection_jar}:{jdbc_driver_jar} org.apache.ambari.server.DBConnectionVerification '{oozie_jdbc_connection_url}' {oozie_metastore_user_name} {oozie_metastore_user_passwd!p} {jdbc_driver_name}")
     else:
       db_connection_check_command = None
       
@@ -58,7 +58,7 @@ def oozie_service(action = 'start'): # 'start' or 'stop'
       not_if  = no_op_test,
     )
   elif action == 'stop':
-    stop_cmd  = format("su - {oozie_user} -c  'cd {oozie_tmp_dir} && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f {pid_file}")
+    stop_cmd  = format("su -s /bin/bash - {oozie_user} -c  'cd {oozie_tmp_dir} && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f {pid_file}")
     Execute( stop_cmd,
       only_if  = no_op_test
     )

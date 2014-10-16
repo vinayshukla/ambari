@@ -27,10 +27,10 @@ class HbaseRegionServer(Script):
   def install(self, env):
     if not check_windows_service_exists(service_mapping.hbase_regionserver_win_service_name):
       self.install_packages(env)
-    
+
   def configure(self, env):
     hbase()
-      
+
   def start(self, env):
     import params
     Service(service_mapping.hbase_regionserver_win_service_name, action="start")
@@ -40,7 +40,7 @@ class HbaseRegionServer(Script):
 
   def status(self, env):
     check_windows_service_status(service_mapping.hbase_regionserver_win_service_name)
-    
+
   def decommission(self, env):
     print "Decommission not yet implemented!"
 

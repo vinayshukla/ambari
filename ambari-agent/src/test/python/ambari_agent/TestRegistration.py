@@ -28,8 +28,7 @@ with patch("platform.linux_distribution", return_value = ('Suse','11','Final')):
   from ambari_agent.Register import Register
   from ambari_agent.AmbariConfig import AmbariConfig
   from ambari_agent.HostInfo import HostInfo
-  from ambari_agent.HostInfo import FirewallChecks
-  from ambari_commons import OSCheck
+  from ambari_commons import OSCheck, Firewall, FirewallChecks
 
 class TestRegistration(TestCase):
   @patch.object(FirewallChecks, "run_os_command")
@@ -60,6 +59,7 @@ class TestRegistration(TestCase):
     print data['agentEnv']['umask']
     self.assertEquals(not data['agentEnv']['umask']== "", True, "agents umask should not be empty")
     self.assertEquals(data['currentPingPort'] == 33777, True, "current ping port should be 33777")
-    self.assertEquals(len(data), 8)
+    self.assertEquals(data['prefix'], config.get('agent', 'prefix'), 'The prefix path does not match')
+    self.assertEquals(len(data), 9)
 
     os.remove(ver_file)

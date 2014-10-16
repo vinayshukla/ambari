@@ -17,30 +17,6 @@
  */
 package org.apache.ambari.server.utils;
 
-import com.google.common.base.Joiner;
-import com.google.gson.Gson;
-import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.Role;
-import org.apache.ambari.server.RoleCommand;
-import org.apache.ambari.server.actionmanager.Stage;
-import org.apache.ambari.server.agent.ExecutionCommand;
-import org.apache.ambari.server.configuration.Configuration;
-import org.apache.ambari.server.state.Cluster;
-import org.apache.ambari.server.state.Host;
-import org.apache.ambari.server.state.HostComponentAdminState;
-import org.apache.ambari.server.state.Service;
-import org.apache.ambari.server.state.ServiceComponent;
-import org.apache.ambari.server.state.ServiceComponentHost;
-import org.apache.ambari.server.state.svccomphost.ServiceComponentHostInstallEvent;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.codehaus.jackson.JsonGenerationException;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.SerializationConfig;
-
-import javax.xml.bind.JAXBException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,7 +24,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -59,6 +34,31 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import javax.xml.bind.JAXBException;
+
+import org.apache.ambari.server.AmbariException;
+import org.apache.ambari.server.Role;
+import org.apache.ambari.server.RoleCommand;
+import org.apache.ambari.server.actionmanager.Stage;
+import org.apache.ambari.server.agent.ExecutionCommand;
+import org.apache.ambari.server.controller.ActionExecutionContext;
+import org.apache.ambari.server.state.Cluster;
+import org.apache.ambari.server.state.Host;
+import org.apache.ambari.server.state.HostComponentAdminState;
+import org.apache.ambari.server.state.Service;
+import org.apache.ambari.server.state.ServiceComponent;
+import org.apache.ambari.server.state.ServiceComponentHost;
+import org.apache.ambari.server.state.svccomphost.ServiceComponentHostInstallEvent;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.map.JsonMappingException;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.SerializationConfig;
+
+import com.google.common.base.Joiner;
+import com.google.gson.Gson;
 
 public class StageUtils {
 
@@ -148,20 +148,20 @@ public class StageUtils {
     return requestStageIds;
   }
 
-  public static Stage getATestStage(long requestId, long stageId, String clusterHostInfo) {
+  public static Stage getATestStage(long requestId, long stageId, String clusterHostInfo, String commandParamsStage, String hostParamsStage) {
     String hostname;
     try {
       hostname = InetAddress.getLocalHost().getHostName();
     } catch (UnknownHostException e) {
       hostname = "host-dummy";
     }
-    return getATestStage(requestId, stageId, hostname, clusterHostInfo);
+    return getATestStage(requestId, stageId, hostname, clusterHostInfo, commandParamsStage, hostParamsStage);
   }
 
   //For testing only
-  public static Stage getATestStage(long requestId, long stageId, String hostname, String clusterHostInfo) {
+  public static Stage getATestStage(long requestId, long stageId, String hostname, String clusterHostInfo, String commandParamsStage, String hostParamsStage) {
 
-    Stage s = new Stage(requestId, "/tmp", "cluster1", 1L, "context", clusterHostInfo);
+    Stage s = new Stage(requestId, "/tmp", "cluster1", 1L, "context", clusterHostInfo, commandParamsStage, hostParamsStage);
     s.setStageId(stageId);
     long now = System.currentTimeMillis();
     s.addHostRoleExecutionCommand(hostname, Role.NAMENODE, RoleCommand.INSTALL,
@@ -178,6 +178,14 @@ public class StageUtils {
         new TreeMap<String, Map<String, String>>();
     configurations.put("hdfs-site", hdfsSite);
     execCmd.setConfigurations(configurations);
+    Map<String, Map<String, Map<String, String>>> configurationAttributes =
+        new TreeMap<String, Map<String, Map<String, String>>>();
+    Map<String, Map<String, String>> hdfsSiteAttributes = new TreeMap<String, Map<String, String>>();
+    Map<String, String> finalAttribute = new TreeMap<String, String>();
+    finalAttribute.put("dfs.block.size", "true");
+    hdfsSiteAttributes.put("final", finalAttribute);
+    configurationAttributes.put("hdfsSite", hdfsSiteAttributes);
+    execCmd.setConfigurationAttributes(configurationAttributes);
     Map<String, String> params = new TreeMap<String, String>();
     params.put("jdklocation", "/x/y/z");
     params.put("stack_version", "1.2.0");
@@ -197,21 +205,16 @@ public class StageUtils {
     return getGson().toJson(jaxbObj);
   }
 
-  public static ExecutionCommand stringToExecutionCommand(String json)
-      throws JsonParseException, JsonMappingException, IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
-    mapper.configure(SerializationConfig.Feature.USE_ANNOTATIONS, true);
-    InputStream is = new ByteArrayInputStream(json.getBytes(Charset.forName("UTF8")));
-    return mapper.readValue(is, ExecutionCommand.class);
-  }
-
   public static <T> T fromJson(String json, Class<T> clazz) throws IOException {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
     mapper.configure(SerializationConfig.Feature.USE_ANNOTATIONS, true);
     InputStream is = new ByteArrayInputStream(json.getBytes(Charset.forName("UTF8")));
     return mapper.readValue(is, clazz);
+  }
+
+  public static Map<String, String> getCommandParamsStage(ActionExecutionContext actionExecContext) throws AmbariException {
+    return actionExecContext.getParameters() != null ? actionExecContext.getParameters() : new TreeMap<String, String>();
   }
 
   public static Map<String, Set<String>> getClusterHostInfo(

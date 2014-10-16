@@ -1,14 +1,14 @@
 {
   "configurations": [
     {
-      "global": {
-        "nagios_contact": "me@my-awesome-domain.example"
-      }
+        "nagios-env" : {
+            "nagios_contact" : "admin@localhost"
+        }
     }
   ],
   "host_groups": [
     {
-      "name": "host_group_1",
+      "name": "master_1",
       "components": [
         {
           "name": "ZOOKEEPER_SERVER"
@@ -65,7 +65,7 @@
       "cardinality": "1"
     },
     {
-      "name": "host_group_2",
+      "name": "slave_1",
       "components": [
         {
           "name": "ZOOKEEPER_SERVER"
@@ -101,9 +101,6 @@
           "name": "YARN_CLIENT"
         },
         {
-          "name" : "APP_TIMELINE_SERVER"
-        },
-        {
           "name": "MAPREDUCE2_CLIENT"
         },
         {
@@ -122,7 +119,7 @@
       "cardinality": "1"
     },
     {
-      "name": "host_group_3",
+      "name": "slave_2",
       "components": [
         {
           "name": "ZOOKEEPER_SERVER"
@@ -156,9 +153,6 @@
         },
         {
           "name": "DATANODE"
-        },
-        {
-          "name" : "APP_TIMELINE_SERVER"
         },
         {
           "name": "GANGLIA_MONITOR"

@@ -24,21 +24,29 @@ import status_params
 # server configurations
 config = Script.get_config()
 
+#RPM versioning support
+rpm_version = default("/configurations/cluster-env/rpm_version", None)
+
+#hadoop params
+if rpm_version:
+  rest_lib_dir = '/usr/hdp/current/storm-client/contrib/storm-rest'
+  storm_bin_dir = "/usr/hdp/current/storm-client/bin"
+else:
+  rest_lib_dir = "/usr/lib/storm/contrib/storm-rest"
+  storm_bin_dir = "/usr/bin"
+
 storm_user = config['configurations']['storm-env']['storm_user']
 log_dir = config['configurations']['storm-env']['storm_log_dir']
 pid_dir = status_params.pid_dir
 conf_dir = "/etc/storm/conf"
 local_dir = config['configurations']['storm-site']['storm.local.dir']
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 java64_home = config['hostLevelParams']['java_home']
-nimbus_host = config['configurations']['storm-site']['nimbus.host']
 nimbus_port = config['configurations']['storm-site']['nimbus.thrift.port']
 nimbus_host = config['configurations']['storm-site']['nimbus.host']
 rest_api_port = "8745"
 rest_api_admin_port = "8746"
 rest_api_conf_file = format("{conf_dir}/config.yaml")
-rest_lib_dir = "/usr/lib/storm/contrib/storm-rest"
-java_home = config['hostLevelParams']['java_home']
 storm_env_sh_template = config['configurations']['storm-env']['content']
 
 if 'ganglia_server_host' in config['clusterHostInfo'] and \
@@ -48,13 +56,26 @@ if 'ganglia_server_host' in config['clusterHostInfo'] and \
   ganglia_report_interval = 60
 else:
   ganglia_installed = False
-  
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+
+is_compatible_to_2_2_stack = str(config['hostLevelParams']['stack_version']).startswith('2.2')
+
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 
 if security_enabled:
   _hostname_lowercase = config['hostname'].lower()
-  _kerberos_domain = config['configurations']['hadoop-env']['kerberos_domain']
+  kerberos_domain = config['configurations']['cluster-env']['kerberos_domain']
   _storm_principal_name = config['configurations']['storm-env']['storm_principal_name']
   storm_jaas_principal = _storm_principal_name.replace('_HOST',_hostname_lowercase)
   storm_keytab_path = config['configurations']['storm-env']['storm_keytab']
+
+  if is_compatible_to_2_2_stack:
+    storm_ui_keytab_path = config['configurations']['storm-env']['strom_ui_keytab']
+    _storm_ui_jaas_principal_name = config['configurations']['storm-env']['strom_ui_principal_name']
+    storm_ui_host = default("/clusterHostInfo/storm_ui_server_hosts", [])
+    storm_ui_jaas_principal = _storm_ui_jaas_principal_name.replace('_HOST',storm_ui_host[0].lower())
+
+
+    _nimbus_principal_name = config['configurations']['storm-env']['nimbus_principal_name']
+    nimbus_jaas_principal = _nimbus_principal_name.replace('_HOST',nimbus_host.lower())
+    nimbus_bare_jaas_principal = _nimbus_principal_name.replace('/_HOST','').replace('@'+kerberos_domain,'')
+    nimbus_keytab_path = config['configurations']['storm-env']['nimbus_keytab']

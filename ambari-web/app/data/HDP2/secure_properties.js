@@ -15,8 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-module.exports =
-{
+
+
+/*
+ * Description of fields:
+ * name: has to coincide with how the property will be saved to the file
+ * displayName: how it will be shown in the Admin Security Wizard
+ * serviceName: the tab in which it will appear in the Admin Security Wizard
+ * filename: the file it is saved to, and the section of the command-#.json file
+ * category: the accordion name in the tab shown in the Admin Security Wizard
+ * component: Ambari component name
+ */
+
+var props = {
   "configProperties": [
     {
       "id": "puppet var",
@@ -28,6 +39,7 @@ module.exports =
       "isVisible": false,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "cluster-env.xml",
       "category": "KERBEROS"
     },
     {
@@ -44,19 +56,6 @@ module.exports =
     },
     {
       "id": "puppet var",
-      "name": "keytab_path",
-      "displayName": "Path to keytab file",
-      "value": "",
-      "defaultValue": "/etc/security/keytabs",
-      "description": "Type of kerberos security for the cluster",
-      "displayType": "principal",
-      "isVisible": false,
-      "isOverridable": false,
-      "serviceName": "GENERAL",
-      "category": "AMBARI"
-    },
-    {
-      "id": "puppet var",
       "name": "kerberos_domain",
       "displayName": "Realm name",
       "value": "",
@@ -66,6 +65,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "cluster-env.xml",
       "category": "KERBEROS"
     },
     {
@@ -79,6 +79,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "cluster-env.xml",
       "category": "KERBEROS"
     },
     {
@@ -106,6 +107,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "cluster-env.xml",
       "category": "AMBARI"
     },
     {
@@ -116,10 +118,11 @@ module.exports =
       "defaultValue": "hdfs",
       "description": "This is the principal name for HDFS user",
       "displayType": "principal",
-      "isVisible": true,
+      "isVisible": false,
       "isOverridable": false,
       "isReconfigurable": false,
       "serviceName": "GENERAL",
+      "filename": "hadoop-env.xml",
       "category": "AMBARI"
     },
     {
@@ -130,9 +133,10 @@ module.exports =
       "defaultValue": "/etc/security/keytabs/hdfs.headless.keytab",
       "description": "Path to keytab file for HDFS user",
       "displayType": "directory",
-      "isVisible": true,
+      "isVisible": false,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "hadoop-env.xml",
       "category": "AMBARI"
     },
     {
@@ -147,6 +151,7 @@ module.exports =
       "isOverridable": false,
       "isReconfigurable": false,
       "serviceName": "GENERAL",
+      "filename": "hbase-env.xml",
       "category": "AMBARI"
     },
     {
@@ -160,6 +165,7 @@ module.exports =
       "isVisible": false,
       "isOverridable": false,
       "serviceName": "GENERAL",
+      "filename": "hbase-env.xml",
       "category": "AMBARI"
     },
 
@@ -464,6 +470,65 @@ module.exports =
       "serviceName": "YARN",
       "category": "ResourceManager"
     },
+    // YARN Application Timeline Server
+    {
+      "id": "puppet var",
+      "name": "apptimelineserver_principal_name",
+      "displayName": "App Timeline Server Principal name",
+      "value": "",
+      "defaultValue": "yarn/_HOST",
+      "description": "Principal name for App Timeline Server. _HOST will get automatically replaced with actual hostname at an instance of App Timeline Server",
+      "displayType": "principal",
+      "isVisible": true,
+      "isOverridable": true,
+      "serviceName": "YARN",
+      "category": "AppTimelineServer",
+      "component": "APP_TIMELINE_SERVER"
+    },
+    {
+      "id": "puppet var",
+      "name": "apptimelineserver_keytab",
+      "displayName": "Path to App Timeline Server keytab file",
+      "value": "",
+      "defaultValue": "/etc/security/keytabs/yarn.service.keytab",
+      "description": "Path to App Timeline Server keytab file",
+      "displayType": "directory",
+      "isVisible": true,
+      "isOverridable": true,
+      "serviceName": "YARN",
+      "category": "AppTimelineServer",
+      "component": "APP_TIMELINE_SERVER"
+    },
+    {
+      "id": "puppet var",
+      "name": "apptimelineserver_http_principal_name",
+      "displayName": "App Timeline Server HTTP Principal name",
+      "value": "",
+      "defaultValue": "HTTP/_HOST",
+      "description": "Principal name for App Timeline Server HTTP. _HOST will get automatically replaced with actual hostname at an instance of App Timeline Server",
+      "displayType": "principal",
+      "isVisible": true,
+      "isOverridable": true,
+      "serviceName": "YARN",
+      "category": "AppTimelineServer",
+      "component": "APP_TIMELINE_SERVER"
+    },
+    {
+      "id": "puppet var",
+      "name": "apptimelineserver_http_keytab",
+      "displayName": "Path to App Timeline Server SPNEGO HTTP keytab file",
+      "value": "",
+      "defaultValue": "/etc/security/keytabs/spnego.service.keytab",
+      "description": "Path to App Timeline Server SPNEGO HTTP keytab file",
+      "displayType": "directory",
+      "isVisible": true,
+      "isOverridable": true,
+      "serviceName": "YARN",
+      "category": "AppTimelineServer",
+      "component": "APP_TIMELINE_SERVER"
+    },
+
+    // YARN Resource Manager
     {
       "id": "puppet var",
       "name": "resourcemanager_principal_name",
@@ -598,8 +663,6 @@ module.exports =
       "serviceName": "YARN",
       "category": "NodeManager"
     },
-
-  /**********************************************WEBHCAT***************************************/
     {
       "id": "puppet var",
       "name": "webhcatserver_host",
@@ -610,7 +673,7 @@ module.exports =
       "displayType": "masterHost",
       "isVisible": true,
       "isOverridable": false,
-      "serviceName": "WEBHCAT",
+      "serviceName": "HIVE",
       "category": "WebHCat Server"
     },
     {
@@ -623,7 +686,7 @@ module.exports =
       "displayType": "principal",
       "isVisible": true,
       "isOverridable": false,
-      "serviceName": "WEBHCAT",
+      "serviceName": "HIVE",
       "category": "WebHCat Server"
     },
     {
@@ -636,7 +699,7 @@ module.exports =
       "displayType": "directory",
       "isVisible": true,
       "isOverridable": false,
-      "serviceName": "WEBHCAT",
+      "serviceName": "HIVE",
       "category": "WebHCat Server"
     },
 
@@ -766,6 +829,32 @@ module.exports =
       "category": "Hive Metastore",
       "component": "HIVE_SERVER"
     },
+    {
+      "id": "puppet var",
+      "name": "hive_metastore_http_principal_name",
+      "displayName": "Web principal name",
+      "value": "",
+      "defaultValue": "HTTP/_HOST",
+      "description": "Principal name for SPNEGO access to Hive Metastore and HiveServer2. _HOST will get automatically replaced with actual hostname at an instance of Hive Metastore and HiveServer2",
+      "displayType": "principal",
+      "isVisible": true,
+      "isOverridable": false,
+      "serviceName": "HIVE",
+      "category": "Hive Metastore"
+    },
+    {
+      "id": "puppet var",
+      "name": "hive_metastore_http_keytab",
+      "displayName": "Path to SPNEGO keytab file",
+      "value": "",
+      "defaultValue": "/etc/security/keytabs/spnego.service.keytab",
+      "description": "Path to SPNEGO keytab file for  Hive Metastore and HiveServer2",
+      "displayType": "directory",
+      "isVisible": true,
+      "isOverridable": false,
+      "serviceName": "HIVE",
+      "category": "Hive Metastore"
+    },
 
   /**********************************************OOZIE***************************************/
     {
@@ -806,6 +895,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "OOZIE",
+      "filename": "oozie-env.xml",
       "category": "Oozie Server",
       "component": "OOZIE_SERVER"
     },
@@ -861,6 +951,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "ZOOKEEPER",
+      "filename": "zookeeper-env.xml",
       "category": "ZooKeeper Server",
       "component": "ZOOKEEPER_SERVER"
     },
@@ -875,6 +966,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "ZOOKEEPER",
+      "filename": "zookeeper-env.xml",
       "category": "ZooKeeper Server",
       "component": "ZOOKEEPER_SERVER"
     },
@@ -904,6 +996,7 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "NAGIOS",
+      "filename": "nagios-env.xml",
       "category": "Nagios Server",
       "component": "NAGIOS_SERVER"
     },
@@ -918,52 +1011,10 @@ module.exports =
       "isVisible": true,
       "isOverridable": false,
       "serviceName": "NAGIOS",
+      "filename": "nagios-env.xml",
       "category": "Nagios Server",
       "component": "NAGIOS_SERVER"
     },
-  /**********************************************STORM***************************************/
-    {
-      "id": "puppet var",
-      "name": "storm_host",
-      "displayName": "Storm component hosts",
-      "value": "",
-      "defaultValue": "",
-      "description": "Storm component hosts",
-      "displayType": "slaveHosts",
-      "isVisible": true,
-      "isOverridable": false,
-      "serviceName": "STORM",
-      "category": "Storm Topology"
-    },
-    {
-      "id": "puppet var",
-      "name": "storm_principal_name",
-      "displayName": " Storm principal name",
-      "value": "",
-      "defaultValue": "storm/_HOST",
-      "description": "Principal name for Supervisor. _HOST will get automatically replaced with actual hostname at an instance of every storm component.",
-      "displayType": "principal",
-      "isVisible": true,
-      "isOverridable": false,
-      "serviceName": "STORM",
-      "category": "Storm Topology",
-      "components": ["SUPERVISOR", "NIMBUS", "STORM_UI_SERVER"]
-    },
-    {
-      "id": "puppet var",
-      "name": "storm_keytab",
-      "displayName": "Path to Storm keytab file",
-      "value": "",
-      "defaultValue": "/etc/security/keytabs/storm.service.keytab",
-      "description": "Path to the storm keytab file",
-      "displayType": "directory",
-      "isVisible": true,
-      "isOverridable": false,
-      "serviceName": "STORM",
-      "category": "Storm Topology",
-      "components": ["SUPERVISOR", "NIMBUS"]
-    },
-
   /**********************************************Falcon***************************************/
     {
       "id": "puppet var",
@@ -1047,3 +1098,162 @@ module.exports =
     }
   ]
 };
+
+var stormProperties = [
+  {
+    "id": "puppet var",
+    "name": "storm_host",
+    "displayName": "Storm component hosts",
+    "value": "",
+    "defaultValue": "",
+    "description": "Storm component hosts",
+    "displayType": "slaveHosts",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "category": "Storm Topology"
+  },
+  {
+    "id": "puppet var",
+    "name": "storm_principal_name",
+    "displayName": " Storm principal name",
+    "value": "",
+    "defaultValue": "storm/_HOST",
+    "description": "Principal name for Supervisor. _HOST will get automatically replaced with actual hostname at an instance of every storm component.",
+    "displayType": "principal",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Storm Topology",
+    "components": ["SUPERVISOR", "NIMBUS", "STORM_UI_SERVER"]
+  },
+  {
+    "id": "puppet var",
+    "name": "storm_keytab",
+    "displayName": "Path to Storm keytab file",
+    "value": "",
+    "defaultValue": "/etc/security/keytabs/storm.service.keytab",
+    "description": "Path to the storm keytab file",
+    "displayType": "directory",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Storm Topology",
+    "components": ["SUPERVISOR", "NIMBUS"]
+  }
+];
+var storm22Properties = [
+  {
+    "id": "puppet var",
+    "name": "storm_principal_name",
+    "displayName": " Storm principal name",
+    "value": "",
+    "defaultValue": "storm/_HOST",
+    "description": "Principal name for Storm components. _HOST will get automatically replaced with actual hostname at an instance of every storm component.",
+    "displayType": "principal",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Storm Topology",
+    "components": ["SUPERVISOR", "STORM_UI_SERVER", "DRPC_SERVER", "STORM_REST_API"]
+  },
+  {
+    "id": "puppet var",
+    "name": "storm_keytab",
+    "displayName": "Path to Storm keytab file",
+    "value": "",
+    "defaultValue": "/etc/security/keytabs/storm.service.keytab",
+    "description": "Path to the storm keytab file",
+    "displayType": "directory",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Storm Topology",
+    "components": ["SUPERVISOR", "STORM_UI_SERVER", "DRPC_SERVER", "STORM_REST_API"]
+  },
+  {
+    "id": "puppet var",
+    "name": "nimbus_host",
+    "displayName": "Nimbus hosts",
+    "value": "",
+    "defaultValue": "",
+    "description": "Nimbus component hosts",
+    "displayType": "slaveHosts",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "category": "Nimbus"
+  },
+  {
+    "id": "puppet var",
+    "name": "nimbus_principal_name",
+    "displayName": " Nimbus principal name",
+    "value": "",
+    "defaultValue": "nimbus/_HOST",
+    "description": "Nimbus Principal name",
+    "displayType": "principal",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Nimbus",
+    "components": ["NIMBUS","DRPC_SERVER"]
+  },
+  {
+    "id": "puppet var",
+    "name": "nimbus_keytab",
+    "displayName": "Path to Nimbus keytab file",
+    "value": "",
+    "defaultValue": "/etc/security/keytabs/nimbus.service.keytab",
+    "description": "Path to the nimbus keytab file",
+    "displayType": "directory",
+    "isVisible": true,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Nimbus",
+    "components": ["NIMBUS","DRPC_SERVER"]
+  },
+  {
+    "id": "puppet var",
+    "name": "strom_ui_principal_name",
+    "displayName": "Storm UI principal name",
+    "value": "",
+    "defaultValue": "HTTP/_HOST",
+    "description": "Principal name for Storm UI",
+    "displayType": "principal",
+    "isVisible": false,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Nimbus",
+    "components": ["STORM_UI_SERVER"]
+  },
+  {
+    "id": "puppet var",
+    "name": "strom_ui_keytab",
+    "displayName": "Path to Nimbus UI keytab file",
+    "value": "",
+    "defaultValue": "/etc/security/keytabs/spnego.service.keytab",
+    "description": "Path to the Storm UI keytab file",
+    "displayType": "directory",
+    "isVisible": false,
+    "isOverridable": false,
+    "serviceName": "STORM",
+    "filename": "storm-env.xml",
+    "category": "Nimbus",
+    "components": ["STORM_UI_SERVER"]
+  }
+];
+
+if(App.get('isHadoop22Stack')) {
+  props.configProperties.pushObjects(storm22Properties);
+} else {
+  props.configProperties.pushObjects(stormProperties);
+}
+
+module.exports = props;

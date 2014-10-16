@@ -30,12 +30,16 @@ require('templates/application');
 require('templates/index');
 require('templates/files');
 require('templates/error');
-require('templates/util/deletePopover');
-require('templates/util/uploader');
-require('templates/util/contextMenu');
-require('templates/util/deleteBulk');
 require('templates/util/errorRow');
-require('templates/util/renameInput');
+require('templates/util/fileRow');
+
+require('templates/components/uploader');
+require('templates/components/renameInput');
+require('templates/components/deletePopover');
+require('templates/components/mkdirInput');
+require('templates/components/contextMenu');
+require('templates/components/deleteBulk');
+require('templates/components/chmodInput');
 
 //////////////////////////////////
 // Models
@@ -49,6 +53,8 @@ require('models/file');
 
 require('controllers/files');
 require('controllers/file');
+require('controllers/error');
+require('controllers/filesAlert');
 
 /////////////////////////////////
 // Components
@@ -57,12 +63,22 @@ require('controllers/file');
 require('components/uploader');
 require('components/contextMenu');
 require('components/renameInput');
+require('components/bsPopover');
+require('components/confirmDelete');
+require('components/sortArrow');
+require('components/breadCrumbs');
+require('components/popoverDelete');
+require('components/bulkCheckbox');
+require('components/mkdirInput');
+require('components/toggleContext');
+require('components/chmodInput');
 
 /////////////////////////////////
 // Views
 /////////////////////////////////
 
 require('views/file');
+require('views/filesAlert');
 
 /////////////////////////////////
 // Routes

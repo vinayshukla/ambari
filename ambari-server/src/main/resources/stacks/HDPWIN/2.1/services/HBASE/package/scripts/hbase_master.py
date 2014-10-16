@@ -28,7 +28,7 @@ class HbaseMaster(Script):
   def install(self, env):
     if not check_windows_service_exists(service_mapping.hbase_master_win_service_name):
       self.install_packages(env)
-    
+
   def configure(self, env):
     hbase()
 

@@ -34,6 +34,11 @@ App.SliderApp = DS.Model.extend({
   status: DS.attr('string'),
 
   /**
+   * @type {displayStatus}
+   */
+  displayStatus: DS.attr('string'),
+
+  /**
    * @type {string}
    */
   user: DS.attr('string'),
@@ -44,9 +49,27 @@ App.SliderApp = DS.Model.extend({
   started: DS.attr('number'),
 
   /**
+   * @type {String}
+   */
+
+  startedToLocalTime: function () {
+    var started = this.get('started');
+    return started ? moment(started).format('ddd, DD MMM YYYY, HH:mm:ss Z [GMT]') : '-';
+  }.property('started'),
+
+  /**
    * @type {number}
    */
   ended: DS.attr('number'),
+
+  /**
+   * @type {String}
+   */
+
+  endedToLocalTime: function () {
+    var ended = this.get('ended');
+    return ended ? moment(ended).format('ddd, DD MMM YYYY, HH:mm:ss Z [GMT]') : '-';
+  }.property('ended'),
 
   /**
    * @type {App.SliderAppType}
@@ -56,22 +79,32 @@ App.SliderApp = DS.Model.extend({
   /**
    * @type {string}
    */
+
+  description: DS.attr('string'),
+  /**
+   * @type {string}
+   */
   diagnostics: DS.attr('string'),
 
   /**
    * @type {App.SliderAppComponent[]}
    */
-  components: DS.hasMany('sliderAppComponent', {async:true}),
+  components: DS.hasMany('sliderAppComponent', {async: true}),
 
   /**
    * @type {App.QuickLink[]}
    */
-  quickLinks: DS.hasMany('quickLink', {async:true}),
+  quickLinks: DS.hasMany('quickLink', {async: true}),
+
+  /**
+   * @type {App.SliderAppAlert[]}
+   */
+  alerts: DS.hasMany('sliderAppAlert', {async: true}),
 
   /**
    * @type {App.TypedProperty[]}
    */
-  runtimeProperties: DS.hasMany('typedProperty', {async:true}),
+  runtimeProperties: DS.hasMany('typedProperty', {async: true}),
 
   /**
    * @type {object}
@@ -94,57 +127,47 @@ App.SliderApp = DS.Model.extend({
 
   jmx: DS.attr('object'),
 
-  /**
-   * Global configs
-   * @type {{key: string, value: *}[]}
-   */
-  globals: function() {
-    var c = this.get('configs.global');
-    return this.mapObject(c);
-  }.property('configs.@each'),
+  supportedMetricNames: DS.attr('string'),
 
   /**
-   * HBase-Site configs
-   * @type {{key: string, value: *}[]}
+   * Config categories, that should be hidden on app page
+   * @type {string[]}
    */
-  hbaseSite: function() {
-    var c = this.get('configs.hbase-site');
-    return this.mapObject(c);
-  }.property('configs.@each'),
+  hiddenCategories: [],
 
   /**
-   * Configs which are not in global or hbase-site
-   * @type {{key: string, value: *}[]}
+   * @type {boolean}
    */
-  otherConfigs: function() {
-    var c = this.get('configs'),
-      ret = [],
-      self = this;
-    if (Ember.typeOf(c) !== 'object') return [];
-    Ember.keys(c).forEach(function(key) {
-      if (['hbase-site', 'global'].contains(key)) return;
-      ret = ret.concat(self.mapObject(c[key]));
-    });
-    return ret;
-  }.property('configs.@each'),
+  doNotShowComponentsAndAlerts: function () {
+    return this.get('status') == "FROZEN" || this.get('status') == "FAILED";
+  }.property('status', 'components', 'alerts'),
 
   /**
    * Display metrics only for running apps
+   * Also don't display if metrics don't exist
    * @type {boolean}
    */
-  showMetrics: function() {
+  showMetrics: function () {
+    if (!this.get('supportedMetricNames.length')) return false;
+    if (App.get('gangliaHost') != null) {
+      return true;
+    }
     return App.SliderApp.Status.running === this.get('status');
-  }.property('status'),
+  }.property('status', 'configs', 'supportedMetricNames'),
 
   /**
    * Map object to array
    * @param {object} o
    * @returns {{key: string, value: *}[]}
    */
-  mapObject: function(o) {
+  mapObject: function (o) {
     if (Ember.typeOf(o) !== 'object') return [];
-    return Ember.keys(o).map(function(key) {
-      return {key: key, value: o[key]};
+    return Ember.keys(o).map(function (key) {
+      return {
+        key: key,
+        value: o[key],
+        isMultiline: o[key].indexOf("\n") !== -1 || o[key].length > 100
+      };
     });
   }
 
@@ -153,12 +176,13 @@ App.SliderApp = DS.Model.extend({
 App.SliderApp.FIXTURES = [];
 
 App.SliderApp.Status = {
-    accepted: "ACCEPTED",
-    failed: "FAILED",
-    finished: "FINISHED",
-    killed: "KILLED",
-    new: "NEW",
-    new_saving: "NEW_SAVING",
-    running: "RUNNING" ,
-    submitted:"SUBMITTED"
+  accepted: "ACCEPTED",
+  failed: "FAILED",
+  finished: "FINISHED",
+  killed: "KILLED",
+  new: "NEW",
+  new_saving: "NEW_SAVING",
+  running: "RUNNING",
+  submitted: "SUBMITTED",
+  frozen: "FROZEN"
 };

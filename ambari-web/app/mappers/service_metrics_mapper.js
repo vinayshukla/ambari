@@ -18,6 +18,7 @@
 var App = require('app');
 var misc = require('utils/misc');
 var stringUtils = require('utils/string_utils');
+var dateUtils = require('utils/date');
 var previousResponse = [];
 
 App.serviceMetricsMapper = App.QuickDataMapper.create({
@@ -136,13 +137,13 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
     region_servers_total: 'region_servers_total'
   },
   stormConfig: {
-    total_tasks: 'restApiComponent.metrics.api.cluster.summary.["tasks.total"]',
-    total_slots: 'restApiComponent.metrics.api.cluster.summary.["slots.total"]',
-    free_slots: 'restApiComponent.metrics.api.cluster.summary.["slots.free"]',
-    used_slots: 'restApiComponent.metrics.api.cluster.summary.["tasks.total"]',
-    topologies: 'restApiComponent.metrics.api.cluster.summary.topologies',
-    total_executors: 'restApiComponent.metrics.api.cluster.summary.["executors.total"]',
-    nimbus_uptime: 'restApiComponent.metrics.api.cluster.summary.["nimbus.uptime"]',
+    total_tasks: 'restApiComponent.tasksTotal',
+    total_slots: 'restApiComponent.slotsTotal',
+    free_slots: 'restApiComponent.slotsFree',
+    used_slots: 'restApiComponent.slotsUsed',
+    topologies: 'restApiComponent.topologies',
+    total_executors: 'restApiComponent.executorsTotal',
+    nimbus_uptime: 'restApiComponent.nimbusUptime',
     super_visors_started: 'super_visors_started',
     super_visors_installed: 'super_visors_installed',
     super_visors_total: 'super_visors_total'
@@ -170,6 +171,7 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
     host_id: 'HostRoles.host_name',
     host_name: 'HostRoles.host_name',
     stale_configs: 'HostRoles.stale_configs',
+    ha_status: 'HostRoles.ha_state',
     display_name_advanced: 'display_name_advanced',
     $service_id: 'none' /* will be set outside of parse function */
   },
@@ -312,6 +314,7 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
    */
   computeAdditionalRelations: function (hostComponents, services) {
     var isSecondaryNamenode = hostComponents.findProperty('component_name', 'SECONDARY_NAMENODE');
+    var isRMHAEnabled = hostComponents.filterProperty('component_name', 'RESOURCEMANAGER').length > 1;
     services.setEach('tool_tip_content', '');
     // set tooltip for client-only services
     var clientOnlyServiceNames = App.get('services.clientOnly');
@@ -348,6 +351,15 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
               hostComponent.display_name_advanced = this.t('dashboard.services.hbase.masterServer.standby');
           } else {
             hostComponent.display_name_advanced = null;
+          }
+        } else if (hostComponent.component_name === 'RESOURCEMANAGER' && isRMHAEnabled && hostComponent.work_status === 'STARTED') {
+          switch (hostComponent.ha_status) {
+            case 'ACTIVE':
+              hostComponent.display_name_advanced = Em.I18n.t('dashboard.services.yarn.resourceManager.active');
+              break;
+            case 'STANDBY':
+              hostComponent.display_name_advanced = Em.I18n.t('dashboard.services.yarn.resourceManager.standby');
+              break;
           }
         }
         if (service) {
@@ -474,6 +486,15 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
     item.components.forEach(function (component) {
       if (component.ServiceComponentInfo && component.ServiceComponentInfo.component_name == "RESOURCEMANAGER") {
         item.resourceManagerComponent = component;
+
+        // if YARN has two host components, ACTIVE one should be first in component.host_components array for proper metrics mapping
+        if (component.host_components.length === 2) {
+          var activeRM = component.host_components.findProperty('HostRoles.ha_state', 'ACTIVE');
+          var standbyRM = component.host_components.findProperty('HostRoles.ha_state', 'STANDBY');
+          if (activeRM && standbyRM) {
+            component.host_components = [activeRM, standbyRM];
+          }
+        }
 
         if (component.host_components[0].metrics && component.host_components[0].metrics.yarn) {
           var root = component.host_components[0].metrics.yarn.Queue.root;
@@ -629,9 +650,22 @@ App.serviceMetricsMapper = App.QuickDataMapper.create({
   stormMapper: function(item) {
     var finalConfig = jQuery.extend({}, this.config);
     var stormConfig = this.stormConfig;
+    var metricsInfoComponent = /^2.1/.test(App.get('currentStackVersionNumber')) ? 'STORM_REST_API' : 'STORM_UI_SERVER';
+    var metricsPath = {
+      STORM_REST_API: 'metrics.api.cluster.summary',
+      STORM_UI_SERVER: 'metrics.api.v1.cluster.summary'
+    }[metricsInfoComponent];
+
     item.components.forEach(function(component) {
-      if (component.ServiceComponentInfo && component.ServiceComponentInfo.component_name == "STORM_REST_API") {
-        item.restApiComponent = component;
+      if (component.ServiceComponentInfo && component.ServiceComponentInfo.component_name == metricsInfoComponent) {
+        if (Em.get(component, metricsPath)) {
+          item.restApiComponent = App.keysDottedToCamelCase(Em.get(component, metricsPath));
+          if (metricsInfoComponent == 'STORM_UI_SERVER') {
+            item.restApiComponent.topologies = Em.get(component, 'metrics.api.v1.topology.summary.length');
+          } else {
+            item.restApiComponent.nimbusUptime = dateUtils.timingFormat(item.restApiComponent.nimbusUptime * 1000);
+          }
+        }
         finalConfig = jQuery.extend({}, finalConfig, stormConfig);
       }
     });

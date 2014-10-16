@@ -108,17 +108,7 @@ describe('App.MainAdminSecurityController', function () {
       expect(controller.showSecurityErrorPopup.called).to.equal(true);
     });
 
-    it('hdfs-site is missing', function () {
-      var data = {Clusters: {
-        desired_configs: {
-          'global': {}
-        }
-      }};
-      controller.getSecurityStatusFromServerSuccessCallback(data);
-      expect(controller.showSecurityErrorPopup.called).to.equal(true);
-    });
-
-    it('global is missing', function () {
+    it('cluster-env is missing', function () {
       var data = {Clusters: {
         desired_configs: {
           'hdfs-site': {}
@@ -128,19 +118,19 @@ describe('App.MainAdminSecurityController', function () {
       expect(controller.showSecurityErrorPopup.called).to.equal(true);
     });
 
-    it('global and hdfs-site are correct', function () {
+    it('cluster-env and hdfs-site are correct', function () {
       var data = {Clusters: {
         desired_configs: {
           'hdfs-site': {
             tag: 1
           },
-          'global': {
+          'cluster-env': {
             tag: 2
           }
         }
       }};
       controller.getSecurityStatusFromServerSuccessCallback(data);
-      expect(controller.get('tag.global')).to.equal(2);
+      expect(controller.get('tag.cluster-env')).to.equal(2);
       expect(controller.get('tag.hdfs-site')).to.equal(1);
       expect(controller.getServiceConfigsFromServer.called).to.equal(true);
     });

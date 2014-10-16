@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-App.CreateAppWizardStep4Controller = Ember.ObjectController.extend({
+App.CreateAppWizardStep4Controller = Ember.ObjectController.extend(App.AjaxErrorHandler, {
 
   needs: "createAppWizard",
 
@@ -27,6 +27,12 @@ App.CreateAppWizardStep4Controller = Ember.ObjectController.extend({
    * @type {App.SliderApp}
    */
   newApp: null,
+
+  /**
+   * Define if submit button is disabled
+   * @type {Boolean}
+   */
+  isSubmitDisabled: false,
 
   /**
    * Return formatted configs to show them on preview page
@@ -47,16 +53,51 @@ App.CreateAppWizardStep4Controller = Ember.ObjectController.extend({
    * Return formatted object to send it in request to server
    * @type {Object[]}
    */
-  componentsFormatted: function () {
-    return this.get('newApp.components').map(function (component) {
-      return {
+  resourcesFormatted: function () {
+    var resources = {};
+    var newApp = this.get('newApp');
+    // Log Aggregation
+    var includeFilePatterns = newApp.get('includeFilePatterns');
+    var excludeFilePatterns = newApp.get('excludeFilePatterns');
+    var frequency = newApp.get('frequency');
+    if ((includeFilePatterns != null && includeFilePatterns.trim().length > 0)
+        || (excludeFilePatterns != null && excludeFilePatterns.trim().length > 0)
+        || (frequency != null && frequency.trim().length > 0)) {
+      resources.global = {
+        "yarn.log.include.patterns": includeFilePatterns,
+        "yarn.log.exclude.patterns": excludeFilePatterns,
+        "yarn.log.interval": frequency
+      };
+    }
+    // Components
+    resources.components = newApp.get('components').map(function (component) {
+      var componentObj = {
         'id': component.get('name'),
         'instanceCount': component.get('numInstances'),
         'yarnMemory': component.get('yarnMemory'),
         'yarnCpuCores': component.get('yarnCPU'),
         'priority': component.get('priority')
       };
+      if (component.get('yarnLabelChecked')) {
+        componentObj.yarnLabel = component.get('yarnLabel') == null ? ""
+            : component.get('yarnLabel').trim();
+      }
+      return componentObj;
     });
+    // YARN Labels
+    var yarnLabelOption = newApp.get('selectedYarnLabel');
+    if (yarnLabelOption > 0) {
+      // 1=empty label. 2=specific label
+      var label = "";
+      if (yarnLabelOption == 2) {
+        label = newApp.get('specialLabel');
+      }
+      resources.components.push({
+        'id': 'slider-appmaster',
+        'yarn.label.expression': label
+      });
+    }
+    return resources;
   }.property('newApp.components.@each'),
 
   /**
@@ -83,28 +124,42 @@ App.CreateAppWizardStep4Controller = Ember.ObjectController.extend({
    */
   sendAppDataToServer: function () {
     var app = this.get('newApp');
+    var dataObj = {
+      typeName: app.get('appType.index'),
+      typeVersion: app.get('appType.version'),
+      name: app.get('name'),
+      resources: this.get('resourcesFormatted'),
+      typeConfigs: app.get('configs')
+    };
+    if (app.queueName != null && app.queueName.trim().length > 0) {
+      dataObj.queue = app.queueName.trim();
+    }
+    this.set('isSubmitDisabled', true);
     return App.ajax.send({
       name: 'createNewApp',
       sender: this,
       data: {
-        data: {
-          typeName: app.get('appType.index'),
-          typeVersion: app.get('appType.version'),
-          name: app.get('name'),
-          typeComponents: this.get('componentsFormatted'),
-          typeConfigs: app.get('configs')
-        }
+        data: dataObj
       },
+      success: 'sendAppDataToServerSuccessCallback',
       complete: 'sendAppDataToServerCompleteCallback'
     });
+  },
+
+  /**
+   * Success-callback for "create new app"-request
+   * @method sendAppDataToServerSuccessCallback
+   */
+  sendAppDataToServerSuccessCallback: function() {
+    this.get('appWizardController').hidePopup();
   },
 
   /**
    * Complete-callback for "create new app"-request
    * @method sendAppDataToServerCompleteCallback
    */
-  sendAppDataToServerCompleteCallback: function() {
-    this.get('appWizardController').hidePopup();
+  sendAppDataToServerCompleteCallback: function () {
+    this.set('isSubmitDisabled', false);
   },
 
   actions: {

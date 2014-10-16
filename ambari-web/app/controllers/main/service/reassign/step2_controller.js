@@ -22,31 +22,47 @@ App.ReassignMasterWizardStep2Controller = App.WizardStep5Controller.extend({
 
   currentHostId: null,
   showCurrentHost: true,
+  useServerValidation: false,
 
   loadStep: function() {
     // If High Availability is enabled NameNode became a multiple component
     if (App.get('isHaEnabled')) {
       this.get('multipleComponents').push('NAMENODE');
     }
-    this._super();
-    if(this.get('content.reassign.component_name') == "NAMENODE" && !this.get('content.masterComponentHosts').findProperty('component', "SECONDARY_NAMENODE")){
+    this.clearStep();
+    this.renderHostInfo();
+    this.loadStepCallback(this.loadComponents(), this);
+
+    // if moving NameNode with HA enabled
+    if (this.get('content.reassign.component_name') === "NAMENODE" && App.get('isHaEnabled')) {
       this.set('showCurrentHost', false);
       this.set('componentToRebalance', 'NAMENODE');
       this.incrementProperty('rebalanceComponentHostsCounter');
-    }else{
+
+    // if moving ResourceManager with HA enabled
+    } else if (this.get('content.reassign.component_name') === "RESOURCEMANAGER" && App.get('isRMHaEnabled')) {
+      this.set('showCurrentHost', false);
+      this.set('componentToRebalance', 'RESOURCEMANAGER');
+      this.incrementProperty('rebalanceComponentHostsCounter');
+    } else {
       this.set('showCurrentHost', true);
       this.rebalanceSingleComponentHosts(this.get('content.reassign.component_name'));
     }
   },
 
+  /**
+   * load master components
+   * @return {Array}
+   */
   loadComponents: function () {
     var masterComponents = this.get('content.masterComponentHosts');
     this.set('currentHostId', this.get('content').get('reassign').host_id);
     var componentNameToReassign = this.get('content').get('reassign').component_name;
     var result = [];
+
     masterComponents.forEach(function (master) {
       var color = "grey";
-      if(master.component == componentNameToReassign){
+      if (master.component == componentNameToReassign) {
         color = 'green';
       }
       result.push({
@@ -55,35 +71,43 @@ App.ReassignMasterWizardStep2Controller = App.WizardStep5Controller.extend({
         selectedHost: master.hostName,
         isInstalled: true,
         serviceId: App.HostComponent.find().findProperty('componentName', master.component).get('serviceName'),
-        isServiceCoHost: ['HIVE_METASTORE', 'WEBHCAT_SERVER'].contains(master.component),
+        isServiceCoHost: ['HIVE_METASTORE', 'WEBHCAT_SERVER'].contains(master.component) && !this.get('this.isReassignWizard'),
         color: color
       });
     }, this);
     return result;
   },
 
-  rebalanceSingleComponentHosts:function (componentName) {
+  /**
+   * rebalance single component among available hosts
+   * @param componentName
+   * @return {Boolean}
+   */
+  rebalanceSingleComponentHosts: function (componentName) {
     var currentComponents = this.get("selectedServicesMasters").filterProperty("component_name", componentName),
-      availableComponentHosts = [],
-      preparedAvailableHosts = null;
+      availableComponentHosts = [];
+
     this.get("hosts").forEach(function (item) {
       if (this.get('currentHostId') !== item.get('host_name')) {
         availableComponentHosts.pushObject(item);
       }
     }, this);
-    if (availableComponentHosts.length == 0) {
-      return;
+
+    if (availableComponentHosts.length > 0) {
+      currentComponents.forEach(function (item) {
+        var preparedAvailableHosts = availableComponentHosts.slice(0);
+
+        if (item.get('selectedHost') === this.get('currentHostId') && item.get('component_name') === this.get('content.reassign.component_name')) {
+          item.set('selectedHost', preparedAvailableHosts.objectAt(0).host_name);
+        }
+        item.set("availableHosts", preparedAvailableHosts.sortProperty('host_name'));
+      }, this);
+      return true;
     }
-    currentComponents.forEach(function (item) {
-      preparedAvailableHosts = availableComponentHosts.slice(0);
-      if (item.get('selectedHost') == this.get('currentHostId') && item.get('component_name') == this.get('content.reassign.component_name')) {
-        item.set('selectedHost', preparedAvailableHosts.objectAt(0).host_name);
-      }
-      item.set("availableHosts", preparedAvailableHosts.sortProperty('host_name'));
-    }, this);
+    return false;
   },
 
-  getIsSubmitDisabled: function () {
+  updateIsSubmitDisabled: function () {
     var isSubmitDisabled = this._super();
     if (!isSubmitDisabled) {
       var reassigned = 0;

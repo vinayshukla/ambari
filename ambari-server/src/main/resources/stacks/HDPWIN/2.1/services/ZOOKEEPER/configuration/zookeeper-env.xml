@@ -51,7 +51,7 @@
     <value>2181</value>
     <description>Port for running ZK Server.</description>
   </property>
-  
+
   <!-- zookeeper-env.sh -->
   <property>
     <name>content</name>

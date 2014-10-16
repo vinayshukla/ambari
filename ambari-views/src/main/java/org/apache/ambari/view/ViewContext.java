@@ -20,6 +20,7 @@ package org.apache.ambari.view;
 
 import java.util.Collection;
 import java.util.Map;
+import org.apache.ambari.view.HttpImpersonator;
 
 /**
  * Context object available to the view components to provide access to
@@ -39,6 +40,18 @@ public interface ViewContext {
    * @return the current user name
    */
   public String getUsername();
+
+  /**
+   * Determine whether or not the access specified by the given permission name
+   * is permitted for the given user.
+   *
+   * @param userName        the user name
+   * @param permissionName  the permission name
+   *
+   * @throws SecurityException if the access specified by the given permission name
+   *         is not permitted
+   */
+  public void hasPermission(String userName, String permissionName) throws SecurityException;
 
   /**
    * Get the view name.
@@ -162,4 +175,18 @@ public interface ViewContext {
    * @return the view controller
    */
   public ViewController getController();
+
+  /**
+   * Get the HTTP Impersonator.
+   *
+   * @return the HTTP Impersonator, which internally uses the App Cookie Manager
+   */
+  public HttpImpersonator getHttpImpersonator();
+
+  /**
+   * Get the default settings for the Impersonator.
+   *
+   * @return the Impersonator settings.
+   */
+  public ImpersonatorSetting getImpersonatorSetting();
 }

@@ -39,17 +39,19 @@ class ApplicationTimelineServer(Script):
     import params
     env.set_params(params)
     self.configure(env) # FOR SECURITY
-    service('historyserver', action='start')
+    service('timelineserver', action='start')
 
   def stop(self, env):
     import params
     env.set_params(params)
-    service('historyserver', action='stop')
+    service('timelineserver', action='stop')
 
   def status(self, env):
     import status_params
     env.set_params(status_params)
-    check_process_status(status_params.yarn_historyserver_pid_file)
+    Execute(format("mv {yarn_historyserver_pid_file_old} {yarn_historyserver_pid_file}"),
+            only_if = format("test -e {yarn_historyserver_pid_file_old}", user=status_params.yarn_user))
+    functions.check_process_status(status_params.yarn_historyserver_pid_file)
 
 if __name__ == "__main__":
   ApplicationTimelineServer().execute()

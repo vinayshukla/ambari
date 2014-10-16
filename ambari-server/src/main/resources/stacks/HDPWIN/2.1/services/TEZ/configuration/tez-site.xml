@@ -51,7 +51,7 @@
     <!-- TODO: Xmx value needs to be set based on tez.am.resource.memory.mb - typically at least 512MB less. Also this could have some additional hardware specific settings if Ambari supports it -->
     <description>Java options for the Tez AppMaster process</description>
   </property>
-  <!-- tez picks the java opts from yarn.app.mapreduce.am.command-opts for MR tasks. Likewise for the AM memory MB -->  
+  <!-- tez picks the java opts from yarn.app.mapreduce.am.command-opts for MR tasks. Likewise for the AM memory MB -->
 
   <property>
     <name>tez.am.shuffle-vertex-manager.min-src-fraction</name>
@@ -64,7 +64,7 @@
   <property>
     <name>tez.am.shuffle-vertex-manager.max-src-fraction</name>
     <value>0.4</value>
-    <description>In case of a ScatterGather connection, once this fraction of source tasks have 
+    <description>In case of a ScatterGather connection, once this fraction of source tasks have
       completed, all tasks on the current vertex can be scheduled. Number of tasks ready for
       scheduling on the current vertex scales linearly between min-fraction and max-fraction
     </description>
@@ -119,7 +119,7 @@
     <value>true</value>
     <description>Whether to reuse containers for non-local tasks. Active only if reuse is enabled
     </description>
-  </property>  
+  </property>
 
   <property>
     <name>tez.am.container.session.delay-allocation-millis</name>
@@ -147,7 +147,7 @@
     </description>
   </property>
 
-  <!-- Client Submission timeout value when submitting DAGs to a session -->  
+  <!-- Client Submission timeout value when submitting DAGs to a session -->
   <property>
     <name>tez.session.client.timeout.secs</name>
     <value>180</value>
@@ -155,7 +155,7 @@
       the client
     </description>
   </property>
-  
+
   <property>
     <name>tez.session.am.dag.submit.timeout.secs</name>
     <value>300</value>
@@ -179,7 +179,7 @@
   <property>
     <name>tez.runtime.intermediate-output.compress.codec</name>
     <value>org.apache.hadoop.io.compress.SnappyCodec</value>
-    <description>The coded to be used if compressing intermediate output. Only 
+    <description>The coded to be used if compressing intermediate output. Only
       applicable if tez.runtime.intermediate-output.should-compress is enabled.
     </description>
   </property>
@@ -195,7 +195,7 @@
     <value>org.apache.hadoop.io.compress.SnappyCodec</value>
     <description>The coded to be used when reading intermediate compressed input.
       Only applicable if tez.runtime.intermediate-input.is-compressed is enabled.
-    </description>	  
+    </description>
   </property>
 
   <property>
@@ -216,4 +216,3 @@
   </property>
 
 </configuration>
-

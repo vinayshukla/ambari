@@ -22,24 +22,6 @@ var stringUtils = require('utils/string_utils');
 var configGroupsByTag = [];
 
 App.config = Em.Object.create({
-  /**
-   * XML characters which should be escaped in values
-   * http://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references#Predefined_entities_in_XML
-   */
-  xmlEscapeMap: {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': '&quot;',
-    "'": '&apos;'
-  },
-  xmlUnEscapeMap: {
-    "&amp;": "&",
-    "&lt;": "<",
-    "&gt;": ">",
-    "&quot;": '"',
-    "&apos;": "'"
-  },
 
   CONFIG_GROUP_NAME_MAX_LENGTH: 18,
 
@@ -48,36 +30,37 @@ App.config = Em.Object.create({
    */
   filenameExceptions: ['zoo.cfg'],
 
+  preDefinedServiceConfigs: [],
   /**
-   * Since values end up in XML files (core-sit.xml, etc.), certain
-   * XML sensitive characters should be escaped. If not we will have
-   * an invalid XML document, and services will fail to start.
    *
-   * Special characters in XML are defined at
-   * http://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references#Predefined_entities_in_XML
+   * Returns file name version that stored on server.
    *
-   * @method escapeXMLCharacters
-   * @param {*} value
-   * @param toXml {Boolean}
-   * @return {String}
-   */
-  escapeXMLCharacters: function (value, toXML) {
-    var self = this;
-    // To prevent double/triple replacing '&gt;' to '&amp;gt;' to '&amp;amp;gt;', we need
-    // to first unescape all XML chars, and then escape them again.
-    var newValue = String(value).replace(/(&amp;|&lt;|&gt;|&quot;|&apos;)/g, function (s) {
-      return self.xmlUnEscapeMap[s];
-    });
-    if (toXML) {
-      return String(newValue).replace(/[&<>"']/g, function (s) {
-        return self.xmlEscapeMap[s];
-      });
-    } else {
-      return newValue;
-    }
+   * Example:
+   *   App.config.getOriginalFileName('core-site') // returns core-site.xml
+   *   App.config.getOriginalFileName('zoo.cfg') // returns zoo.cfg
+   *
+   * @param {String} fileName
+   * @method getOriginalFileName
+   **/
+  getOriginalFileName: function (fileName) {
+    if (/\.xml$/.test(fileName)) return fileName;
+    return this.get('filenameExceptions').contains(fileName) ? fileName : fileName + '.xml';
   },
 
-  preDefinedServiceConfigs: [],
+  /**
+   *
+   * Returns the configuration tagName from supplied filename
+   *
+   * Example:
+   *   App.config.getConfigTagFromFileName('core-site.xml') // returns core-site
+   *   App.config.getConfigTagFromFileName('zoo.cfg') // returns zoo.cfg
+   *
+   * @param {String} fileName
+   * @method getConfigTagFromFileName
+   **/
+  getConfigTagFromFileName: function (fileName) {
+    return fileName.endsWith('.xml') ? fileName.slice(0, -4) : fileName;
+  },
 
   setPreDefinedServiceConfigs: function () {
     var configs = this.get('preDefinedSiteProperties');
@@ -85,11 +68,11 @@ App.config = Em.Object.create({
     var nonServiceTab = require('data/service_configs');
     var stackServices = App.StackService.find().filterProperty('id');
     // Only include services that has configTypes related to them for service configuration page
-    // Also Remove HCatalog from this list. HCatalog has and hive-site related to it but none of them should be exposed under HCatalog Service
+    // Also Remove HCatalog from this list. HCatalog has hive-site affiliated to it but none of the properties of it should be exposed under HCatalog Service
     // HCatalog should be eventually made a part of Hive Service. See AMBARI-6302 description for further details
     var servicesWithConfigTypes = stackServices.filter(function (service) {
       var configtypes = service.get('configTypes');
-      return configtypes && !!Object.keys(configtypes).length && service.get('serviceName') != 'HCATALOG';
+      return configtypes && !!Object.keys(configtypes).length;
     }, this);
 
     var allTabs = servicesWithConfigTypes.concat(nonServiceTab);
@@ -109,11 +92,18 @@ App.config = Em.Object.create({
   }.property('App.isHadoop2Stack'),
 
   preDefinedSiteProperties: function () {
-    if (App.get('isHadoop2Stack')) {
+    var sitePropertiesForCurrentStack = this.preDefinedConfigFile('site_properties');
+    if (sitePropertiesForCurrentStack) {
+      return sitePropertiesForCurrentStack.configProperties;
+    }
+
+    if (App.get('isHadoop22Stack')) {
+      return require('data/HDP2.2/site_properties').configProperties;
+    } else if (App.get('isHadoop2Stack')) {
       return require('data/HDP2/site_properties').configProperties;
     }
     return require('data/site_properties').configProperties;
-  }.property('App.isHadoop2Stack'),
+  }.property('App.isHadoop2Stack', 'App.isHadoop22Stack', 'App.currentStackName'),
 
   preDefinedCustomConfigs: function () {
     if (App.get('isHadoop2Stack')) {
@@ -122,6 +112,13 @@ App.config = Em.Object.create({
     return require('data/custom_configs');
   }.property('App.isHadoop2Stack'),
 
+  preDefinedConfigFile: function(file) {
+    try {
+      return require('data/{0}/{1}'.format(App.get('currentStackName'), file));
+    } catch(err) {
+      // the file doesn't exist, which might be expected.
+    }
+  },
   //categories which contain custom configs
   categoriesWithCustom: ['CapacityScheduler'],
 
@@ -130,34 +127,37 @@ App.config = Em.Object.create({
    * Create array of service properties for Log4j files
    * @returns {Array}
    */
-  createLog4jContent: function () {
+  createContentProperties: function (configs) {
     var services = App.StackService.find();
     var contentProperties = [];
-    services.forEach(function (service) {
-      if (service.get('configTypes')) {
-        Object.keys(service.get('configTypes')).forEach(function (type) {
-          if (type.endsWith('-log4j')) {
-            var property = {
-              "id": "site property",
-              "name": "content",
-              "displayName": "content",
-              "value": "",
-              "defaultValue": "",
-              "description": "log4j properties",
-              "displayType": "content",
-              "isOverridable": true,
-              "isRequired": false,
-              "isVisible": true,
-              "showLabel": false,
-              "serviceName": service.get('serviceName'),
-              "filename": type + '.xml',
-              "category": "Advanced " + type
-            };
-            contentProperties.pushObject(property);
-          }
-        }, this);
-      }
-    }, this);
+    if (configs) {
+      services.forEach(function (service) {
+        if (service.get('configTypes')) {
+          Object.keys(service.get('configTypes')).forEach(function (type) {
+            var contentProperty = configs.filterProperty('filename', type + '.xml').someProperty('name', 'content');
+            if (contentProperty && (type.endsWith('-log4j') || type.endsWith('-env'))) {
+              var property = {
+                "id": "site property",
+                "name": "content",
+                "displayName": type.endsWith('-env') ? type + ' template' : "content",
+                "value": "",
+                "defaultValue": "",
+                "description": type + " properties",
+                "displayType": "content",
+                "isOverridable": true,
+                "isRequired": false,
+                "isVisible": true,
+                "showLabel": type.endsWith('-env'),
+                "serviceName": service.get('serviceName'),
+                "filename": type + '.xml',
+                "category": "Advanced " + type
+              };
+              contentProperties.pushObject(property);
+            }
+          }, this);
+        }
+      }, this);
+    }
     return contentProperties;
   },
 
@@ -175,7 +175,7 @@ App.config = Em.Object.create({
 
   /**
    * Function should be used post-install as precondition check should not be done only after installer wizard
-   * @param siteNames {string|array}
+   * @param siteNames {String|Array}
    * @returns {Array}
    */
   getBySitename: function (siteNames) {
@@ -203,18 +203,34 @@ App.config = Em.Object.create({
    */
   loadedConfigurationsCache: {},
 
+  /**
+   * identify category by filename of config
+   * @param config
+   * @return {object|null}
+   */
   identifyCategory: function (config) {
-    if(config.filename.indexOf("env")!=-1) return;
-    var category = null;
-    var serviceConfigMetaData = this.get('preDefinedServiceConfigs').findProperty('serviceName', config.serviceName);
-    if (serviceConfigMetaData) {
-      var configCategories = serviceConfigMetaData.get('configCategories');
+    var category = null,
+      categoryName = "",
+      serviceConfigMetaData = this.get('preDefinedServiceConfigs').findProperty('serviceName', config.serviceName),
+      configCategories = (serviceConfigMetaData && serviceConfigMetaData.get('configCategories')) || [];
+
+    if (config.filename.contains("env")) {
+      if (config.category) {
+        category = configCategories.findProperty("name", config.category);
+      } else {
+        configCategories.forEach(function (_category) {
+          if (_category.name.contains(this.getConfigTagFromFileName(config.filename))) {
+            category = _category;
+          }
+        }, this);
+      }
+    } else {
       configCategories.forEach(function (_category) {
         if (_category.siteFileNames && Array.isArray(_category.siteFileNames) && _category.siteFileNames.contains(config.filename)) {
           category = _category;
         }
       });
-      category = (category == null) ? configCategories.findProperty('siteFileName', config.filename) : category;
+      category = Em.isNone(category) ? configCategories.findProperty('siteFileName', this.getOriginalFileName(config.filename)) : category;
     }
     return category;
   },
@@ -248,18 +264,19 @@ App.config = Em.Object.create({
       }
     } else {
       var advancedProperty = null;
+      var configType = this.getConfigTagFromFileName(config.filename);
       if (isAdvanced) {
-        advancedProperty = advancedConfigs.findProperty('name', config.name);
+        advancedProperty = advancedConfigs.filterProperty('filename', config.filename).findProperty('name', config.name);
       }
-
-      config.category = config.category ? config.category : 'Advanced';
-      config.description = isAdvanced && advancedProperty.description;
+      config.category = config.category ? config.category : 'Advanced ' + configType;
+      if (advancedProperty) {
+        config.description = advancedProperty.description;
+      }
     }
   },
 
   capacitySchedulerFilter: function () {
     var yarnRegex = /^yarn\.scheduler\.capacity\.root\.([a-z]([\_\-a-z0-9]{0,50}))\.(acl_administer_jobs|acl_submit_jobs|state|user-limit-factor|maximum-capacity|capacity)$/i;
-    var self = this;
     if (App.get('isHadoop2Stack')) {
       return function (_config) {
         return (yarnRegex.test(_config.name));
@@ -284,8 +301,8 @@ App.config = Em.Object.create({
    */
   mergePreDefinedWithLoaded: function (configGroups, advancedConfigs, tags, serviceName) {
     var configs = [];
-    var log4jContentProperties = this.createLog4jContent();
-    var preDefinedConfigs = this.get('preDefinedSiteProperties').concat(log4jContentProperties);
+    var contentProperties = this.createContentProperties(advancedConfigs);
+    var preDefinedConfigs = this.get('preDefinedSiteProperties').concat(contentProperties);
     var mappingConfigs = [];
     var filenameExceptions = this.get('filenameExceptions');
     var selectedServiceNames = App.Service.find().mapProperty('serviceName');
@@ -302,13 +319,13 @@ App.config = Em.Object.create({
       var properties = siteConfig.properties || {};
       for (var index in properties) {
         var configsPropertyDef = preDefinedConfigs.filterProperty('name', index).findProperty('filename', filename);
-          if (!configsPropertyDef) {
-            preDefinedConfigs.filterProperty('name', index).forEach(function (_preDefinedConfig) {
-              var isServiceInstalled = selectedServiceNames.contains(_preDefinedConfig.serviceName);
-              if (isServiceInstalled || _preDefinedConfig.serviceName === 'MISC') {
-                configsPropertyDef = _preDefinedConfig;
-              }
-            }, this);
+        if (!configsPropertyDef) {
+          preDefinedConfigs.filterProperty('name', index).forEach(function (_preDefinedConfig) {
+            var isServiceInstalled = selectedServiceNames.contains(_preDefinedConfig.serviceName);
+            if (isServiceInstalled || _preDefinedConfig.serviceName === 'MISC') {
+              configsPropertyDef = _preDefinedConfig;
+            }
+          }, this);
         }
 
         var serviceConfigObj = App.ServiceConfig.create({
@@ -318,8 +335,10 @@ App.config = Em.Object.create({
           filename: filename,
           isUserProperty: false,
           isOverridable: true,
-          isRequired: true,
+          isReconfigurable: true,
+          isRequired: advancedConfigs.someProperty('name', index),
           isFinal: finalAttributes[index] === "true",
+          defaultIsFinal: finalAttributes[index] === "true",
           showLabel: true,
           serviceName: serviceName,
           belongsToService: []
@@ -327,10 +346,17 @@ App.config = Em.Object.create({
 
         if (configsPropertyDef) {
           this.setServiceConfigUiAttributes(serviceConfigObj, configsPropertyDef);
+          // check if defined UI config present in config list obtained from server.
+          // in case when config is absent on server and defined UI config is required
+          // by server, this config should be ignored
+          var serverProperty = properties[serviceConfigObj.get('name')];
+          if (Em.isNone(serverProperty) && serviceConfigObj.get('isRequiredByAgent')) {
+            continue;
+          }
         }
 
         if (!this.getBySitename(serviceConfigObj.get('filename')).someProperty('name', index)) {
-          isAdvanced = advancedConfigs.someProperty('name', index);
+          isAdvanced = advancedConfigs.filterProperty('name', index).someProperty('filename', filename);
           serviceConfigObj.id = 'site property';
           if (configsPropertyDef) {
             if (configsPropertyDef.isRequiredByAgent === false) {
@@ -338,7 +364,6 @@ App.config = Em.Object.create({
             }
             this.handleSpecialProperties(serviceConfigObj);
           } else {
-            serviceConfigObj.isVisible = false;  // if the property is not defined on ui metadata site_properties.js then it shouldn't be a part of errorCount
             serviceConfigObj.displayType = stringUtils.isSingleLine(serviceConfigObj.value) ? 'advanced' : 'multiLine';
           }
 
@@ -348,7 +373,7 @@ App.config = Em.Object.create({
 
           if (serviceConfigObj.get('displayType') == 'directories'
             && (serviceConfigObj.get('category') == 'DataNode'
-            || serviceConfigObj.get('category') == 'NameNode')) {
+              || serviceConfigObj.get('category') == 'NameNode')) {
             var dirs = serviceConfigObj.get('value').split(',').sort();
             serviceConfigObj.set('value', dirs.join(','));
             serviceConfigObj.set('defaultValue', dirs.join(','));
@@ -412,8 +437,8 @@ App.config = Em.Object.create({
       siteStart = [];
 
     var preDefinedSiteProperties = this.get('preDefinedSiteProperties').mapProperty('name');
-    var log4jContentProperties = this.createLog4jContent().mapProperty('name');
-    var siteProperties = preDefinedSiteProperties.concat(log4jContentProperties);
+    var contentProperties = this.createContentProperties(siteConfigs).mapProperty('name');
+    var siteProperties = preDefinedSiteProperties.concat(contentProperties);
     siteProperties.forEach(function (name) {
       var _site = siteConfigs.filterProperty('name', name);
       if (_site.length == 1) {
@@ -438,12 +463,12 @@ App.config = Em.Object.create({
    * @param storedConfigs
    * @param advancedConfigs
    * @param selectedServiceNames
-   * @return {array}
+   * @return {Array}
    */
   mergePreDefinedWithStored: function (storedConfigs, advancedConfigs, selectedServiceNames) {
     var mergedConfigs = [];
-    var log4jContentProperties = this.createLog4jContent();
-    var preDefinedConfigs = this.get('preDefinedSiteProperties').concat(log4jContentProperties);
+    var contentProperties = advancedConfigs ? this.createContentProperties(advancedConfigs) : [];
+    var preDefinedConfigs = this.get('preDefinedSiteProperties').concat(contentProperties);
 
     storedConfigs = (storedConfigs) ? storedConfigs : [];
 
@@ -461,7 +486,7 @@ App.config = Em.Object.create({
       }, this);
 
       var configData = {};
-      var isAdvanced = advancedConfigs.someProperty('name', name);
+      var isAdvanced = advancedConfigs && advancedConfigs.someProperty('name', name);
       if (storedCfgs.length <= 1 && preDefinedCfgs.length <= 1) {
         var stored = storedCfgs[0];
         var preDefined = preDefinedCfgs[0];
@@ -474,9 +499,11 @@ App.config = Em.Object.create({
           configData.filename = stored.filename;
           configData.description = stored.description;
           configData.isVisible = stored.isVisible;
+          configData.isFinal = stored.isFinal;
+          configData.supportsFinal = stored.supportsFinal;
           configData.isRequired = (configData.isRequired !== undefined) ? configData.isRequired : true;
           configData.isRequiredByAgent = (configData.isRequiredByAgent !== undefined) ? configData.isRequiredByAgent : true;
-          configData.showLabel = stored.showLabel !== false;
+          configData.showLabel = !!stored.showLabel;
         }
         else if (!preDefined && stored) {
           configData = this.addUserProperty(stored, isAdvanced, advancedConfigs);
@@ -507,7 +534,9 @@ App.config = Em.Object.create({
             configData.overrides = storedCfg.overrides;
             configData.filename = storedCfg.filename;
             configData.description = storedCfg.description;
-            configData.description = storedCfg.showLabel !== false;
+            configData.isFinal = storedCfg.isFinal;
+            configData.supportsFinal = storedCfg.supportsFinal;
+            configData.showLabel = !!storedCfg.showLabel;
           } else if (isAdvanced) {
             advanced = advancedConfigs.filterProperty('filename', configData.filename).findProperty('name', configData.name);
             this.setPropertyFromStack(configData, advanced);
@@ -533,6 +562,8 @@ App.config = Em.Object.create({
     configData.defaultValue = configData.value;
     configData.filename = advanced ? advanced.filename : configData.filename;
     configData.description = advanced ? advanced.description : configData.description;
+    configData.isFinal = !!(advanced && (advanced.isFinal === "true"));
+    configData.supportsFinal = !!(advanced && advanced.supportsFinal);
   },
 
 
@@ -544,36 +575,50 @@ App.config = Em.Object.create({
    * @param serviceName
    */
   addAdvancedConfigs: function (serviceConfigs, advancedConfigs, serviceName) {
-    var configsToVerifying = (serviceName) ? serviceConfigs.filterProperty('serviceName', serviceName) : serviceConfigs.slice();
-    advancedConfigs.forEach(function (_config) {
-      var configCategory = 'Advanced';
-      var categoryMetaData = null;
-      if (_config) {
-        if (this.get('configMapping').computed().someProperty('name', _config.name)) {
-        } else if (!(configsToVerifying.someProperty('name', _config.name))) {
-          if (this.get('customFileNames').contains(_config.filename)) {
-            categoryMetaData = this.identifyCategory(_config);
-            if (categoryMetaData != null) {
-              configCategory = categoryMetaData.get('name');
-            }
-          }
-          _config.id = "site property";
-          _config.category = configCategory;
-          _config.displayName = _config.name;
-          _config.defaultValue = _config.value;
-          // make all advanced configs optional and populated by default
-          /*
-           * if (/\${.*}/.test(_config.value) || (service.serviceName !==
-           * 'OOZIE' && service.serviceName !== 'HBASE')) { _config.isRequired =
-           * false; _config.value = ''; } else if
-           * (/^\s+$/.test(_config.value)) { _config.isRequired = false; }
-           */
-          _config.isRequired = true;
-          _config.displayType = stringUtils.isSingleLine(_config.value) ? 'advanced' : 'multiLine';
-          serviceConfigs.push(_config);
-        }
+    var miscConfigs = serviceConfigs.filterProperty('serviceName', 'MISC');
+    var configsToVerifying = (serviceName) ? serviceConfigs.filterProperty('serviceName', serviceName).concat(miscConfigs) : serviceConfigs.slice();
+    var definedService = this.get('preDefinedServiceConfigs').findProperty('serviceName', serviceName);
+    if (definedService) {
+      var definedConfigs = (serviceName) ? definedService.get('configs') : [];
+
+      if (definedConfigs.length) {
+        advancedConfigs = advancedConfigs.filter(function(property) {
+          return !(definedConfigs.someProperty('name', property.name) && !serviceConfigs.someProperty('name', property.name));
+        }, this);
       }
-    }, this);
+    }
+    if (advancedConfigs) {
+      advancedConfigs.forEach(function (_config) {
+        var configType = this.getConfigTagFromFileName(_config.filename);
+        var configCategory = 'Advanced ' + configType;
+        var categoryMetaData = null;
+        if (_config) {
+          if (this.get('configMapping').computed().someProperty('name', _config.name)) {
+          } else if (!(configsToVerifying.someProperty('name', _config.name))) {
+            if (this.get('customFileNames').contains(_config.filename)) {
+              categoryMetaData = this.identifyCategory(_config);
+              if (categoryMetaData != null) {
+                configCategory = categoryMetaData.get('name');
+              }
+            }
+            _config.id = "site property";
+            _config.category = configCategory;
+            _config.displayName = _config.name;
+            _config.defaultValue = _config.value;
+            // make all advanced configs optional and populated by default
+            /*
+             * if (/\${.*}/.test(_config.value) || (service.serviceName !==
+             * 'OOZIE' && service.serviceName !== 'HBASE')) { _config.isRequired =
+             * false; _config.value = ''; } else if
+             * (/^\s+$/.test(_config.value)) { _config.isRequired = false; }
+             */
+            _config.isRequired = true;
+            _config.displayType = _config.displayType ? _config.displayType : stringUtils.isSingleLine(_config.value) ? 'advanced' : 'multiLine';
+            serviceConfigs.push(_config);
+          }
+        }
+      }, this);
+    }
   },
   /**
    * Render a custom conf-site box for entering properties that will be written in *-site.xml files of the services
@@ -593,7 +638,7 @@ App.config = Em.Object.create({
 
   miscConfigVisibleProperty: function (configs, serviceToShow) {
     configs.forEach(function (item) {
-      if(item.get('isVisible')) {
+      if (item.get('isVisible') && item.belongsToService && item.belongsToService.length) {
         item.set("isVisible", item.belongsToService.some(function (cur) {
           return serviceToShow.contains(cur)
         }));
@@ -612,7 +657,7 @@ App.config = Em.Object.create({
    * @param localDB
    * @return {Array}
    */
-  renderConfigs: function (configs, storedConfigs, allSelectedServiceNames, installedServiceNames, localDB) {
+  renderConfigs: function (configs, storedConfigs, allSelectedServiceNames, installedServiceNames, localDB, recommended) {
     var renderedServiceConfigs = [];
     var services = [];
 
@@ -652,31 +697,51 @@ App.config = Em.Object.create({
 
       // Use calculated default values for some configs
       var recommendedDefaults = {};
-      if (!storedConfigs && service.get('defaultsProviders')) {
-        service.get('defaultsProviders').forEach(function (defaultsProvider) {
-          var defaults = defaultsProvider.getDefaults(localDB);
-          for (var name in defaults) {
-            var config = configsByService.findProperty('name', name);
-            if (!config) {
-              continue;
+      if (App.get('supports.serverRecommendValidate')) {
+        if (!storedConfigs && service.get('configTypes')) {
+          Object.keys(service.get('configTypes')).forEach(function (type) {
+            if (!recommended || !recommended[type]) {
+              return;
             }
-            if (!!defaults[name]) {
+            var defaults = recommended[type].properties;
+            for (var name in defaults) {
+              var config = configsByService.findProperty('name', name);
+              if (!config) {
+                continue;
+              }
               recommendedDefaults[name] = defaults[name];
               config.set('value', defaults[name]);
               config.set('defaultValue', defaults[name]);
-            } else {
-              recommendedDefaults[name] = config.get('defaultValue');
             }
-          }
-        });
-      }
-      if (service.get('configsValidator')) {
-        service.get('configsValidator').set('recommendedDefaults', recommendedDefaults);
-        var validators = service.get('configsValidator').get('configValidators');
-        for (var validatorName in validators) {
-          var c = configsByService.findProperty('name', validatorName);
-          if (c) {
-            c.set('serviceValidator', service.get('configsValidator'));
+          });
+        }
+      } else {
+        if (!storedConfigs && service.get('defaultsProviders')) {
+          service.get('defaultsProviders').forEach(function (defaultsProvider) {
+            var defaults = defaultsProvider.getDefaults(localDB);
+            for (var name in defaults) {
+              var config = configsByService.findProperty('name', name);
+              if (!config) {
+                continue;
+              }
+              if (!!defaults[name]) {
+                recommendedDefaults[name] = defaults[name];
+                config.set('value', defaults[name]);
+                config.set('defaultValue', defaults[name]);
+              } else {
+                recommendedDefaults[name] = config.get('defaultValue');
+              }
+            }
+          });
+        }
+        if (service.get('configsValidator')) {
+          service.get('configsValidator').set('recommendedDefaults', recommendedDefaults);
+          var validators = service.get('configsValidator').get('configValidators');
+          for (var validatorName in validators) {
+            var c = configsByService.findProperty('name', validatorName);
+            if (c) {
+              c.set('serviceValidator', service.get('configsValidator'));
+            }
           }
         }
       }
@@ -777,6 +842,53 @@ App.config = Em.Object.create({
   },
 
   /**
+   * Fetch cluster configs from server
+   *
+   * @param callback
+   * @return {object|null}
+   */
+  loadClusterConfig: function (callback) {
+    return App.ajax.send({
+      name: 'config.cluster',
+      sender: this,
+      data: {
+        stackVersionUrl: App.get('stackVersionURL'),
+        callback: callback
+      },
+      success: 'loadClusterConfigSuccess',
+      error: 'loadClusterConfigError'
+    });
+  },
+
+  loadClusterConfigSuccess: function (data, opt, params) {
+    console.log("TRACE: In success function for the loadClusterConfigSuccess; url is ", opt.url);
+    var properties = [];
+    if (data.items.length) {
+      data.items.forEach(function (item) {
+        item = item.StackLevelConfigurations;
+        item.isVisible = true;
+        var serviceName = 'Cluster';
+        properties.push({
+          serviceName: serviceName,
+          name: item.property_name,
+          value: item.property_value,
+          description: item.property_description,
+          isVisible: item.isVisible,
+          isFinal: item.final === "true",
+          defaultIsFinal: item.final === "true",
+          filename: item.filename || item.type
+        });
+      }, this);
+    }
+    params.callback(properties);
+  },
+
+  loadClusterConfigError: function (request, ajaxOptions, error, opt) {
+    console.log('ERROR: Failed to load cluster-env configs');
+  },
+
+
+  /**
    * Generate serviceProperties save it to localDB
    * called form stepController step6WizardController
    *
@@ -816,15 +928,20 @@ App.config = Em.Object.create({
          */
         if ((fileName !== 'mapred-queue-acls.xml' || App.supports.capacitySchedulerUi) &&
           (fileName !== 'capacity-scheduler.xml' || isHDP2 || App.supports.capacitySchedulerUi)) {
-          properties.push({
+          var property = {
             serviceName: serviceName,
             name: item.property_name,
             value: item.property_value,
             description: item.property_description,
             isVisible: item.isVisible,
             isFinal: item.final === "true",
+            defaultIsFinal: item.final === "true",
             filename: item.filename || fileName
-          });
+          };
+          if (item.property_type.contains('PASSWORD')) {
+            property.displayType = "password";
+          }
+          properties.push(property);
         }
       }, this);
     }
@@ -837,13 +954,41 @@ App.config = Em.Object.create({
   },
 
   /**
+   * Get config types and config type attributes from stack service
+   *
+   * @param service
+   * @return {object}
+   */
+  getConfigTypesInfoFromService: function (service) {
+    var configTypes = service.get('configTypes');
+    var configTypesInfo = {
+      items: [],
+      supportsFinal: []
+    };
+    if (configTypes) {
+      for (var key in configTypes) {
+        if (configTypes.hasOwnProperty(key)) {
+          configTypesInfo.items.push(key);
+          if (configTypes[key].supports && configTypes[key].supports.final === "true") {
+            configTypesInfo.supportsFinal.push(key);
+          }
+        }
+      }
+    }
+    return configTypesInfo;
+  },
+
+  /**
    * Get properties from server by type and tag with properties, that belong to group
    * push them to common {serviceConfigs} and call callback function
    */
   loadServiceConfigGroupOverrides: function (serviceConfigs, loadedGroupToOverrideSiteToTagMap, configGroups, callback, sender) {
     var configKeyToConfigMap = {};
     serviceConfigs.forEach(function (item) {
-      configKeyToConfigMap[item.name] = item;
+      if (!configKeyToConfigMap[item.filename]) {
+        configKeyToConfigMap[item.filename] = {};
+      }
+      configKeyToConfigMap[item.filename][item.name] = item;
     });
     var typeTagToGroupMap = {};
     var urlParams = [];
@@ -880,37 +1025,72 @@ App.config = Em.Object.create({
       var group = params.typeTagToGroupMap[config.type + "///" + config.tag];
       var properties = config.properties;
       for (var prop in properties) {
-        var serviceConfig = params.configKeyToConfigMap[prop];
-        var hostOverrideValue = properties[prop];
-        if (serviceConfig && serviceConfig.displayType === 'int') {
-          if (/\d+m$/.test(hostOverrideValue)) {
-            hostOverrideValue = hostOverrideValue.slice(0, hostOverrideValue.length - 1);
-          }
-        } else if (serviceConfig && serviceConfig.displayType === 'checkbox') {
-          switch (hostOverrideValue) {
-            case 'true':
-              hostOverrideValue = true;
-              break;
-            case 'false':
-              hostOverrideValue = false;
-              break;
-          }
-        }
+        var fileName = this.getOriginalFileName(config.type);
+        var serviceConfig = !!params.configKeyToConfigMap[fileName] ? params.configKeyToConfigMap[fileName][prop] : false;
+        var hostOverrideValue = this.formatOverrideValue(serviceConfig, properties[prop]);
+        var hostOverrideIsFinal = !!(config.properties_attributes && config.properties_attributes.final && config.properties_attributes.final[prop]);
         if (serviceConfig) {
           // Value of this property is different for this host.
-          var overrides = 'overrides';
-          if (!(overrides in serviceConfig)) {
-            serviceConfig.overrides = [];
-          }
-          if (!serviceConfig.overrides) {
-            serviceConfig.set('overrides', []);
-          }
+          if (!Em.get(serviceConfig, 'overrides')) Em.set(serviceConfig, 'overrides', []);
           console.log("loadServiceConfigGroupOverridesSuccess(): [" + group + "] OVERRODE(" + serviceConfig.name + "): " + serviceConfig.value + " -> " + hostOverrideValue);
-          serviceConfig.overrides.push({value: hostOverrideValue, group: group});
+          serviceConfig.overrides.pushObject({value: hostOverrideValue, group: group, isFinal: hostOverrideIsFinal});
+        } else {
+          params.serviceConfigs.push(this.createCustomGroupConfig(prop, config, group));
         }
       }
-    });
+    }, this);
     params.callback.call(params.sender, params.serviceConfigs);
+  },
+  /**
+   * Create config with non default config group. Some custom config properties
+   * can be created and assigned to non-default config group.
+   *
+   * @param {String} propertyName - name of the property
+   * @param {Object} config - config info
+   * @param {Em.Object} group - config group to set
+   * @return {Object}
+   **/
+  createCustomGroupConfig: function (propertyName, config, group) {
+    var propertyValue = config.properties[propertyName];
+    var propertyObject = {
+      name: propertyName,
+      displayName: propertyName,
+      defaultValue: propertyValue,
+      value: propertyValue,
+      displayType: stringUtils.isSingleLine(propertyValue) ? 'advanced' : 'multiLine',
+      isSecureConfig: false,
+      group: group,
+      id: 'site property',
+      serviceName: group.get('service.serviceName'),
+      filename: this.getOriginalFileName(config.type),
+      isUserProperty: true,
+      isVisible: true,
+      isOverridable: false
+    };
+    propertyObject.category = this.identifyCategory(propertyObject).name;
+    group.set('switchGroupTextShort', Em.I18n.t('services.service.config_groups.switchGroupTextShort').format(group.get('name')));
+    group.set('switchGroupTextFull', Em.I18n.t('services.service.config_groups.switchGroupTextFull').format(group.get('name')));
+    return App.ServiceConfigProperty.create(propertyObject);
+  },
+  /**
+   * format value of override of config
+   * @param serviceConfig
+   * @param hostOverrideValue
+   */
+  formatOverrideValue: function (serviceConfig, hostOverrideValue) {
+    if (serviceConfig && serviceConfig.displayType === 'int') {
+      if (/\d+m$/.test(hostOverrideValue)) {
+        return hostOverrideValue.slice(0, hostOverrideValue.length - 1);
+      }
+    } else if (serviceConfig && serviceConfig.displayType === 'checkbox') {
+      switch (hostOverrideValue) {
+        case 'true':
+          return true;
+        case 'false':
+          return false;
+      }
+    }
+    return hostOverrideValue;
   },
 
   /**
@@ -1003,12 +1183,15 @@ App.config = Em.Object.create({
       defaultValue: stored.defaultValue,
       displayType: stringUtils.isSingleLine(stored.value) ? 'advanced' : 'multiLine',
       filename: stored.filename,
-      category: 'Advanced',
       isUserProperty: stored.isUserProperty === true,
+      hasInitialValue: !!stored.hasInitialValue,
       isOverridable: true,
       overrides: stored.overrides,
       isRequired: true,
       isVisible: stored.isVisible,
+      isFinal: stored.isFinal,
+      defaultIsFinal: stored.defaultIsFinal,
+      supportsFinal: stored.supportsFinal,
       showLabel: stored.showLabel !== false
     };
 
@@ -1028,6 +1211,8 @@ App.config = Em.Object.create({
       "isOverridable": true,
       "isRequired": true,
       "isVisible": true,
+      "isReconfigurable": true,
+      "supportsFinal": false,
       "serviceName": "YARN",
       "filename": "capacity-scheduler.xml",
       "category": "CapacityScheduler"
@@ -1052,8 +1237,11 @@ App.config = Em.Object.create({
         value += _config.name + '=' + _config.value + '\n';
         defaultValue += _config.name + '=' + _config.defaultValue + '\n';
       }, this);
+      var isFinal = fileConfigs.someProperty('isFinal', true);
       complexConfig.value = value;
       complexConfig.defaultValue = defaultValue;
+      complexConfig.isFinal = isFinal;
+      complexConfig.defaultIsFinal = isFinal;
       configs = configs.filter(function (_config) {
         return _config.filename !== filename;
       });
@@ -1087,7 +1275,10 @@ App.config = Em.Object.create({
             value: value,
             defaultValue: value,
             serviceName: configsTextarea.get('serviceName'),
-            filename: filename
+            filename: filename,
+            isFinal: configsTextarea.get('isFinal'),
+            isNotDefaultValue: configsTextarea.get('isNotDefaultValue'),
+            group: null
           }));
         }
       });

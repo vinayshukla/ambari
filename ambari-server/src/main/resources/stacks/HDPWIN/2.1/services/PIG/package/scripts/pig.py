@@ -47,4 +47,3 @@ def pig_TemplateConfig(name):
     TemplateConfig( format("{pig_conf_dir}/{x}"),
         owner = params.hdfs_user
     )
-

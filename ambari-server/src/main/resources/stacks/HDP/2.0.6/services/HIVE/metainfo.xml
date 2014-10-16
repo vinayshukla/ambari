@@ -20,14 +20,17 @@
   <services>
     <service>
       <name>HIVE</name>
+      <displayName>Hive</displayName>
       <comment>Data warehouse system for ad-hoc queries &amp; analysis of large datasets and table &amp; storage management service</comment>
       <version>0.12.0.2.0</version>
       <components>
 
         <component>
           <name>HIVE_METASTORE</name>
+          <displayName>Hive Metastore</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
+          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <auto-deploy>
             <enabled>true</enabled>
             <co-locate>HIVE/HIVE_SERVER</co-locate>
@@ -41,8 +44,10 @@
 
         <component>
           <name>HIVE_SERVER</name>
+          <displayName>HiveServer2</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
+          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <dependencies>
             <dependency>
               <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
@@ -50,13 +55,6 @@
               <auto-deploy>
                 <enabled>true</enabled>
                 <co-locate>HIVE/HIVE_SERVER</co-locate>
-              </auto-deploy>
-            </dependency>
-            <dependency>
-              <name>TEZ/TEZ_CLIENT</name>
-              <scope>host</scope>
-              <auto-deploy>
-                <enabled>true</enabled>
               </auto-deploy>
             </dependency>
             <dependency>
@@ -79,11 +77,64 @@
             <scriptType>PYTHON</scriptType>
           </commandScript>
         </component>
-
         <component>
-          <name>MYSQL_SERVER</name>
+          <name>WEBHCAT_SERVER</name>
+          <displayName>WebHCat Server</displayName>
           <category>MASTER</category>
           <cardinality>1</cardinality>
+          <clientsToUpdateConfigs>
+            <client>HCAT</client>
+          </clientsToUpdateConfigs>
+          <dependencies>
+            <dependency>
+              <name>HDFS/HDFS_CLIENT</name>
+              <scope>host</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+              </auto-deploy>
+            </dependency>
+            <dependency>
+              <name>MAPREDUCE2/MAPREDUCE2_CLIENT</name>
+              <scope>host</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+              </auto-deploy>
+            </dependency>
+            <dependency>
+              <name>ZOOKEEPER/ZOOKEEPER_SERVER</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+                <co-locate>HIVE/WEBHCAT_SERVER</co-locate>
+              </auto-deploy>
+            </dependency>
+            <dependency>
+              <name>ZOOKEEPER/ZOOKEEPER_CLIENT</name>
+              <scope>host</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+              </auto-deploy>
+            </dependency>
+            <dependency>
+              <name>YARN/YARN_CLIENT</name>
+              <scope>host</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+              </auto-deploy>
+            </dependency>
+          </dependencies>
+          <commandScript>
+            <script>scripts/webhcat_server.py</script>
+            <scriptType>PYTHON</scriptType>
+            <timeout>600</timeout>
+          </commandScript>
+        </component>
+        <component>
+          <name>MYSQL_SERVER</name>
+          <displayName>MySQL Server</displayName>
+          <category>MASTER</category>
+          <cardinality>0-1</cardinality>
+          <clientsToUpdateConfigs></clientsToUpdateConfigs>
           <commandScript>
             <script>scripts/mysql_server.py</script>
             <scriptType>PYTHON</scriptType>
@@ -92,12 +143,51 @@
 
         <component>
           <name>HIVE_CLIENT</name>
+          <displayName>Hive Client</displayName>
           <category>CLIENT</category>
-          <cardinality>0+</cardinality>
+          <cardinality>1+</cardinality>
           <commandScript>
             <script>scripts/hive_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
+          <configFiles>
+            <configFile>
+              <type>xml</type>
+              <fileName>hive-site.xml</fileName>
+              <dictionaryName>hive-site</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>hive-env.sh</fileName>
+              <dictionaryName>hive-env</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>hive-log4j.properties</fileName>
+              <dictionaryName>hive-log4j</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>hive-exec-log4j.properties</fileName>
+              <dictionaryName>hive-exec-log4j</dictionaryName>
+            </configFile>
+          </configFiles>
+        </component>
+        <component>
+          <name>HCAT</name>
+          <displayName>HCat Client</displayName>
+          <category>CLIENT</category>
+          <commandScript>
+            <script>scripts/hcat_client.py</script>
+            <scriptType>PYTHON</scriptType>
+          </commandScript>
+          <configFiles>
+            <configFile>
+              <type>env</type>
+              <fileName>hcat-env.sh</fileName>
+              <dictionaryName>hcat-env</dictionaryName>
+            </configFile>
+          </configFiles>
         </component>
       </components>
 
@@ -107,6 +197,15 @@
           <packages>
             <package>
               <name>hive</name>
+            </package>
+            <package>
+              <name>hcatalog</name>
+            </package>
+            <package>
+              <name>webhcat-tar-hive</name>
+            </package>
+            <package>
+              <name>webhcat-tar-pig</name>
             </package>
             <package>
               <name>mysql-connector-java</name>
@@ -122,7 +221,7 @@
           </packages>
         </osSpecific>
         <osSpecific>
-          <osFamily>redhat5,redhat6,debian12</osFamily>
+          <osFamily>redhat5,redhat6,ubuntu12</osFamily>
           <packages>
             <package>
               <name>mysql-server</name>
@@ -145,47 +244,20 @@
         <timeout>300</timeout>
       </commandScript>
 
+      <requiredServices>
+        <service>ZOOKEEPER</service>
+        <service>YARN</service>
+        <service>TEZ</service>
+      </requiredServices>
+
       <configuration-dependencies>
         <config-type>hive-site</config-type>
         <config-type>hive-log4j</config-type>
         <config-type>hive-exec-log4j</config-type>
-      </configuration-dependencies>
-    </service>
-
-    <service>
-      <name>HCATALOG</name>
-      <comment>This is comment for HCATALOG service</comment>
-      <version>0.12.0.2.0.6.0</version>
-      <components>
-        <component>
-          <name>HCAT</name>
-          <category>CLIENT</category>
-          <commandScript>
-            <script>scripts/hcat_client.py</script>
-            <scriptType>PYTHON</scriptType>
-          </commandScript>
-        </component>
-      </components>
-      <osSpecifics>
-        <osSpecific>
-          <osFamily>any</osFamily>
-          <packages>
-            <package>
-              <name>hcatalog</name>
-            </package>
-          </packages>
-        </osSpecific>
-      </osSpecifics>
-      <commandScript>
-        <script>scripts/service_check.py</script>
-        <scriptType>PYTHON</scriptType>
-        <timeout>300</timeout>
-      </commandScript>
-      <configuration-dependencies>
-        <config-type>hive-site</config-type>
         <config-type>hive-env</config-type>
+        <config-type>webhcat-site</config-type>
+        <config-type>webhcat-env</config-type>
       </configuration-dependencies>
     </service>
-
   </services>
 </metainfo>

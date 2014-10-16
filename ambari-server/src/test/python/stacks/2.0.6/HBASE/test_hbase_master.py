@@ -191,19 +191,22 @@ class TestHBaseMaster(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
+      configurations = self.getConfig()['configurations']['hbase-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
+      configurations = self.getConfig()['configurations']['hdfs-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
-                              configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
+                              configurations = self.getConfig()['configurations']['hdfs-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',
@@ -243,6 +246,7 @@ class TestHBaseMaster(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = "/usr/bin/kinit",
                               owner = 'hbase',
+                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/apps/hbase/staging',
@@ -253,6 +257,7 @@ class TestHBaseMaster(RMFTestCase):
                               kinit_path_local = "/usr/bin/kinit",
                               mode = 0711,
                               owner = 'hbase',
+                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', None,
@@ -261,6 +266,7 @@ class TestHBaseMaster(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               hdfs_user = 'hdfs',
                               kinit_path_local = "/usr/bin/kinit",
+                              bin_dir = '/usr/bin',
                               action = ['create'],
                               )
 
@@ -284,19 +290,22 @@ class TestHBaseMaster(RMFTestCase):
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hbase-site'], # don't hardcode all the properties
+      configurations = self.getConfig()['configurations']['hbase-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['hbase-site']
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hbase',
       group = 'hadoop',
       conf_dir = '/etc/hbase/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
+      configurations = self.getConfig()['configurations']['hdfs-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
     )
     self.assertResourceCalled('XmlConfig', 'hdfs-site.xml',
       owner = 'hdfs',
       group = 'hadoop',
       conf_dir = '/etc/hadoop/conf',
-      configurations = self.getConfig()['configurations']['hdfs-site'], # don't hardcode all the properties
+      configurations = self.getConfig()['configurations']['hdfs-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['hdfs-site']
     )
     self.assertResourceCalled('File', '/etc/hbase/conf/hbase-policy.xml',
       owner = 'hbase',
@@ -340,6 +349,7 @@ class TestHBaseMaster(RMFTestCase):
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
                               owner = 'hbase',
+                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', '/apps/hbase/staging',
@@ -350,6 +360,7 @@ class TestHBaseMaster(RMFTestCase):
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0711,
                               owner = 'hbase',
+                              bin_dir = '/usr/bin',
                               action = ['create_delayed'],
                               )
     self.assertResourceCalled('HdfsDirectory', None,
@@ -358,5 +369,6 @@ class TestHBaseMaster(RMFTestCase):
                               conf_dir = '/etc/hadoop/conf',
                               hdfs_user = 'hdfs',
                               kinit_path_local = '/usr/bin/kinit',
+                              bin_dir = '/usr/bin',
                               action = ['create'],
                               )

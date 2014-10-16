@@ -18,16 +18,20 @@
 
 package org.apache.ambari.server.orm.dao;
 
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.TypedQuery;
+
+import org.apache.ambari.server.orm.RequiresSession;
+import org.apache.ambari.server.orm.entities.ViewInstanceDataEntity;
+import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
+
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.persist.Transactional;
-import org.apache.ambari.server.orm.entities.ViewInstanceDataEntity;
-import org.apache.ambari.server.orm.entities.ViewInstanceEntity;
-
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import java.util.List;
 
 /**
  * View Instance Data Access Object.
@@ -58,6 +62,23 @@ public class ViewInstanceDAO {
   }
 
   /**
+   * Find a view instance by given resource id.
+   *
+   * @param resourceId resource id
+   * @return a matching view instance or null
+   */
+  @RequiresSession
+  public ViewInstanceEntity findByResourceId(long resourceId) {
+    TypedQuery<ViewInstanceEntity> query = entityManagerProvider.get().createNamedQuery("viewInstanceByResourceId", ViewInstanceEntity.class);
+    query.setParameter("resourceId", resourceId);
+    try {
+      return query.getSingleResult();
+    } catch (NoResultException ignored) {
+      return null;
+    }
+  }
+
+  /**
    * Find all view instances.
    *
    * @return all views or an empty List
@@ -73,42 +94,42 @@ public class ViewInstanceDAO {
    * Refresh the state of the instance from the database,
    * overwriting changes made to the entity, if any.
    *
-   * @param ViewInstanceEntity  entity to refresh
+   * @param viewInstanceEntity  entity to refresh
    */
   @Transactional
-  public void refresh(ViewInstanceEntity ViewInstanceEntity) {
-    entityManagerProvider.get().refresh(ViewInstanceEntity);
+  public void refresh(ViewInstanceEntity viewInstanceEntity) {
+    entityManagerProvider.get().refresh(viewInstanceEntity);
   }
 
   /**
    * Make an instance managed and persistent.
    *
-   * @param ViewInstanceEntity  entity to persist
+   * @param viewInstanceEntity  entity to persist
    */
   @Transactional
-  public void create(ViewInstanceEntity ViewInstanceEntity) {
-    entityManagerProvider.get().persist(ViewInstanceEntity);
+  public void create(ViewInstanceEntity viewInstanceEntity) {
+    entityManagerProvider.get().persist(viewInstanceEntity);
   }
 
   /**
    * Merge the state of the given entity into the current persistence context.
    *
-   * @param ViewInstanceEntity  entity to merge
+   * @param viewInstanceEntity  entity to merge
    * @return the merged entity
    */
   @Transactional
-  public ViewInstanceEntity merge(ViewInstanceEntity ViewInstanceEntity) {
-    return entityManagerProvider.get().merge(ViewInstanceEntity);
+  public ViewInstanceEntity merge(ViewInstanceEntity viewInstanceEntity) {
+    return entityManagerProvider.get().merge(viewInstanceEntity);
   }
 
   /**
    * Remove the entity instance.
    *
-   * @param ViewInstanceEntity  entity to remove
+   * @param viewInstanceEntity  entity to remove
    */
   @Transactional
-  public void remove(ViewInstanceEntity ViewInstanceEntity) {
-    entityManagerProvider.get().remove(merge(ViewInstanceEntity));
+  public void remove(ViewInstanceEntity viewInstanceEntity) {
+    entityManagerProvider.get().remove(merge(viewInstanceEntity));
   }
 
   /**

@@ -52,7 +52,7 @@ limitations under the License.
   <property require-input="true">
     <name>javax.jdo.option.ConnectionPassword</name>
     <value> </value>
-    <type>PASSWORD</type>
+    <property-type>PASSWORD</property-type>
     <description>password to use against metastore database</description>
   </property>
 
@@ -67,20 +67,6 @@ limitations under the License.
     <value>false</value>
     <description>If true, the metastore thrift interface will be secured with SASL.
       Clients must authenticate with Kerberos.</description>
-  </property>
-
-  <property>
-    <name>hive.metastore.kerberos.keytab.file</name>
-    <value>/etc/security/keytabs/hive.service.keytab</value>
-    <description>The path to the Kerberos Keytab file containing the metastore
-      thrift server's service principal.</description>
-  </property>
-
-  <property>
-    <name>hive.metastore.kerberos.principal</name>
-    <value>hive/_HOST@EXAMPLE.COM</value>
-    <description>The service principal for the metastore thrift server. The special
-      string _HOST will be replaced automatically with the correct host name.</description>
   </property>
 
   <property>
@@ -127,6 +113,18 @@ limitations under the License.
       submitted the query. But if the parameter is set to false, the query will run as the user that the hiveserver2
       process runs as.
     </description>
+  </property>
+
+  <property>
+    <name>hive.server2.enable.impersonation</name>
+    <description>Enable user impersonation for HiveServer2</description>
+    <value>true</value>
+  </property>
+
+  <property>
+    <name>hive.server2.authentication</name>
+    <description>Authentication mode, default NONE. Options are NONE, NOSASL, KERBEROS, LDAP, PAM and CUSTOM</description>
+    <value>NOSASL</value>
   </property>
 
   <property>
@@ -254,6 +252,25 @@ limitations under the License.
     <value>10000</value>
     <description>
       TCP port number to listen on, default 10000.
+    </description>
+  </property>
+
+  <property>
+    <name>hive.server2.support.dynamic.service.discovery</name>
+    <value>false</value>
+    <description>Whether HiveServer2 supports dynamic service discovery for its
+      clients. To support this, each instance of HiveServer2 currently uses
+      ZooKeeper to register itself, when it is brought up. JDBC/ODBC clients
+      should use the ZooKeeper ensemble: hive.zookeeper.quorum in their
+      connection string.
+    </description>
+  </property>
+
+  <property>
+    <name>hive.server2.zookeeper.namespace</name>
+    <value>hiveserver2</value>
+    <description>The parent node in ZooKeeper used by HiveServer2 when
+      supporting dynamic service discovery.
     </description>
   </property>
 

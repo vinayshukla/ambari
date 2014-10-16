@@ -32,10 +32,12 @@ class TestCheckHost(TestCase):
 
   @patch("os.path.isfile")
   @patch.object(Script, 'get_config')
+  @patch.object(Script, 'get_tmp_dir')
   @patch("resource_management.libraries.script.Script.put_structured_out")
-  def testJavaHomeAvailableCheck(self, structured_out_mock, mock_config, os_isfile_mock):
+  def testJavaHomeAvailableCheck(self, structured_out_mock, get_tmp_dir_mock, mock_config, os_isfile_mock):
     # test, java home exists
     os_isfile_mock.return_value = True
+    get_tmp_dir_mock.return_value = "/tmp"
     mock_config.return_value = {"commandParams" : {"check_execute_list" : "java_home_check",
                                                    "java_home" : "test_java_home"}}
 
@@ -57,12 +59,13 @@ class TestCheckHost(TestCase):
 
 
   @patch.object(Script, 'get_config')
+  @patch.object(Script, 'get_tmp_dir')
   @patch("check_host.Execute")
   @patch("resource_management.libraries.script.Script.put_structured_out")
   @patch("subprocess.Popen")
   @patch("check_host.format")
   @patch("os.path.isfile")
-  def testDBConnectionCheck(self, isfile_mock, format_mock, popenMock, structured_out_mock, execute_mock, mock_config):
+  def testDBConnectionCheck(self, isfile_mock, format_mock, popenMock, structured_out_mock, execute_mock, get_tmp_dir_mock, mock_config):
     # test, download DBConnectionVerification.jar failed
     mock_config.return_value = {"commandParams" : {"check_execute_list" : "db_connection_check",
                                                    "java_home" : "test_java_home",
@@ -73,7 +76,7 @@ class TestCheckHost(TestCase):
                                                    "user_name" : "test_user_name",
                                                    "user_passwd" : "test_user_passwd",
                                                    "jdk_name" : "test_jdk_name"}}
-
+    get_tmp_dir_mock.return_value = "/tmp"
     execute_mock.side_effect = Exception("test exception")
     isfile_mock.return_value = True
     checkHost = CheckHost()
@@ -140,7 +143,7 @@ class TestCheckHost(TestCase):
                                                                                     'exit_code': 1}})
     self.assertEquals(format_mock.call_args[0][0],'{java64_home}/bin/java -cp /usr/lib/ambari-agent/{check_db_' \
                                                 'connection_jar_name}:/usr/lib/ambari-agent/{jdbc_name} org.' \
-                                                'apache.ambari.server.DBConnectionVerification {db_connection_url} ' \
+                                                'apache.ambari.server.DBConnectionVerification \'{db_connection_url}\' ' \
                                                 '{user_name} {user_passwd!p} {jdbc_driver}')
 
     # test, db connection success
@@ -172,8 +175,9 @@ class TestCheckHost(TestCase):
 
   @patch("socket.gethostbyname")
   @patch.object(Script, 'get_config')
+  @patch.object(Script, 'get_tmp_dir')
   @patch("resource_management.libraries.script.Script.put_structured_out")
-  def testHostResolution(self, structured_out_mock, mock_config, mock_socket):
+  def testHostResolution(self, structured_out_mock, get_tmp_dir_mock, mock_config, mock_socket):
     mock_socket.return_value = "192.168.1.1"    
     jsonFilePath = os.path.join("../resources/custom_actions", "check_host_ip_addresses.json")
     
@@ -181,7 +185,8 @@ class TestCheckHost(TestCase):
       jsonPayload = json.load(jsonFile)
  
     mock_config.return_value = ConfigDictionary(jsonPayload)
-    
+    get_tmp_dir_mock.return_value = "/tmp"
+
     checkHost = CheckHost()
     checkHost.actionexecute(None)
     
@@ -209,15 +214,17 @@ class TestCheckHost(TestCase):
        'failed_count': 5, 'success_count': 0, 'exit_code': 0}})
     
   @patch.object(Script, 'get_config')
+  @patch.object(Script, 'get_tmp_dir')
   @patch("resource_management.libraries.script.Script.put_structured_out")
-  def testInvalidCheck(self, structured_out_mock, mock_config):    
+  def testInvalidCheck(self, structured_out_mock, get_tmp_dir_mock, mock_config):
     jsonFilePath = os.path.join("../resources/custom_actions", "invalid_check.json")
     
     with open(jsonFilePath, "r") as jsonFile:
       jsonPayload = json.load(jsonFile)
  
     mock_config.return_value = ConfigDictionary(jsonPayload)
-    
+    get_tmp_dir_mock.return_value = "tmp"
+
     checkHost = CheckHost()
     checkHost.actionexecute(None)
     

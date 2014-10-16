@@ -18,10 +18,22 @@
 
 package org.apache.ambari.server.controller.internal;
 
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.configuration.ComponentSSLConfiguration;
 import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.controller.AmbariManagementController;
 import org.apache.ambari.server.controller.AmbariServer;
 import org.apache.ambari.server.controller.HostRequest;
 import org.apache.ambari.server.controller.HostResponse;
@@ -30,22 +42,29 @@ import org.apache.ambari.server.controller.ServiceComponentHostResponse;
 import org.apache.ambari.server.controller.ganglia.GangliaComponentPropertyProvider;
 import org.apache.ambari.server.controller.ganglia.GangliaHostComponentPropertyProvider;
 import org.apache.ambari.server.controller.ganglia.GangliaHostPropertyProvider;
-import org.apache.ambari.server.controller.ganglia.GangliaReportPropertyProvider;
 import org.apache.ambari.server.controller.ganglia.GangliaHostProvider;
+import org.apache.ambari.server.controller.ganglia.GangliaReportPropertyProvider;
 import org.apache.ambari.server.controller.jmx.JMXHostProvider;
 import org.apache.ambari.server.controller.jmx.JMXPropertyProvider;
+import org.apache.ambari.server.controller.metrics.MetricsHostProvider;
 import org.apache.ambari.server.controller.nagios.NagiosPropertyProvider;
-import org.apache.ambari.server.controller.spi.*;
 import org.apache.ambari.server.controller.sql.HostInfoProvider;
 import org.apache.ambari.server.controller.sql.SQLPropertyProvider;
 import org.apache.ambari.server.controller.sql.SinkConnectionFactory;
+import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
+import org.apache.ambari.server.controller.spi.Predicate;
+import org.apache.ambari.server.controller.spi.PropertyProvider;
+import org.apache.ambari.server.controller.spi.ProviderModule;
+import org.apache.ambari.server.controller.spi.Request;
+import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.controller.spi.ResourceProvider;
+import org.apache.ambari.server.controller.spi.SystemException;
+import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PredicateBuilder;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
-import org.apache.ambari.server.controller.AmbariManagementController;
-
-import com.google.inject.Inject;
-
 import org.apache.ambari.server.controller.utilities.StreamProvider;
+import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.DesiredConfig;
 import org.apache.ambari.server.state.HostState;
 import org.apache.ambari.server.state.Service;
@@ -58,11 +77,12 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.lang.System;
+import com.google.inject.Inject;
 
 /**
  * An abstract provider module implementation.
  */
-public abstract class AbstractProviderModule implements ProviderModule, ResourceProviderObserver, JMXHostProvider, GangliaHostProvider, HostInfoProvider {
+public abstract class AbstractProviderModule implements ProviderModule, ResourceProviderObserver, JMXHostProvider, GangliaHostProvider, HostInfoProvider, MetricsHostProvider {
 
   private static final int PROPERTY_REQUEST_CONNECT_TIMEOUT = 5000;
   private static final int PROPERTY_REQUEST_READ_TIMEOUT    = 10000;
@@ -139,7 +159,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
   private final Map<Resource.Type,List<PropertyProvider>> propertyProviders = new HashMap<Resource.Type, List<PropertyProvider>>();
 
   @Inject
-  private AmbariManagementController managementController;
+  AmbariManagementController managementController;
 
   /**
    * The map of host components.
@@ -209,13 +229,28 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
   }
 
 
-  // ----- JMXHostProvider ---------------------------------------------------
+  // ----- MetricsHostProvider ---------------------------------------------------
 
   @Override
   public String getHostName(String clusterName, String componentName) throws SystemException {
     checkInit();
     return clusterHostComponentMap.get(clusterName).get(componentName);
   }
+
+  @Override
+  public Set<String> getHostNames(String clusterName, String componentName) {
+    Set<String> hosts = null;
+    try {
+      Cluster cluster = managementController.getClusters().getCluster(clusterName);
+      String serviceName = managementController.findServiceName(cluster, componentName);
+      hosts = cluster.getService(serviceName).getServiceComponent(componentName).getServiceComponentHosts().keySet();
+    } catch (Exception e) {
+      LOG.warn("Exception in getting host names for jmx metrics: ", e);
+    }
+    return hosts;
+  }
+
+  // ----- JMXHostProvider ---------------------------------------------------
 
   @Override
   public String getPort(String clusterName, String componentName) throws SystemException {
@@ -453,6 +488,8 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
                 configuration),
               "Clusters/cluster_name",
               "Clusters/version"));
+          providers.add(new AlertSummaryPropertyProvider(type,
+              "Clusters/cluster_name", null));
           break;
         case Service:
           providers.add(new NagiosPropertyProvider(type,
@@ -461,6 +498,8 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
                 configuration),
               "ServiceInfo/cluster_name",
               "ServiceInfo/service_name"));
+          providers.add(new AlertSummaryPropertyProvider(type,
+              "ServiceInfo/cluster_name", "ServiceInfo/service_name"));
           break;
         case Host:
           providers.add(createGangliaHostPropertyProvider(
@@ -477,6 +516,8 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
                 configuration),
               "Hosts/cluster_name",
               "Hosts/host_name"));
+          providers.add(new AlertSummaryPropertyProvider(type,
+              "Hosts/cluster_name", "Hosts/host_name"));
           break;
         case Component: {
           // TODO as we fill out stack metric definitions, these can be phased out
@@ -484,11 +525,11 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
               type,
               streamProvider,
               this,
+              this,
               PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
               null,
               PropertyHelper.getPropertyId("ServiceComponentInfo", "component_name"),
-              PropertyHelper.getPropertyId("ServiceComponentInfo", "state"),
-              Collections.singleton("STARTED"));
+              PropertyHelper.getPropertyId("ServiceComponentInfo", "state"));
           PropertyProvider gpp = null;
           if (System.getProperty("os.name").contains("Windows")) {
             gpp = createSQLComponentPropertyProvider(
@@ -511,6 +552,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
               type,
               this,
               this,
+              this,
               streamProvider,
               PropertyHelper.getPropertyId("ServiceComponentInfo", "cluster_name"),
               null,
@@ -526,11 +568,11 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
               type,
               streamProvider,
               this,
+              this,
               PropertyHelper.getPropertyId("HostRoles", "cluster_name"),
               PropertyHelper.getPropertyId("HostRoles", "host_name"),
               PropertyHelper.getPropertyId("HostRoles", "component_name"),
-              PropertyHelper.getPropertyId("HostRoles", "state"),
-              Collections.singleton("STARTED"));
+              PropertyHelper.getPropertyId("HostRoles", "state"));
           PropertyProvider gpp = null;
           if (System.getProperty("os.name").contains("Windows")) {
             gpp = createSQLHostComponentPropertyProvider(
@@ -553,6 +595,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
           }
           providers.add(new StackDefinedPropertyProvider(
               type,
+              this,
               this,
               this,
               streamProvider,
@@ -592,7 +635,14 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
 
   private void initProviderMaps() throws SystemException {
     ResourceProvider provider = getResourceProvider(Resource.Type.Cluster);
-    Request          request  = PropertyHelper.getReadRequest(CLUSTER_NAME_PROPERTY_ID);
+
+    Set<String> propertyIds = new HashSet<String>();
+    propertyIds.add(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID);
+
+    Map<String, String> requestInfoProperties = new HashMap<String, String>();
+    requestInfoProperties.put(ClusterResourceProvider.GET_IGNORE_PERMISSIONS_PROPERTY_ID, "true");
+
+    Request request = PropertyHelper.getReadRequest(propertyIds, requestInfoProperties, null);
 
     try {
       jmxPortMap.clear();
@@ -671,9 +721,17 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
 
     Set<Resource> clusterResource = null;
     try {
-      clusterResource = clusterResourceProvider.getResources(
-        PropertyHelper.getReadRequest(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID,
-          ClusterResourceProvider.CLUSTER_DESIRED_CONFIGS_PROPERTY_ID), basePredicate);
+
+      Set<String> propertyIds = new HashSet<String>();
+      propertyIds.add(ClusterResourceProvider.CLUSTER_NAME_PROPERTY_ID);
+      propertyIds.add(ClusterResourceProvider.CLUSTER_DESIRED_CONFIGS_PROPERTY_ID);
+
+      Map<String, String> requestInfoProperties = new HashMap<String, String>();
+      requestInfoProperties.put(ClusterResourceProvider.GET_IGNORE_PERMISSIONS_PROPERTY_ID, "true");
+
+      Request readRequest = PropertyHelper.getReadRequest(propertyIds, requestInfoProperties, null);
+
+      clusterResource = clusterResourceProvider.getResources(readRequest, basePredicate);
     } catch (NoSuchResourceException e) {
       LOG.error("Resource for the desired config not found. " + e);
     }
@@ -687,7 +745,7 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
         if (configs != null) {
           DesiredConfig config = (DesiredConfig) configs.get(configType);
           if (config != null) {
-            versionTag = config.getVersion();
+            versionTag = config.getTag();
           }
         }
       }
@@ -763,14 +821,15 @@ public abstract class AbstractProviderModule implements ProviderModule, Resource
    */
   private PropertyProvider createJMXPropertyProvider(Resource.Type type, StreamProvider streamProvider,
                                                      JMXHostProvider jmxHostProvider,
+                                                     MetricsHostProvider metricsHostProvider,
                                                      String clusterNamePropertyId,
                                                      String hostNamePropertyId,
                                                      String componentNamePropertyId,
-                                                     String statePropertyId,
-                                                     Set<String> healthyStates) {
+                                                     String statePropertyId) {
     
     return new JMXPropertyProvider(PropertyHelper.getJMXPropertyIds(type), streamProvider,
-          jmxHostProvider, clusterNamePropertyId, hostNamePropertyId, componentNamePropertyId, statePropertyId, healthyStates);
+        jmxHostProvider, metricsHostProvider, clusterNamePropertyId, hostNamePropertyId,
+                    componentNamePropertyId, statePropertyId);
   }
 
   /**

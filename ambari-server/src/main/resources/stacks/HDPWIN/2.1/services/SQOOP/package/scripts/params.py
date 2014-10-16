@@ -30,5 +30,3 @@ hdp_root = os.path.abspath(os.path.join(os.environ["HADOOP_HOME"], ".."))
 if os.environ.has_key("SQOOP_HOME"):
   sqoop_home_dir = os.environ["SQOOP_HOME"]
   sqoop_conf_dir = os.path.join(sqoop_home_dir, "conf")
-
-

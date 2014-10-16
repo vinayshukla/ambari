@@ -13,7 +13,7 @@
         "stack_name": "HDP", 
         "db_name": "ambari", 
         "ambari_db_rca_driver": "org.postgresql.Driver", 
-        "jdk_name": "jdk-7u45-linux-x64.tar.gz", 
+        "jdk_name": "jdk-7u67-linux-x64.tar.gz",
         "ambari_db_rca_username": "mapred", 
         "java_home": "/usr/jdk64/jdk1.7.0_45", 
         "mysql_jdbc_url": "http://c6401.ambari.apache.org:8080/resources//mysql-connector-java.jar"
@@ -236,7 +236,9 @@
             "hadoop_http_principal_name": "HTTP/_HOST", 
             "kinit_path_local": "/usr/bin", 
             "nagios_keytab_path": "/etc/security/keytabs/nagios.service.keytab", 
-            "hbase_regionserver_heapsize": "1024m", 
+            "hbase_regionserver_heapsize": "1024m",
+            "hbase_regionserver_xmn_max": "512",
+            "hbase_regionserver_xmn_ratio": "0.2",
             "resourcemanager_http_primary_name": "HTTP", 
             "datanode_primary_name": "dn", 
             "namenode_principal_name": "nn/_HOST", 
@@ -636,7 +638,56 @@
         "oozie-log4j": {
             "content": "log4jproperties\nline2"
         }
-    }, 
+    },
+    "configuration_attributes": {
+      "mapred-site": {
+        "final": {
+          "mapred.healthChecker.script.path": "true",
+          "mapreduce.jobtracker.staging.root.dir": "true"
+        }
+      },
+      "oozie-site": {
+        "final": {
+          "oozie.service.PurgeService.purge.interval": "true",
+          "oozie.service.CallableQueueService.queue.size": "true"
+        }
+      },
+      "webhcat-site": {
+        "final": {
+          "templeton.pig.path": "true",
+          "templeton.exec.timeout": "true",
+          "templeton.override.enabled": "true"
+        }
+      },
+      "hdfs-site": {
+        "final": {
+          "dfs.web.ugi": "true",
+          "dfs.support.append": "true",
+          "dfs.cluster.administrators": "true"
+        }
+      },
+      "hbase-site": {
+        "final": {
+          "hbase.client.keyvalue.maxsize": "true",
+          "hbase.hstore.compactionThreshold": "true",
+          "hbase.rootdir": "true"
+        }
+      },
+      "core-site": {
+        "final": {
+          "hadoop.proxyuser.hive.groups": "true",
+          "webinterface.private.actions": "true",
+          "hadoop.proxyuser.oozie.hosts": "true"
+        }
+      },
+      "hive-site": {
+        "final": {
+          "javax.jdo.option.ConnectionPassword": "true",
+          "javax.jdo.option.ConnectionDriverName": "true",
+          "hive.optimize.bucketmapjoin.sortedmerge": "true"
+        }
+      }
+    },
     "configurationTags": {
         "capacity-scheduler": {
             "tag": "version1"

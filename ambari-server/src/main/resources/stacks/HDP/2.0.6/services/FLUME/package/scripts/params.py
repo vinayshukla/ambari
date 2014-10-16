@@ -21,18 +21,29 @@ from resource_management import *
 
 config = Script.get_config()
 
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 proxyuser_group =  config['configurations']['hadoop-env']['proxyuser_group']
 
 security_enabled = False
 
-java_home = config['hostLevelParams']['java_home']
+#RPM versioning support
+rpm_version = default("/configurations/cluster-env/rpm_version", None)
+
+#hadoop params
+if rpm_version:
+  flume_bin = '/usr/hdp/current/flume-client/bin/flume-ng'
+else:
+  flume_bin = '/usr/bin/flume-ng'
 
 flume_conf_dir = '/etc/flume/conf'
+java_home = config['hostLevelParams']['java_home']
 flume_log_dir = '/var/log/flume'
 flume_run_dir = '/var/run/flume'
 flume_user = 'flume'
 flume_group = 'flume'
+
+if 'flume-env' in config['configurations'] and 'flume_user' in config['configurations']['flume-env']:
+  flume_user = config['configurations']['flume-env']['flume_user']
 
 if (('flume-conf' in config['configurations']) and('content' in config['configurations']['flume-conf'])):
   flume_conf_content = config['configurations']['flume-conf']['content']
@@ -51,3 +62,7 @@ ganglia_server_hosts = default('/clusterHostInfo/ganglia_server_host', [])
 ganglia_server_host = None
 if 0 != len(ganglia_server_hosts):
   ganglia_server_host = ganglia_server_hosts[0]
+
+hostname = None
+if config.has_key('hostname'):
+  hostname = config['hostname']

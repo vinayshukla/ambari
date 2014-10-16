@@ -30,7 +30,7 @@ from threading import Event
 import json
 
 with patch("platform.linux_distribution", return_value = ('Suse','11','Final')):
-  from ambari_agent import Controller, ActionQueue
+  from ambari_agent import Controller, ActionQueue, Register
   from ambari_agent import hostname
   from ambari_agent.Controller import AGENT_AUTO_RESTART_EXIT_CODE
   from ambari_commons import OSCheck
@@ -53,7 +53,8 @@ class TestController(unittest.TestCase):
 
 
     config = MagicMock()
-    config.get.return_value = "something"
+    #config.get.return_value = "something"
+    config.get.return_value = "5"
 
     self.controller = Controller.Controller(config)
     self.controller.netutil.MINIMUM_INTERVAL_BETWEEN_HEARTBEATS = 0.1
@@ -235,6 +236,8 @@ class TestController(unittest.TestCase):
     self.controller.registerWithServer = registerWithServer
     heartbeatWithServer = MagicMock(name="heartbeatWithServer")
     self.controller.heartbeatWithServer = heartbeatWithServer
+    actionQueue = MagicMock(name="actionQueue")
+    self.controller.actionQueue = actionQueue
 
     Controller.Controller.__sendRequest__ = MagicMock(side_effect=Exception())
 
@@ -244,9 +247,9 @@ class TestController(unittest.TestCase):
     heartbeatWithServer.assert_called_once_with()
 
     self.controller.registerWithServer =\
-    Controller.Controller.registerWithServer
+      Controller.Controller.registerWithServer
     self.controller.heartbeatWithServer =\
-    Controller.Controller.registerWithServer
+      Controller.Controller.registerWithServer
 
   @patch("time.sleep")
   def test_registerAndHeartbeat(self, sleepMock):
@@ -256,6 +259,8 @@ class TestController(unittest.TestCase):
     self.controller.registerWithServer = registerWithServer
     heartbeatWithServer = MagicMock(name="heartbeatWithServer")
     self.controller.heartbeatWithServer = heartbeatWithServer
+    actionQueue = MagicMock(name="actionQueue")
+    self.controller.actionQueue = actionQueue
 
     listener1 = MagicMock()
     listener2 = MagicMock()
@@ -281,6 +286,8 @@ class TestController(unittest.TestCase):
     self.controller.registerWithServer = registerWithServer
     heartbeatWithServer = MagicMock(name="heartbeatWithServer")
     self.controller.heartbeatWithServer = heartbeatWithServer
+    actionQueue = MagicMock(name="actionQueue")
+    self.controller.actionQueue = actionQueue
 
     self.controller.isRegistered = True
     self.controller.registerAndHeartbeat()
@@ -291,6 +298,33 @@ class TestController(unittest.TestCase):
       Controller.Controller.registerWithServer
     self.controller.heartbeatWithServer = \
       Controller.Controller.registerWithServer
+
+
+  @patch("time.sleep")
+  @patch.object(Controller.Controller, "sendRequest")
+  def test_registerWithIOErrors(self, sendRequestMock, sleepMock):
+    # Check that server continues to heartbeat after connection errors
+    registerMock = MagicMock(name="Register")
+    registerMock.build.return_value = {}
+    actionQueue = MagicMock()
+    actionQueue.isIdle.return_value = True
+    self.controller.actionQueue = actionQueue
+    self.controller.register = registerMock
+    self.controller.responseId = 1
+    self.controller.TEST_IOERROR_COUNTER = 1
+    self.controller.isRegistered = False
+    def util_throw_IOErrors(*args, **kwargs):
+      """
+      Throws IOErrors 10 times and then stops heartbeats/registrations
+      """
+      if self.controller.TEST_IOERROR_COUNTER == 10:
+        self.controller.isRegistered = True
+      self.controller.TEST_IOERROR_COUNTER += 1
+      raise IOError("Sample error")
+    actionQueue.isIdle.return_value = False
+    sendRequestMock.side_effect = util_throw_IOErrors
+    self.controller.registerWithServer()
+    self.assertTrue(sendRequestMock.call_count > 5)
 
 
   @patch("os._exit")
@@ -324,18 +358,22 @@ class TestController(unittest.TestCase):
       {'Content-Type': 'application/json'})
 
     conMock.request.return_value = '{invalid_object}'
-    actual = self.controller.sendRequest(url, data)
-    expected = {'exitstatus': 1, 'log': ('Response parsing failed! Request data: ' + data
-                                         + '; Response: {invalid_object}')}
-    self.assertEqual(actual, expected)
+
+    try:
+      self.controller.sendRequest(url, data)
+      self.fail("Should throw exception!")
+    except IOError, e: # Expected
+      self.assertEquals('Response parsing failed! Request data: ' + data +
+                        '; Response: {invalid_object}', str(e))
 
     exceptionMessage = "Connection Refused"
     conMock.request.side_effect = Exception(exceptionMessage)
-    actual = self.controller.sendRequest(url, data)
-    expected = {'exitstatus': 1, 'log': 'Request to ' + url + ' failed due to ' + exceptionMessage}
-
-    self.assertEqual(actual, expected)
-
+    try:
+      self.controller.sendRequest(url, data)
+      self.fail("Should throw exception!")
+    except IOError, e: # Expected
+      self.assertEquals('Request to ' + url + ' failed due to ' +
+                        exceptionMessage, str(e))
 
 
   @patch.object(threading._Event, "wait")
@@ -368,6 +406,7 @@ class TestController(unittest.TestCase):
 
     # one successful request, after stop
     self.controller.actionQueue = actionQueue
+    self.controller.alert_scheduler_handler = MagicMock()
     self.controller.heartbeatWithServer()
     self.assertTrue(sendRequest.called)
 
@@ -472,6 +511,27 @@ class TestController(unittest.TestCase):
     actionQueue.isIdle.return_value = False
     response["restartAgent"] = "false"
     self.controller.heartbeatWithServer()
+
+    sleepMock.assert_called_with(
+      self.controller.netutil.MINIMUM_INTERVAL_BETWEEN_HEARTBEATS)
+
+    # Check that server continues to heartbeat after connection errors
+    self.controller.responseId = 1
+    self.controller.TEST_IOERROR_COUNTER = 1
+    sendRequest.reset()
+    def util_throw_IOErrors(*args, **kwargs):
+      """
+      Throws IOErrors 100 times and then stops heartbeats/registrations
+      """
+      if self.controller.TEST_IOERROR_COUNTER == 10:
+        self.controller.DEBUG_STOP_HEARTBEATING = True
+      self.controller.TEST_IOERROR_COUNTER += 1
+      raise IOError("Sample error")
+    self.controller.DEBUG_STOP_HEARTBEATING = False
+    actionQueue.isIdle.return_value = False
+    sendRequest.side_effect = util_throw_IOErrors
+    self.controller.heartbeatWithServer()
+    self.assertTrue(sendRequest.call_count > 5)
 
     sleepMock.assert_called_with(
       self.controller.netutil.MINIMUM_INTERVAL_BETWEEN_HEARTBEATS)

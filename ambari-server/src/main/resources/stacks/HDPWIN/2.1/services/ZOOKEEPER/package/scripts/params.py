@@ -57,4 +57,3 @@ if (('zookeeper-log4j' in config['configurations']) and ('content' in config['co
   log4j_props = config['configurations']['zookeeper-log4j']['content']
 else:
   log4j_props = None
-

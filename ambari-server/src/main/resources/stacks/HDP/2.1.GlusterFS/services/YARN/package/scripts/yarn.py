@@ -59,6 +59,16 @@ def yarn(name = None):
     )
     params.HdfsDirectory(None, action="create")
 
+  if name == "nodemanager":
+    Directory(params.nm_local_dirs.split(','),
+              owner=params.yarn_user,
+              recursive=True
+    )
+    Directory(params.nm_log_dirs.split(','),
+              owner=params.yarn_user,
+              recursive=True
+    )
+
   Directory([params.yarn_pid_dir, params.yarn_log_dir],
             owner=params.yarn_user,
             group=params.user_group,
@@ -70,14 +80,7 @@ def yarn(name = None):
             group=params.user_group,
             recursive=True
   )
-  Directory(params.nm_local_dirs.split(','),
-            owner=params.yarn_user,
-            recursive=True
-  )
-  Directory(params.nm_log_dirs.split(','),
-            owner=params.yarn_user,
-            recursive=True
-  )
+
   Directory(params.yarn_log_dir_prefix,
             owner=params.yarn_user,
             recursive=True
@@ -86,6 +89,7 @@ def yarn(name = None):
   XmlConfig("core-site.xml",
             conf_dir=params.config_dir,
             configurations=params.config['configurations']['core-site'],
+            configuration_attributes=params.config['configuration_attributes']['core-site'],
             owner=params.hdfs_user,
             group=params.user_group,
             mode=0644
@@ -94,6 +98,7 @@ def yarn(name = None):
   XmlConfig("mapred-site.xml",
             conf_dir=params.config_dir,
             configurations=params.config['configurations']['mapred-site'],
+            configuration_attributes=params.config['configuration_attributes']['mapred-site'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644
@@ -102,6 +107,7 @@ def yarn(name = None):
   XmlConfig("yarn-site.xml",
             conf_dir=params.config_dir,
             configurations=params.config['configurations']['yarn-site'],
+            configuration_attributes=params.config['configuration_attributes']['yarn-site'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644
@@ -110,6 +116,7 @@ def yarn(name = None):
   XmlConfig("capacity-scheduler.xml",
             conf_dir=params.config_dir,
             configurations=params.config['configurations']['capacity-scheduler'],
+            configuration_attributes=params.config['configuration_attributes']['capacity-scheduler'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644

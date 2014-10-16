@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-App.ApplicationRoute = Ember.Route.extend({
+App.IndexRoute = Ember.Route.extend({
 
   model: function () {
     return this.modelFor('hiveJobs');
   },
 
-  redirect: function () {
+  beforeModel: function () {
     this.transitionTo('jobs');
   }
 
@@ -31,15 +31,38 @@ App.ApplicationRoute = Ember.Route.extend({
 App.JobsRoute = Ember.Route.extend({
 
   model: function () {
-    return this.store.all('hiveJob');
+    return this.get('store').find('hiveJob');
+  },
+
+  setupController: function(controller, model) {
+    this._super(controller, model);
+    var hashArray = location.pathname.split('/');
+    var view = hashArray[2];
+    var version = hashArray[3];
+    var instanceName = hashArray[4];
+    App.set('view', view);
+    App.set('version', version);
+    App.set('instanceName', instanceName);
+
+    controller.set('interval', 6000);
+    controller.loop('loadJobs', true);
+    // This observer should be set with addObserver
+    // If it set like ".observes(....)" it triggers two times
+    Em.addObserver(controller, 'filterObject.startTime', controller, 'startTimeObserver');
   }
 
 });
 
 App.JobRoute = Ember.Route.extend({
 
+  setupController: function(controller, model) {
+    this._super(controller, model);
+    controller.set('loaded', false);
+    controller.loop('loadJobDetails', true);
+  },
+
   model: function (params) {
-    return this.store.all('hiveJob', params.id);
+    return this.get('store').getById('hiveJob', params.hive_job_id);
   }
 
 });

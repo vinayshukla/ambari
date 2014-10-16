@@ -32,8 +32,12 @@ def hbase_decommission(env):
        mode=0755
   )
 
-  if params.hbase_drain_only == True:
+  if params.hbase_excluded_hosts and params.hbase_excluded_hosts.split(","):
     hosts = params.hbase_excluded_hosts.split(",")
+  elif params.hbase_included_hosts and params.hbase_included_hosts.split(","):
+    hosts = params.hbase_included_hosts.split(",")
+
+  if params.hbase_drain_only:
     for host in hosts:
       if host:
         regiondrainer_cmd = format(
@@ -46,8 +50,6 @@ def hbase_decommission(env):
     pass
 
   else:
-
-    hosts = params.hbase_excluded_hosts.split(",")
     for host in hosts:
       if host:
         regiondrainer_cmd = format(
@@ -69,4 +71,4 @@ def hbase_decommission(env):
   pass
 
 
-pass
+  pass

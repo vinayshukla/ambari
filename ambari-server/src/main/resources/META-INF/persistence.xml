@@ -24,7 +24,6 @@
     <class>org.apache.ambari.server.orm.entities.HostStateEntity</class>
     <class>org.apache.ambari.server.orm.entities.ServiceComponentDesiredStateEntity</class>
     <class>org.apache.ambari.server.orm.entities.ServiceDesiredStateEntity</class>
-    <class>org.apache.ambari.server.orm.entities.RoleEntity</class>
     <class>org.apache.ambari.server.orm.entities.UserEntity</class>
     <class>org.apache.ambari.server.orm.entities.GroupEntity</class>
     <class>org.apache.ambari.server.orm.entities.MemberEntity</class>
@@ -62,13 +61,25 @@
     <class>org.apache.ambari.server.orm.entities.AlertHistoryEntity</class>
     <class>org.apache.ambari.server.orm.entities.AlertNoticeEntity</class>
     <class>org.apache.ambari.server.orm.entities.AlertTargetEntity</class>
+    <class>org.apache.ambari.server.orm.entities.ResourceTypeEntity</class>
+    <class>org.apache.ambari.server.orm.entities.ResourceEntity</class>
+    <class>org.apache.ambari.server.orm.entities.PrincipalTypeEntity</class>
+    <class>org.apache.ambari.server.orm.entities.PrincipalEntity</class>
+    <class>org.apache.ambari.server.orm.entities.PermissionEntity</class>
+    <class>org.apache.ambari.server.orm.entities.PrivilegeEntity</class>
+    <class>org.apache.ambari.server.orm.entities.ServiceConfigEntity</class>
+    <class>org.apache.ambari.server.orm.entities.ServiceConfigApplicationEntity</class>
 
     <properties>
       <!--<property name="javax.persistence.jdbc.url" value="jdbc:postgresql://localhost/ambari" />-->
       <!--<property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver" />-->
       <property name="eclipselink.cache.size.default" value="10000" />
       <property name="eclipselink.jdbc.batch-writing" value="JDBC"/>
+      <property name="eclipselink.jdbc.batch-writing.size" value="4000"/>
+      <property name="eclipselink.jdbc.sequence-connection-pool" value="true" />
       <property name="eclipselink.weaving" value="static" />
+
+      <!--<property name="eclipselink.logging.level.sql" value="FINEST" />-->
       <!--<property name="eclipselink.id-validation" value="NULL" />-->
 
     </properties>

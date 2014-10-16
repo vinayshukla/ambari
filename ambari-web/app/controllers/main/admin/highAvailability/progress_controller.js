@@ -33,9 +33,9 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   POLL_INTERVAL: 4000,
   isSubmitDisabled: true,
   isRollback: false,
+  tasksMessagesPrefix: 'admin.highAvailability.wizard.step',
 
   loadStep: function () {
-    console.warn('func: loadStep');
     this.clearStep();
     this.initializeTasks();
     this.loadTasks();
@@ -44,26 +44,25 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   clearStep: function () {
-    console.warn('func: clearStep');
     this.set('isSubmitDisabled', true);
     this.set('tasks', []);
     this.set('currentRequestIds', []);
   },
 
   initializeTasks: function () {
-    console.warn('func: initializeTasks');
     var commands = this.get('commands');
-    var currentStep = App.router.get('highAvailabilityWizardController.currentStep');
+    var currentStep = App.router.get(this.get('content.controllerName') + '.currentStep');
+    var tasksMessagesPrefix = this.get('tasksMessagesPrefix');
     for (var i = 0; i < commands.length; i++) {
       this.get('tasks').pushObject(Ember.Object.create({
-        title: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
+        title: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
         status: 'PENDING',
         id: i,
         command: commands[i],
         showRetry: false,
         showRollback: false,
-        name: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
-        displayName: Em.I18n.t('admin.highAvailability.wizard.step' + currentStep + '.task' + i + '.title'),
+        name: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
+        displayName: Em.I18n.t(tasksMessagesPrefix + currentStep + '.task' + i + '.title'),
         progress: 0,
         isRunning: false,
         requestIds: []
@@ -72,7 +71,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   loadTasks: function () {
-    console.warn('func: loadTasks');
     var self = this;
     var loadedStatuses = this.get('content.tasksStatuses');
     var loadedRequestIds = this.get('content.tasksRequestIds');
@@ -95,7 +93,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   setTaskStatus: function (taskId, status) {
-    console.warn('func: setTaskStatus');
     this.get('tasks').findProperty('id', taskId).set('status', status);
   },
 
@@ -104,7 +101,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   retryTask: function () {
-    console.warn('func: retryTask');
     var task = this.get('tasks').findProperty('status', 'FAILED');
     task.set('showRetry', false);
     task.set('showRollback', false);
@@ -112,26 +108,22 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   manualRollback: function () {
-    console.warn('func: manualRollback');
     App.ModalPopup.show({
       header: Em.I18n.t('admin.highAvailability.confirmRollbackHeader'),
       primary: Em.I18n.t('yes'),
       showCloseButton: false,
       onPrimary: function () {
+        var self = this;
         var controller = App.router.get('highAvailabilityWizardController');
         controller.clearTasksData();
         controller.clearStorageData();
-        controller.setCurrentStep('1');
+        controller.finish();
         App.router.get('updateController').set('isWorking', true);
         App.clusterStatus.setClusterStatus({
           clusterName: App.router.get('content.cluster.name'),
           clusterState: 'DEFAULT',
-          wizardControllerName: App.router.get('highAvailabilityRollbackController.name'),
           localdb: App.db.data
-        });
-        this.hide();
-        App.router.transitionTo('main.admin.index');
-        location.reload();
+        },{alwaysCallback: function() {self.hide();App.router.transitionTo('main.index');location.reload();}});
       },
       secondary: Em.I18n.t('no'),
       onSecondary: function () {
@@ -144,7 +136,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   rollback: function () {
-    console.warn('func: rollback');
     var task = this.get('tasks').findProperty('status', 'FAILED');
     App.router.get(this.get('content.controllerName')).saveFailedTask(task);
     App.ModalPopup.show({
@@ -162,11 +153,9 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   onTaskStatusChange: function () {
-    console.warn('func: onTaskStatusChange1');
     var statuses = this.get('tasks').mapProperty('status');
     var tasksRequestIds = this.get('tasks').mapProperty('requestIds');
     var requestIds = this.get('currentRequestIds');
-    console.warn('func: onTaskStatusChange5', statuses, tasksRequestIds, requestIds);
     // save task info
     App.router.get(this.get('content.controllerName')).saveTasksStatuses(statuses);
     App.router.get(this.get('content.controllerName')).saveTasksRequestIds(tasksRequestIds);
@@ -178,7 +167,7 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
       clusterState: this.get('clusterDeployState'),
       wizardControllerName: this.get('content.controllerName'),
       localdb: App.db.data
-    }, {success: 'statusChangeCallback', sender: this });
+    }, {successCallback: this.statusChangeCallback, sender: this});
   },
   /**
    * Method that called after saving persist data to server.
@@ -188,18 +177,15 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
     if (!this.get('tasks').someProperty('status', 'IN_PROGRESS') && !this.get('tasks').someProperty('status', 'QUEUED') && !this.get('tasks').someProperty('status', 'FAILED')) {
       var nextTask = this.get('tasks').findProperty('status', 'PENDING');
       if (nextTask) {
-        console.warn('func: onTaskStatusChange2');
         this.set('status', 'IN_PROGRESS');
         this.setTaskStatus(nextTask.get('id'), 'QUEUED');
         this.set('currentTaskId', nextTask.get('id'));
         this.runTask(nextTask.get('id'));
       } else {
-        console.warn('func: onTaskStatusChange3');
         this.set('status', 'COMPLETED');
         this.set('isSubmitDisabled', false);
       }
     } else if (this.get('tasks').someProperty('status', 'FAILED')) {
-      console.warn('func: onTaskStatusChange4');
       this.set('status', 'FAILED');
       this.get('tasks').findProperty('status', 'FAILED').set('showRetry', true);
       if (App.supports.autoRollbackHA) {
@@ -214,17 +200,14 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
    * Run command of appropriate task
    */
   runTask: function (taskId) {
-    console.warn('func: runTask', taskId);
     this[this.get('tasks').findProperty('id', taskId).get('command')]();
   },
 
   onTaskError: function () {
-    console.warn('func: onTaskError');
     this.setTaskStatus(this.get('currentTaskId'), 'FAILED');
   },
 
   onTaskCompleted: function () {
-    console.warn('func: onTaskCompleted');
     this.setTaskStatus(this.get('currentTaskId'), 'COMPLETED');
   },
 
@@ -330,22 +313,18 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
 
   startPolling: function (data) {
     if (data) {
-      console.warn('func: startPolling1');
       this.get('currentRequestIds').push(data.Requests.id);
       var tasksCount = arguments[2].taskNum || 1;
       if (tasksCount === this.get('currentRequestIds').length) {
         this.setRequestIds(this.get('currentTaskId'), this.get('currentRequestIds'));
-        console.warn('func: startPolling2');
         this.doPolling();
       }
     } else {
-      console.warn('func: startPolling3');
       this.onTaskCompleted();
     }
   },
 
   doPolling: function () {
-    console.warn('func: doPolling');
     this.setTaskStatus(this.get('currentTaskId'), 'IN_PROGRESS');
     var requestIds = this.get('currentRequestIds');
     this.set('logs', []);
@@ -363,7 +342,6 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
   },
 
   parseLogs: function (logs) {
-    console.warn('func: parseLogs');
     this.get('logs').pushObject(logs.tasks);
     if (this.get('currentRequestIds').length === this.get('logs').length) {
       var tasks = [];
@@ -400,7 +378,7 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
     var popupTitle = event.contexts[0].title;
     var requestIds = event.contexts[0].requestIds;
     var hostProgressPopupController = App.router.get('highAvailabilityProgressPopupController');
-    hostProgressPopupController.initPopup(popupTitle, requestIds, this);
+    hostProgressPopupController.initPopup(popupTitle, requestIds, this, true);
   },
 
   done: function () {
@@ -408,6 +386,34 @@ App.HighAvailabilityProgressPageController = App.HighAvailabilityWizardControlle
       this.removeObserver('tasks.@each.status', this, 'onTaskStatusChange');
       App.router.send('next');
     }
+  },
+  /**
+   *
+   * @param siteNames Array
+   */
+  reconfigureSites: function(siteNames, data) {
+    var tagName = App.get('testMode') ? 'version1' : 'version' + (new Date).getTime();
+    var componentName;
+    switch (this.get('content.controllerName')) {
+      case 'rMHighAvailabilityWizardController':
+        componentName =  'RESOURCEMANAGER';
+        break;
+      default:
+        componentName =  'NAMENODE';
+    }
+    return siteNames.map(function(_siteName) {
+      var config = data.items.findProperty('type', _siteName);
+      var configToSave = {
+        type: _siteName,
+        tag: tagName,
+        properties: config && config.properties,
+        service_config_version_note: Em.I18n.t('admin.highAvailability.step4.save.configuration.note').format(App.format.role(componentName))
+      }
+      if (config && config.properties_attributes) {
+        configToSave.properties_attributes = config.properties_attributes;
+      }
+      return configToSave;
+    });
   }
 });
 

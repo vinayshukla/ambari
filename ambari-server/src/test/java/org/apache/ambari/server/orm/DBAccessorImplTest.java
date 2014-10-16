@@ -44,6 +44,9 @@ import org.junit.rules.ExpectedException;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import java.io.ByteArrayInputStream;
+import java.sql.Clob;
+import java.sql.PreparedStatement;
 
 public class DBAccessorImplTest {
   private Injector injector;
@@ -76,6 +79,106 @@ public class DBAccessorImplTest {
 
     dbAccessor.createTable(tableName, columns, "id");
   }
+
+  @Test
+  public void testDbType() throws Exception {
+    DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
+    assertEquals(DBAccessor.DbType.DERBY, dbAccessor.getDbType());
+  }
+
+  @Test
+  public void testAlterColumn() throws Exception {
+    String tableName = getFreeTableName();
+    createMyTable(tableName);
+    DBAccessorImpl dbAccessor = injector.getInstance(DBAccessorImpl.class);
+
+    ResultSet rs;
+    DBColumnInfo fromColumn;
+    DBColumnInfo toColumn;
+    Statement statement = dbAccessor.getConnection().createStatement();
+    final String dataString = "Data for inserting column.";
+
+    // 1 - VARACHAR --> VARCHAR
+    toColumn = new DBColumnInfo("name", String.class, 500, null, true);
+    statement.execute(
+        String.format("INSERT INTO %s(id, name) VALUES (1, '%s')", tableName,
+            dataString));
+
+    dbAccessor.alterColumn(tableName, toColumn);
+    rs = statement.executeQuery(
+        String.format("SELECT name FROM %s", tableName));
+    while (rs.next()) {
+      ResultSetMetaData rsm = rs.getMetaData();
+      assertEquals(rs.getString(toColumn.getName()), dataString);
+      assertEquals(rsm.getColumnTypeName(1), "VARCHAR");
+      assertEquals(rsm.getColumnDisplaySize(1), 500);
+    }
+    rs.close();
+
+    // 2 - VARACHAR --> CLOB
+    toColumn = new DBColumnInfo("name", char[].class, 999, null, true);
+    dbAccessor.alterColumn(tableName, toColumn);
+    rs = statement.executeQuery(
+        String.format("SELECT name FROM %s", tableName));
+    while (rs.next()) {
+      ResultSetMetaData rsm = rs.getMetaData();
+      Clob clob = rs.getClob(toColumn.getName());
+      assertEquals(clob.getSubString(1, (int) clob.length()), dataString);
+      assertEquals(rsm.getColumnTypeName(1), "CLOB");
+      assertEquals(rsm.getColumnDisplaySize(1), 999);
+    }
+    rs.close();
+
+    // 3 - BLOB --> CLOB
+    toColumn = new DBColumnInfo("name_blob_to_clob", char[].class, 567, null,
+        true);
+    fromColumn = new DBColumnInfo("name_blob_to_clob", byte[].class, 20000,
+        null, true);
+    dbAccessor.addColumn(tableName, fromColumn);
+
+    String sql = String.format(
+        "insert into %s(id, name_blob_to_clob) values (2, ?)", tableName);
+    PreparedStatement preparedStatement = dbAccessor.getConnection().prepareStatement(
+        sql);
+    preparedStatement.setBinaryStream(1,
+        new ByteArrayInputStream(dataString.getBytes()),
+        dataString.getBytes().length);
+    preparedStatement.executeUpdate();
+    preparedStatement.close();
+
+    dbAccessor.alterColumn(tableName, toColumn);
+    rs = statement.executeQuery(
+        String.format("SELECT name_blob_to_clob FROM %s WHERE id=2",
+            tableName));
+    while (rs.next()) {
+      ResultSetMetaData rsm = rs.getMetaData();
+      Clob clob = rs.getClob(toColumn.getName());
+      assertEquals(clob.getSubString(1, (int) clob.length()), dataString);
+      assertEquals(rsm.getColumnTypeName(1), "CLOB");
+      assertEquals(rsm.getColumnDisplaySize(1), 567);
+    }
+    rs.close();
+
+    // 4 - CLOB --> CLOB
+    toColumn = new DBColumnInfo("name_blob_to_clob", char[].class, 1500, null,
+        true);
+    dbAccessor.alterColumn(tableName, toColumn);
+    rs = statement.executeQuery(
+        String.format("SELECT name_blob_to_clob FROM %s WHERE id=2",
+            tableName));
+    while (rs.next()) {
+      ResultSetMetaData rsm = rs.getMetaData();
+      Clob clob = rs.getClob(toColumn.getName());
+      assertEquals(clob.getSubString(1, (int) clob.length()), dataString);
+      assertEquals(rsm.getColumnTypeName(1), "CLOB");
+      assertEquals(rsm.getColumnDisplaySize(1), 1500);
+    }
+    rs.close();
+
+    dbAccessor.dropTable(tableName);
+
+  }
+
 
   @Test
   public void testCreateTable() throws Exception {
@@ -332,7 +435,8 @@ public class DBAccessorImplTest {
 
     statement.close();
 
-    dbAccessor.setNullable(tableName, "isNullable", false);
+    dbAccessor.setNullable(tableName, new DBColumnInfo("isNullable",
+            String.class, 1000, "test", false), false);
     statement = dbAccessor.getConnection().createStatement();
     resultSet = statement.executeQuery("SELECT isNullable FROM " + tableName);
     rsmd = resultSet.getMetaData();
@@ -340,7 +444,8 @@ public class DBAccessorImplTest {
 
     statement.close();
 
-    dbAccessor.setNullable(tableName, "isNullable", true);
+    dbAccessor.setNullable(tableName, new DBColumnInfo("isNullable",
+            String.class, 1000, "test", false), true);
     statement = dbAccessor.getConnection().createStatement();
     resultSet = statement.executeQuery("SELECT isNullable FROM " + tableName);
     rsmd = resultSet.getMetaData();

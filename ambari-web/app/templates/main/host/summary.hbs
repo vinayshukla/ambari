@@ -72,6 +72,9 @@
                   <div class="span7">
                     {{#each component in view.clients}}
                       {{component.displayName}}
+                      {{#if component.isInstallFailed}}
+                        <span class="health-status-installed icon-warning-sign"></span>
+                      {{/if}}
                       {{#if component.staleConfigs}}
                         <span class="text-warning icon-refresh"></span>
                       {{/if}}
@@ -97,6 +100,28 @@
                           {{t hosts.host.details.refreshConfigs}}
                         </a>
                       </li>
+                      <li>
+                        <a href="javscript:void(null)" {{bindAttr class="view.areClientsInstallFailed::disabled" }} data-toggle="modal" {{action reinstallClients view.clients target="controller"}}>
+                          {{t host.host.details.installClients}}
+                        </a>
+                      </li>
+                      {{#each option in view.clientsWithCustomCommands}}
+                        <li class="dropdown-submenu submenu-left">
+                          <a href="javascript:void(null)" >
+                            <i class="icon-play-circle"></i>
+                            {{option.label}}
+                          </a>
+                            <div class="dropdown-menu-wrap">
+                              <ul class="dropdown-menu">
+                                {{#each command in option.commands}}
+                                  <li>
+                                    <a href="javascript:void(null)" {{action "executeCustomCommand" command target="controller" href=true}}>{{command.label}}</a>
+                                  </li>
+                                {{/each}}
+                              </ul>
+                            </div>
+                        </li>
+                      {{/each}}
                     </ul>
                   </div>
                 {{/if}}

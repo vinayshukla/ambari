@@ -63,7 +63,6 @@ describe('App.AddSecurityController', function () {
         "HDFS",
         "MAPREDUCE",
         "HIVE",
-        "WEBHCAT",
         "HBASE",
         "ZOOKEEPER",
         "OOZIE",
@@ -72,6 +71,7 @@ describe('App.AddSecurityController', function () {
       sinon.stub(App, 'get', function () {
         return false;
       });
+      Em.propertyDidChange(App, 'isHadoop2Stack');
       expect(controller.get('secureServices').mapProperty('serviceName')).to.eql(result);
     });
     it('App.isHadoop2Stack = true', function () {
@@ -81,7 +81,6 @@ describe('App.AddSecurityController', function () {
         "MAPREDUCE2",
         "YARN",
         "HIVE",
-        "WEBHCAT",
         "HBASE",
         "ZOOKEEPER",
         "OOZIE",

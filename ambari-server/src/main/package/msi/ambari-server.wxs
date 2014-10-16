@@ -16,15 +16,37 @@
    limitations under the License.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="71563DB3-0C72-461F-8180-CE9BE43A308E" Name="Ambari Server 1.3.0-SNAPSHOT" Language="1033"
-           Version="1.3.0.0" Manufacturer="Apache Software Foundation"
-           UpgradeCode="B5D6F8B9-9616-4A00-9F18-BCFBFB494786">
+<?define Version = "${ambariVersion}" ?>
+<?define UpgradeCode = "c8f5c145-c0aa-4d50-b1f5-ac9bc4055fb8" ?>
+  <Product Id="*" Name="Ambari Server ${ambariVersion}-SNAPSHOT" Language="1033"
+           Version="$(var.Version)" Manufacturer="Apache Software Foundation"
+           UpgradeCode="$(var.UpgradeCode)">
     <Package Description="Ambari Server for Windows" Comments="Ambari Server for Windows" InstallerVersion="200"
              Compressed="yes" Platform="x64"/>
+
+    <!-- upgrade rules -->
+    <Upgrade Id="$(var.UpgradeCode)">
+      <UpgradeVersion Minimum="$(var.Version)" IncludeMinimum="no" OnlyDetect="yes" Property="NEWERVERSIONDETECTED" />
+      <UpgradeVersion Minimum="0.0.0.0" Maximum="$(var.Version)" IncludeMinimum="yes" IncludeMaximum="yes" Property="OLDERVERSIONBEINGUPGRADED" />
+    </Upgrade>
+
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallInitialize" />
+      <Custom Action="NewerVersion" After="FindRelatedProducts">NEWERVERSIONDETECTED</Custom>
+      <Custom Action="BackupConfiguration" After='InstallInitialize'>OLDERVERSIONBEINGUPGRADED</Custom>
+    </InstallExecuteSequence>
+
+    <CustomAction Id="NewerVersion" Error="A later version of Ambari Server is already installed." />
+    <!-- backup ambari.properties before installing new bits-->
+    <CustomAction Id="BackupConfiguration"
+                  Directory="AMBARI_SERVER_MSI"
+                  ExeCommand='cmd.exe /c copy conf\ambari.properties conf\ambari.properties.backup'
+                  Return="check" />
+
     <Media Id="1" Cabinet="simple.cab" EmbedCab="yes"/>
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="AMBARI_SERVER_1.3.0_SNAPSHOT" Name="ambari-server-1.3.0-SNAPSHOT">
+        <Directory Id="AMBARI_SERVER_MSI" Name="ambari-server">
         </Directory>
       </Directory>
     </Directory>
@@ -32,7 +54,7 @@
       <ComponentGroupRef Id="AmbariServerGroup"/>
     </Feature>
     <UI/>
-    <Property Id="WIXUI_INSTALLDIR" Value="AMBARI_SERVER_1.3.0_SNAPSHOT"/>
+    <Property Id="WIXUI_INSTALLDIR" Value="AMBARI_SERVER_MSI"/>
     <UIRef Id="WixUI_InstallDir"/>
   </Product>
 </Wix>

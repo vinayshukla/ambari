@@ -24,8 +24,7 @@ import os
 config = Script.get_config()
 
 #security params
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 #java params
 java_home = config['hostLevelParams']['java_home']
 #hadoop params
@@ -33,6 +32,7 @@ hadoop_conf_dir = "/etc/hadoop/conf"
 hadoop_conf_empty_dir = "/etc/hadoop/conf.empty"
 hdfs_log_dir_prefix = config['configurations']['hadoop-env']['hdfs_log_dir_prefix']
 hadoop_pid_dir_prefix = config['configurations']['hadoop-env']['hadoop_pid_dir_prefix']
+hadoop_root_logger = config['configurations']['hadoop-env']['hadoop_root_logger']
 hadoop_env_sh_template = config['configurations']['hadoop-env']['content']
 
 #hadoop-env.sh
@@ -45,11 +45,6 @@ namenode_heapsize = config['configurations']['hadoop-env']['namenode_heapsize']
 namenode_opt_newsize =  config['configurations']['hadoop-env']['namenode_opt_newsize']
 namenode_opt_maxnewsize =  config['configurations']['hadoop-env']['namenode_opt_maxnewsize']
 
-jtnode_opt_newsize = default("/configurations/mapred-env/jtnode_opt_newsize","200m")
-jtnode_opt_maxnewsize = default("/configurations/mapred-env/jtnode_opt_maxnewsize","200m")
-jtnode_heapsize =  default("/configurations/mapred-env/jtnode_heapsize","1024m")
-ttnode_heapsize = default("/configurations/mapred-env/ttnode_heapsize","1024m")
-
 dtnode_heapsize = config['configurations']['hadoop-env']['dtnode_heapsize']
 
 mapred_pid_dir_prefix = default("/configurations/hadoop-env/mapred_pid_dir_prefix","/var/run/hadoop-mapreduce")
@@ -59,4 +54,7 @@ hadoop_libexec_dir = "/usr/lib/hadoop/libexec"
 
 #users and groups
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
+
+namenode_host = default("/clusterHostInfo/namenode_host", [])
+has_namenode = not len(namenode_host) == 0

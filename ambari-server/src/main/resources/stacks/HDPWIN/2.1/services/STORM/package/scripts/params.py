@@ -28,8 +28,3 @@ hdp_root = os.path.abspath(os.path.join(os.environ["HADOOP_HOME"],".."))
 conf_dir = os.environ["STORM_CONF_DIR"]
 # storm_user = config['configurations']['storm-env']['storm_user']
 storm_user = "hadoop"
-
-
-
-
-

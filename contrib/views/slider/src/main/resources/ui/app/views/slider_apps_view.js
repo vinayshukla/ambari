@@ -84,8 +84,19 @@ App.SliderAppsView = App.TableView.extend({
   }),
 
   SliderView: Em.View.extend({
-    content:null,
-    tagName: 'tr'
+    content: null,
+    tagName: 'tr',
+    popover: function(){
+      var template = this.createChildView(App.SliderTooltip, {
+        content: this.get('content')
+      });
+      return Ember.Object.create({
+        trigger: 'hover',
+        title: this.get('content.data.name'),
+        template: template.renderToBuffer().string(),
+        placement: "right"
+      });
+    }.property('content')
   }),
 
   /**
@@ -109,7 +120,8 @@ App.SliderAppsView = App.TableView.extend({
     }.property('parentView.statusList'),
     onChangeValue: function(){
       this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'string', this.get('defaultValue'));
-    }
+    },
+    emptyValue: 'All Status'
   }),
 
   typeFilterView: filters.createTextView({
@@ -130,23 +142,13 @@ App.SliderAppsView = App.TableView.extend({
 
   startFilterView: filters.createSelectView({
     column: 4,
-    fieldType: 'filter-input-width',
-    content: ['', 'Past 1 hour',  'Past 1 Day', 'Past 2 Days', 'Past 7 Days', 'Past 14 Days', 'Past 30 Days', 'Custom'],
-    onChangeValue: function(){
-      this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'date');
-    },
-    type: 'number'
-  }),
-
-  startFilterView: filters.createSelectView({
-    column: 4,
     defaultValue: "All Dates",
     fieldType: 'filter-input-width',
     content: ['All Dates', 'Past 1 hour',  'Past 1 Day', 'Past 2 Days', 'Past 7 Days', 'Past 14 Days', 'Past 30 Days'],
     onChangeValue: function(){
       this.get('parentView').updateFilter(this.get('column'), this.get('value'), 'date', this.get('defaultValue'));
     },
-    type: 'date'
+    type: 'number'
   }),
 
   /**
@@ -164,4 +166,8 @@ App.SliderAppsView = App.TableView.extend({
     return associations;
   }.property()
 
+});
+
+App.SliderTooltip = Em.View.extend({
+  templateName: "common/app_tooltip"
 });

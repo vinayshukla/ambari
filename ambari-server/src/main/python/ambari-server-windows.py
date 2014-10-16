@@ -28,7 +28,7 @@ from ambari_server import utils
 from ambari_server.dbConfiguration import DBMSConfig
 from ambari_server.resourceFilesKeeper import ResourceFilesKeeper, KeeperException
 from ambari_server.serverConfiguration import *
-from ambari_server.serverSetup import setup, reset, is_server_running
+from ambari_server.serverSetup import setup, reset, is_server_running, upgrade
 from ambari_server.setupActions import *
 from ambari_server.setupSecurity import *
 from ambari_server.serverSetup_windows import SERVICE_PASSWORD_KEY, SERVICE_USERNAME_KEY
@@ -546,8 +546,8 @@ def main():
       reset(options, AmbariServerService)
     elif action == STATUS_ACTION:
       svcstatus(options)
-#    elif action == UPGRADE_ACTION:
-#      upgrade(options)
+    elif action == UPGRADE_ACTION:
+      upgrade(options)
 #    elif action == UPGRADE_STACK_ACTION:
 #      stack_id = args[1]
 #      repo_url = None
@@ -597,3 +597,4 @@ if __name__ == "__main__":
   except (KeyboardInterrupt, EOFError):
     print("\nAborting ... Keyboard Interrupt.")
     sys.exit(1)
+쏃ￃ뾿﾿뮻ﾻ랷ﾷ짉￉￵隖ﾖ

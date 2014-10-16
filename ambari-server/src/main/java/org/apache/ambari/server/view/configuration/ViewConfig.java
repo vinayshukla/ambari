@@ -48,6 +48,11 @@ public class ViewConfig {
   private String label;
 
   /**
+   * The view description.
+   */
+  private String description;
+
+  /**
    * The view version.
    */
   private String version;
@@ -61,6 +66,11 @@ public class ViewConfig {
    * The big icon path in the view archive.
    */
   private String icon64;
+
+  /**
+   * Indicates whether or not this is a system view.
+   */
+  private boolean system;
 
   /**
    * The main view class name.
@@ -109,6 +119,12 @@ public class ViewConfig {
   private PersistenceConfig persistence;
 
   /**
+   * The list of view parameters.
+   */
+  @XmlElement(name="permission")
+  private List<PermissionConfig> permissions;
+
+  /**
    * Get the unique name.
    *
    * @return the view name
@@ -124,6 +140,15 @@ public class ViewConfig {
    */
   public String getLabel() {
     return label;
+  }
+
+  /**
+   * Get the view description.
+   *
+   * @return the view description
+   */
+  public String getDescription() {
+    return description;
   }
 
   /**
@@ -151,6 +176,15 @@ public class ViewConfig {
    */
   public String getIcon64() {
     return icon64;
+  }
+
+  /**
+   * Determine whether or not this is a system view.
+   *
+   * @return true if this is a system view
+   */
+  public boolean isSystem() {
+    return system;
   }
 
   /**
@@ -240,5 +274,14 @@ public class ViewConfig {
    */
   public PersistenceConfig getPersistence() {
     return persistence;
+  }
+
+  /**
+   * Get the list of custom permissions defined for the view.
+   *
+   * @return the list of custom permissions
+   */
+  public List<PermissionConfig> getPermissions() {
+    return permissions == null ? Collections.<PermissionConfig>emptyList() : permissions;
   }
 }

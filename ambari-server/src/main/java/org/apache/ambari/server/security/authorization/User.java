@@ -17,12 +17,14 @@
  */
 package org.apache.ambari.server.security.authorization;
 
-import org.apache.ambari.server.orm.entities.RoleEntity;
-import org.apache.ambari.server.orm.entities.UserEntity;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+
+import org.apache.ambari.server.orm.entities.MemberEntity;
+import org.apache.ambari.server.orm.entities.PermissionEntity;
+import org.apache.ambari.server.orm.entities.PrivilegeEntity;
+import org.apache.ambari.server.orm.entities.UserEntity;
 
 /**
  * Describes user of web-services
@@ -33,16 +35,23 @@ public class User {
   final boolean ldapUser;
   final Date createTime;
   final boolean active;
-  final Collection<String> roles = new ArrayList<String>();
+  final Collection<String> groups = new ArrayList<String>();
+  boolean admin = false;
 
-  User(UserEntity userEntity) {
+  public User(UserEntity userEntity) {
     userId = userEntity.getUserId();
     userName = userEntity.getUserName();
     createTime = userEntity.getCreateTime();
     ldapUser = userEntity.getLdapUser();
     active = userEntity.getActive();
-    for (RoleEntity roleEntity : userEntity.getRoleEntities()) {
-      roles.add(roleEntity.getRoleName());
+    for (MemberEntity memberEntity : userEntity.getMemberEntities()) {
+      groups.add(memberEntity.getGroup().getGroupName());
+    }
+    for (PrivilegeEntity privilegeEntity: userEntity.getPrincipal().getPrivileges()) {
+      if (privilegeEntity.getPermission().getPermissionName().equals(PermissionEntity.AMBARI_ADMIN_PERMISSION_NAME)) {
+        admin = true;
+        break;
+      }
     }
   }
 
@@ -66,8 +75,12 @@ public class User {
     return active;
   }
 
-  public Collection<String> getRoles() {
-    return roles;
+  public boolean isAdmin() {
+    return admin;
+  }
+
+  public Collection<String> getGroups() {
+    return groups;
   }
 
   @Override

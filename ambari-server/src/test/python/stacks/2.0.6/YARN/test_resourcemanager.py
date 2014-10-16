@@ -29,88 +29,122 @@ class TestResourceManager(RMFTestCase):
 
   def test_configure_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "configure",
-                       config_file="default.json"
-    )
+                       classname="Resourcemanager",
+                       command="configure",
+                       config_file="default.json")
     self.assert_configure_default()
     self.assertNoMoreResources()
 
   def test_start_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "start",
-                       config_file="default.json"
-    )
+                       classname="Resourcemanager",
+                       command="start",
+                       config_file="default.json")
 
     self.assert_configure_default()
-    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start resourcemanager',
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              user = 'yarn'
-    )
-    self.assertResourceCalled('Execute', 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              user = 'yarn',
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              initial_wait=5
-    )
+
+    pid_check_cmd = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1'
+
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
+                              not_if=pid_check_cmd,
+                              action=['delete'])
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited; export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start resourcemanager',
+                              not_if=pid_check_cmd,
+                              user='yarn')
+    self.assertResourceCalled('Execute', pid_check_cmd,
+                              user='yarn',
+                              not_if=pid_check_cmd,
+                              initial_wait=5)
     self.assertNoMoreResources()
 
   def test_stop_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "stop",
-                       config_file="default.json"
-    )
+                       classname="Resourcemanager",
+                       command="stop",
+                       config_file="default.json")
 
     self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop resourcemanager',
-                              user = 'yarn'
-    )
-    self.assertResourceCalled('Execute', 'rm -f /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
-                              user = 'yarn'
-    )
+                              user='yarn')
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
+                              action=['delete'])
     self.assertNoMoreResources()
 
   def test_configure_secured(self):
 
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "configure",
-                       config_file="secured.json"
-    )
+                       classname="Resourcemanager",
+                       command="configure",
+                       config_file="secured.json")
     self.assert_configure_secured()
 
   def test_start_secured(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "start",
-                       config_file="secured.json"
-    )
+                       classname="Resourcemanager",
+                       command="start",
+                       config_file="secured.json")
 
     self.assert_configure_secured()
-    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start resourcemanager',
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              user = 'yarn'
-    )
-    self.assertResourceCalled('Execute', 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              user = 'yarn',
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1',
-                              initial_wait=5
-    )
+
+    pid_check_cmd = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid` >/dev/null 2>&1'
+
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
+                              not_if = pid_check_cmd,
+                              action=['delete'])
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited; export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start resourcemanager',
+                              not_if=pid_check_cmd,
+                              user='yarn')
+    self.assertResourceCalled('Execute', pid_check_cmd,
+                              user='yarn',
+                              not_if=pid_check_cmd,
+                              initial_wait=5)
     self.assertNoMoreResources()
 
   def test_stop_secured(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
-                       classname = "Resourcemanager",
-                       command = "stop",
-                       config_file="secured.json"
-    )
+                       classname="Resourcemanager",
+                       command="stop",
+                       config_file="secured.json")
 
     self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop resourcemanager',
-                              user = 'yarn'
+                              user='yarn')
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
+                              action=['delete'])
+    self.assertNoMoreResources()
+
+
+  def test_decommission_default(self):
+    self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
+                       classname = "Resourcemanager",
+                       command = "decommission",
+                       config_file="default.json"
     )
-    self.assertResourceCalled('Execute', 'rm -f /var/run/hadoop-yarn/yarn/yarn-yarn-resourcemanager.pid',
-                              user = 'yarn'
+    self.assertResourceCalled('File', '/etc/hadoop/conf/yarn.exclude',
+        owner = 'yarn',
+        content = Template('exclude_hosts_list.j2'),
+        group = 'hadoop',
     )
+    self.assertResourceCalled('Execute', ' yarn --config /etc/hadoop/conf rmadmin -refreshNodes',
+        environment = {'PATH': os.environ['PATH'] + ":/usr/bin:/usr/lib/hadoop-yarn/bin"},
+        user = 'yarn',
+    )
+    self.assertNoMoreResources()
+
+  def test_decommission_secured(self):
+    self.executeScript("2.0.6/services/YARN/package/scripts/resourcemanager.py",
+                       classname = "Resourcemanager",
+                       command = "decommission",
+                       config_file="secured.json"
+    )
+    self.assertResourceCalled('File', '/etc/hadoop/conf/yarn.exclude',
+        owner = 'yarn',
+        content = Template('exclude_hosts_list.j2'),
+        group = 'hadoop',
+    )
+    self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/rm.service.keytab rm/c6401.ambari.apache.org@EXAMPLE.COM; yarn --config /etc/hadoop/conf rmadmin -refreshNodes',
+        environment = {'PATH': os.environ['PATH'] + ":/usr/bin:/usr/lib/hadoop-yarn/bin"},
+        user = 'yarn',
+    )
+
     self.assertNoMoreResources()
 
   def assert_configure_default(self):
@@ -135,26 +169,6 @@ class TestResourceManager(RMFTestCase):
       group = 'hadoop',
       recursive = True,
     )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/local',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/local1',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/log',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/log1',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
     self.assertResourceCalled('Directory', '/var/log/hadoop-yarn',
       owner = 'yarn',
       recursive = True,
@@ -166,6 +180,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['core-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
     )
     self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
       owner = 'yarn',
@@ -173,6 +188,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['mapred-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
     )
     self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
       owner = 'yarn',
@@ -180,6 +196,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['yarn-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
     )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
       owner = 'yarn',
@@ -187,6 +204,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['capacity-scheduler'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
     )
     self.assertResourceCalled('File', '/var/log/hadoop-yarn/yarn/hadoop-mapreduce.jobsummary.log',
       owner = 'yarn',
@@ -223,16 +241,14 @@ class TestResourceManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              )
-    self.assertResourceCalled('File', '/etc/hadoop/conf/mapred-queue-acls.xml',
-                              owner = 'mapred',
-                              group = 'hadoop',
+                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',
@@ -269,16 +285,6 @@ class TestResourceManager(RMFTestCase):
       group = 'hadoop',
       recursive = True,
     )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/local',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/log',
-      owner = 'yarn',
-      recursive = True,
-      ignore_failures = True,
-    )
     self.assertResourceCalled('Directory', '/var/log/hadoop-yarn',
       owner = 'yarn',
       recursive = True,
@@ -290,6 +296,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['core-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
     )
     self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
       owner = 'yarn',
@@ -297,6 +304,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['mapred-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
     )
     self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
       owner = 'yarn',
@@ -304,6 +312,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['yarn-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
     )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
       owner = 'yarn',
@@ -311,6 +320,7 @@ class TestResourceManager(RMFTestCase):
       mode = 0644,
       conf_dir = '/etc/hadoop/conf',
       configurations = self.getConfig()['configurations']['capacity-scheduler'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
     )
     self.assertResourceCalled('File', '/var/log/hadoop-yarn/yarn/hadoop-mapreduce.jobsummary.log',
       owner = 'yarn',
@@ -363,16 +373,14 @@ class TestResourceManager(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              )
-    self.assertResourceCalled('File', '/etc/hadoop/conf/mapred-queue-acls.xml',
-                              owner = 'mapred',
-                              group = 'hadoop',
+                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',

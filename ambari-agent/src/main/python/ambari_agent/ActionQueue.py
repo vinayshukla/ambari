@@ -26,11 +26,13 @@ import pprint
 import os
 import json
 
+from AgentException import AgentException
 from LiveStatus import LiveStatus
 from shell import shellRunner
 from ActualConfigHandler import ActualConfigHandler
 from CommandStatusDict import CommandStatusDict
 from CustomServiceOrchestrator import CustomServiceOrchestrator
+from ambari_agent.BackgroundCommandExecutionHandle import BackgroundCommandExecutionHandle
 
 
 logger = logging.getLogger()
@@ -52,6 +54,7 @@ class ActionQueue(threading.Thread):
 
   STATUS_COMMAND = 'STATUS_COMMAND'
   EXECUTION_COMMAND = 'EXECUTION_COMMAND'
+  BACKGROUND_EXECUTION_COMMAND = 'BACKGROUND_EXECUTION_COMMAND'
   ROLE_COMMAND_INSTALL = 'INSTALL'
   ROLE_COMMAND_START = 'START'
   ROLE_COMMAND_STOP = 'STOP'
@@ -66,6 +69,7 @@ class ActionQueue(threading.Thread):
     super(ActionQueue, self).__init__()
     self.commandQueue = Queue.Queue()
     self.statusCommandQueue = Queue.Queue()
+    self.backgroundCommandQueue = Queue.Queue()
     self.commandStatuses = CommandStatusDict(callback_action =
       self.status_update_callback)
     self.config = config
@@ -74,8 +78,7 @@ class ActionQueue(threading.Thread):
     self.configTags = {}
     self._stop = threading.Event()
     self.tmpdir = config.get('agent', 'prefix')
-    self.customServiceOrchestrator = CustomServiceOrchestrator(config,
-                                                               controller)
+    self.customServiceOrchestrator = CustomServiceOrchestrator(config, controller)
 
 
   def stop(self):
@@ -106,32 +109,78 @@ class ActionQueue(threading.Thread):
                   command['serviceName'] + " of cluster " + \
                   command['clusterName'] + " to the queue.")
       logger.debug(pprint.pformat(command))
-      self.commandQueue.put(command)
+      if command['commandType'] == self.BACKGROUND_EXECUTION_COMMAND :
+        self.backgroundCommandQueue.put(self.createCommandHandle(command))
+      else:
+        self.commandQueue.put(command)
+
+  def cancel(self, commands):
+    for command in commands:
+
+      logger.info("Canceling command {tid}".format(tid = str(command['target_task_id'])))
+      logger.debug(pprint.pformat(command))
+
+      task_id = command['target_task_id']
+      reason = command['reason']
+
+      # Remove from the command queue by task_id
+      queue = self.commandQueue
+      self.commandQueue = Queue.Queue()
+
+      while not queue.empty():
+        queued_command = queue.get(False)
+        if queued_command['task_id'] != task_id:
+          self.commandQueue.put(queued_command)
+        else:
+          logger.info("Canceling " + queued_command['commandType'] + \
+                      " for service " + queued_command['serviceName'] + \
+                      " of cluster " +  queued_command['clusterName'] + \
+                      " to the queue.")
+
+      # Kill if in progress
+      self.customServiceOrchestrator.cancel_command(task_id, reason)
 
   def run(self):
     while not self.stopped():
-      while  not self.statusCommandQueue.empty():
-        try:
-          command = self.statusCommandQueue.get(False)
-          self.process_command(command)
-        except (Queue.Empty):
-          pass
+      self.processBackgroundQueueSafeEmpty();
+      self.processStatusCommandQueueSafeEmpty();
       try:
         command = self.commandQueue.get(True, self.EXECUTION_COMMAND_WAIT_TIME)
         self.process_command(command)
       except (Queue.Empty):
         pass
+  def processBackgroundQueueSafeEmpty(self):
+    while not self.backgroundCommandQueue.empty():
+      try:
+        command = self.backgroundCommandQueue.get(False)
+        if(command.has_key('__handle') and command['__handle'].status == None):
+          self.process_command(command)
+      except (Queue.Empty):
+        pass
+
+  def processStatusCommandQueueSafeEmpty(self):
+    while not self.statusCommandQueue.empty():
+      try:
+        command = self.statusCommandQueue.get(False)
+        self.process_command(command)
+      except (Queue.Empty):
+        pass
 
 
-
+  def createCommandHandle(self, command):
+    if(command.has_key('__handle')):
+      raise AgentException("Command already has __handle")
+    command['__handle'] = BackgroundCommandExecutionHandle(command, command['commandId'], None, self.on_background_command_complete_callback)
+    return command
 
   def process_command(self, command):
     logger.debug("Took an element of Queue: " + pprint.pformat(command))
     # make sure we log failures
+    commandType = command['commandType']
     try:
-      if command['commandType'] == self.EXECUTION_COMMAND:
+      if commandType in [self.EXECUTION_COMMAND, self.BACKGROUND_EXECUTION_COMMAND]:
         self.execute_command(command)
-      elif command['commandType'] == self.STATUS_COMMAND:
+      elif commandType == self.STATUS_COMMAND:
         self.execute_status_command(command)
       else:
         logger.error("Unrecognized command " + pprint.pformat(command))
@@ -142,11 +191,11 @@ class ActionQueue(threading.Thread):
 
   def execute_command(self, command):
     '''
-    Executes commands of type  EXECUTION_COMMAND
+    Executes commands of type EXECUTION_COMMAND
     '''
     clusterName = command['clusterName']
     commandId = command['commandId']
-
+    isCommandBackground = command['commandType'] == self.BACKGROUND_EXECUTION_COMMAND
     message = "Executing command with id = {commandId} for role = {role} of " \
               "cluster {cluster}.".format(
               commandId = str(commandId), role=command['role'],
@@ -157,6 +206,8 @@ class ActionQueue(threading.Thread):
     taskId = command['taskId']
     # Preparing 'IN_PROGRESS' report
     in_progress_status = self.commandStatuses.generate_report_template(command)
+    # The path of the files that contain the output log and error log use a prefix that the agent advertises to the
+    # server. The prefix is defined in agent-config.ini
     in_progress_status.update({
       'tmpout': self.tmpdir + os.sep + 'output-' + str(taskId) + '.txt',
       'tmperr': self.tmpdir + os.sep + 'errors-' + str(taskId) + '.txt',
@@ -164,13 +215,17 @@ class ActionQueue(threading.Thread):
       'status': self.IN_PROGRESS_STATUS
     })
     self.commandStatuses.put_command_status(command, in_progress_status)
+
     # running command
     commandresult = self.customServiceOrchestrator.runCommand(command,
       in_progress_status['tmpout'], in_progress_status['tmperr'])
+
+
     # dumping results
-    status = self.COMPLETED_STATUS
-    if commandresult['exitcode'] != 0:
-      status = self.FAILED_STATUS
+    if isCommandBackground:
+      return
+    else:
+      status = self.COMPLETED_STATUS if commandresult['exitcode'] == 0 else self.FAILED_STATUS
     roleResult = self.commandStatuses.generate_report_template(command)
     roleResult.update({
       'stdout': commandresult['stdout'],
@@ -195,6 +250,18 @@ class ActionQueue(threading.Thread):
     # let ambari know that configuration tags were applied
     if status == self.COMPLETED_STATUS:
       configHandler = ActualConfigHandler(self.config, self.configTags)
+      #update
+      if command.has_key('forceRefreshConfigTags') and len(command['forceRefreshConfigTags']) > 0  :
+
+        forceRefreshConfigTags = command['forceRefreshConfigTags']
+        logger.info("Got refresh additional component tags command")
+
+        for configTag in forceRefreshConfigTags :
+          configHandler.update_component_tag(command['role'], configTag, command['configurationTags'][configTag])
+
+        roleResult['customCommand'] = self.CUSTOM_COMMAND_RESTART # force restart for component to evict stale_config on server side
+        command['configurationTags'] = configHandler.read_actual_component(command['role'])
+
       if command.has_key('configurationTags'):
         configHandler.write_actual(command['configurationTags'])
         roleResult['configurationTags'] = command['configurationTags']
@@ -207,11 +274,40 @@ class ActionQueue(threading.Thread):
         command['hostLevelParams'].has_key('custom_command') and \
         command['hostLevelParams']['custom_command'] == self.CUSTOM_COMMAND_RESTART)):
         configHandler.write_actual_component(command['role'], command['configurationTags'])
-        configHandler.write_client_components(command['serviceName'], command['configurationTags'])
+        if command['hostLevelParams'].has_key('clientsToUpdateConfigs') and \
+          command['hostLevelParams']['clientsToUpdateConfigs']:
+          configHandler.write_client_components(command['serviceName'], command['configurationTags'],
+                                                command['hostLevelParams']['clientsToUpdateConfigs'])
         roleResult['configurationTags'] = configHandler.read_actual_component(command['role'])
 
     self.commandStatuses.put_command_status(command, roleResult)
 
+  def command_was_canceled(self):
+    self.customServiceOrchestrator
+  def on_background_command_complete_callback(self, process_condenced_result, handle):
+    logger.debug('Start callback: %s' % process_condenced_result)
+    logger.debug('The handle is: %s' % handle)
+    status = self.COMPLETED_STATUS if handle.exitCode == 0 else self.FAILED_STATUS
+
+    aborted_postfix = self.customServiceOrchestrator.command_canceled_reason(handle.command['taskId'])
+    if aborted_postfix:
+      status = self.FAILED_STATUS
+      logger.debug('Set status to: %s , reason = %s' % (status, aborted_postfix))
+    else:
+      aborted_postfix = ''
+
+
+    roleResult = self.commandStatuses.generate_report_template(handle.command)
+
+    roleResult.update({
+      'stdout': process_condenced_result['stdout'] + aborted_postfix,
+      'stderr': process_condenced_result['stderr'] + aborted_postfix,
+      'exitCode': process_condenced_result['exitcode'],
+      'structuredOut': str(json.dumps(process_condenced_result['structuredOut'])) if 'structuredOut' in process_condenced_result else '',
+      'status': status,
+    })
+
+    self.commandStatuses.put_command_status(handle.command, roleResult)
 
   def execute_status_command(self, command):
     '''
@@ -276,3 +372,9 @@ class ActionQueue(threading.Thread):
     Actions that are executed every time when command status changes
     """
     self.controller.trigger_heartbeat()
+
+  # Removes all commands from the queue
+  def reset(self):
+    queue = self.commandQueue
+    with queue.mutex:
+      queue.queue.clear()

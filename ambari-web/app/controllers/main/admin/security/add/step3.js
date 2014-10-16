@@ -25,86 +25,112 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
   hosts: [],
   isLoaded: false,
 
-  componentToUserMap: {
-    'NAMENODE': 'hdfs_user',
-    'SECONDARY_NAMENODE': 'hdfs_user',
-    'DATANODE': 'hdfs_user',
-    'JOURNALNODE': 'hdfs_user',
-    'TASKTRACKER': 'mapred_user',
-    'JOBTRACKER': 'mapred_user',
-    'HISTORYSERVER': 'mapred_user',
-    'RESOURCEMANAGER': 'yarn_user',
-    'NODEMANAGER': 'yarn_user',
-    'ZOOKEEPER_SERVER': 'zk_user',
-    'HIVE_SERVER': 'hive_user',
-    'OOZIE_SERVER': 'oozie_user',
-    'NAGIOS_SERVER': 'nagios_user',
-    'HBASE_MASTER': 'hbase_user',
-    'HBASE_REGIONSERVER': 'hbase_user',
-    'SUPERVISOR': 'storm_user',
-    'NIMBUS': 'storm_user',
-    'STORM_UI_SERVER': 'storm_user',
-    'FALCON_SERVER': 'falcon_user'
-  },
-
-  componentToConfigMap: [
-    {
-      componentName: 'NAMENODE',
-      principal: 'hadoop_http_principal_name',
-      keytab: 'hadoop_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
-    },
-    {
-      componentName: 'SECONDARY_NAMENODE',
-      principal: 'hadoop_http_principal_name',
-      keytab: 'hadoop_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
-    },
-    {
-      componentName: 'JOURNALNODE',
-      principal: 'hadoop_http_principal_name',
-      keytab: 'hadoop_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
-    },
-    {
-      componentName: 'WEBHCAT_SERVER',
-      principal: 'webHCat_http_principal_name',
-      keytab: 'webhcat_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.webhcat.user.httpUser')
-    },
-    {
-      componentName: 'OOZIE_SERVER',
-      principal: 'oozie_http_principal_name',
-      keytab: 'oozie_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.oozie.user.httpUser')
-    },
-    {
-      componentName: 'FALCON_SERVER',
-      principal: 'falcon_http_principal_name',
-      keytab: 'falcon_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.falcon.user.httpUser')
-    },
-    {
-      componentName: 'HISTORYSERVER',
-      principal: 'jobhistory_http_principal_name',
-      keytab: 'jobhistory_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.historyServer.user.httpUser'),
-      isHadoop2Stack: true
-    },
-    {
-      componentName: 'RESOURCEMANAGER',
-      principal: 'resourcemanager_http_principal_name',
-      keytab: 'resourcemanager_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.rm.user.httpUser'),
-      isHadoop2Stack: true
-    },
-    {
-      componentName: 'NODEMANAGER',
-      principal: 'nodemanager_http_principal_name',
-      keytab: 'nodemanager_http_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.nm.user.httpUser'),
-      isHadoop2Stack: true
+  componentToUserMap: function() {
+    var map = {
+      'NAMENODE': 'hdfs_user',
+      'SECONDARY_NAMENODE': 'hdfs_user',
+      'DATANODE': 'hdfs_user',
+      'JOURNALNODE': 'hdfs_user',
+      'TASKTRACKER': 'mapred_user',
+      'JOBTRACKER': 'mapred_user',
+      'HISTORYSERVER': 'mapred_user',
+      'RESOURCEMANAGER': 'yarn_user',
+      'NODEMANAGER': 'yarn_user',
+      'ZOOKEEPER_SERVER': 'zk_user',
+      'HIVE_SERVER': 'hive_user',
+      'OOZIE_SERVER': 'oozie_user',
+      'NAGIOS_SERVER': 'nagios_user',
+      'HBASE_MASTER': 'hbase_user',
+      'HBASE_REGIONSERVER': 'hbase_user',
+      'SUPERVISOR': 'storm_user',
+      'NIMBUS': 'storm_user',
+      'STORM_UI_SERVER': 'storm_user',
+      'FALCON_SERVER': 'falcon_user'
+    };
+    if (App.get('isHadoop22Stack')) {
+      map['DRPC_SERVER'] = 'storm_user'
     }
+    return map;
+  }.property('App.isHadoop22Stack'),
+  // The componentName, principal, and keytab have to coincide with the values in secure_properties.js
+  componentToConfigMap: [
+      {
+        componentName: 'NAMENODE',
+        principal: 'hadoop_http_principal_name',
+        keytab: 'hadoop_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
+      },
+      {
+        componentName: 'SECONDARY_NAMENODE',
+        principal: 'hadoop_http_principal_name',
+        keytab: 'hadoop_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
+      },
+      {
+        componentName: 'JOURNALNODE',
+        principal: 'hadoop_http_principal_name',
+        keytab: 'hadoop_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.hdfs.user.httpUser')
+      },
+      {
+        componentName: 'WEBHCAT_SERVER',
+        principal: 'webHCat_http_principal_name',
+        keytab: 'webhcat_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.webhcat.user.httpUser')
+      },
+      {
+        componentName: 'HIVE_SERVER',
+        principal: 'hive_metastore_http_principal_name',
+        keytab: 'hive_metastore_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.hive.user.httpUser')
+      },
+      {
+        componentName: 'OOZIE_SERVER',
+        principal: 'oozie_http_principal_name',
+        keytab: 'oozie_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.oozie.user.httpUser')
+      },
+      {
+        componentName: 'FALCON_SERVER',
+        principal: 'falcon_http_principal_name',
+        keytab: 'falcon_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.falcon.user.httpUser')
+      },
+      {
+        componentName: 'HISTORYSERVER',
+        principal: 'jobhistory_http_principal_name',
+        keytab: 'jobhistory_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.historyServer.user.httpUser'),
+        isHadoop2Stack: true
+      },
+      {
+        componentName: 'RESOURCEMANAGER',
+        principal: 'resourcemanager_http_principal_name',
+        keytab: 'resourcemanager_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.rm.user.httpUser'),
+        isHadoop2Stack: true
+      },
+      {
+        componentName: 'NODEMANAGER',
+        principal: 'nodemanager_http_principal_name',
+        keytab: 'nodemanager_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.nm.user.httpUser'),
+        isHadoop2Stack: true
+      },
+      {
+        componentName: 'APP_TIMELINE_SERVER',
+        principal: 'apptimelineserver_principal_name',
+        keytab: 'apptimelineserver_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.user.yarn.atsUser'),
+        isHadoop2Stack: true
+      },
+      {
+        componentName: 'APP_TIMELINE_SERVER',
+        principal: 'apptimelineserver_http_principal_name',
+        keytab: 'apptimelineserver_http_keytab',
+        displayName: Em.I18n.t('admin.addSecurity.user.yarn.atsHTTPUser'),
+        isHadoop2Stack: true
+      }
   ],
 
   mandatoryConfigs: [
@@ -116,7 +142,8 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
     {
       userConfig: 'hdfs_user',
       keytab: 'hdfs_user_keytab',
-      displayName: Em.I18n.t('admin.addSecurity.user.hdfsUser')
+      displayName: Em.I18n.t('admin.addSecurity.user.hdfsUser'),
+      checkService: 'HDFS'
     },
     {
       userConfig: 'hbase_user',
@@ -124,22 +151,6 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
       displayName: Em.I18n.t('admin.addSecurity.user.hbaseUser'),
       checkService: 'HBASE'
     }
-  ],
-  /**
-   * mock users that used in testMode
-   */
-  testModeUsers: [
-    { name: 'hdfs_user', value: 'hdfs'},
-    { name: 'mapred_user', value: 'mapred'},
-    { name: 'yarn_user', value: 'yarn'},
-    { name: 'hbase_user', value: 'hbase'},
-    { name: 'hive_user', value: 'hive'},
-    { name: 'falcon_user', value: 'falcon'},
-    { name: 'smokeuser', value: 'ambari-qa'},
-    { name: 'zk_user', value: 'zookeeper'},
-    { name: 'oozie_user', value: 'oozie'},
-    { name: 'nagios_user', value: 'nagios'},
-    { name: 'user_group', value: 'hadoop'}
   ],
 
   /**
@@ -230,6 +241,18 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
   },
 
   /**
+   * Returns host name for Nimbus component
+   */
+  getNimbusHostName: function () {
+    var host = this.get('hosts').find(function (host) {
+      return !!host.get('hostComponents').findProperty('componentName', 'NIMBUS');
+    });
+    if (host) {
+      return host.get('hostName');
+    }
+  },
+
+  /**
    * build map of connections between component and user
    * @param securityUsers
    */
@@ -237,7 +260,9 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
     var componentToUserMap = this.get('componentToUserMap');
     var componentToOwnerMap = {};
     for (var component in componentToUserMap) {
-      componentToOwnerMap[component] = securityUsers.findProperty('name', componentToUserMap[component]).value;
+      var user = componentToUserMap[component];
+      var secutityUser = securityUsers.findProperty('name', user);
+      componentToOwnerMap[component] = secutityUser.value;
     }
     return componentToOwnerMap;
   },
@@ -250,11 +275,20 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
    */
   setComponentsConfig: function (result, host, hadoopGroupId) {
     var hostComponents = host.get('hostComponents');
+
+    var isATSInstalled = this.get('content.isATSInstalled');
+    var doesATSSupportKerberos = App.get("doesATSSupportKerberos");
+
     this.get('componentToConfigMap').forEach(function (component) {
       //add specific components that supported only in Hadoop2 stack
       if (component.isHadoop2Stack && !App.get('isHadoop2Stack')) return;
 
       if (hostComponents.someProperty('componentName', component.componentName)) {
+
+        if (component.componentName === "APP_TIMELINE_SERVER" && (!isATSInstalled || !doesATSSupportKerberos)) {
+          return;
+        }
+
         var configs = this.get('content.serviceConfigProperties');
         var serviceName = App.StackServiceComponent.find(component.componentName).get('serviceName');
         var serviceConfigs = configs.filterProperty('serviceName', serviceName);
@@ -317,16 +351,30 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
     var componentsToDisplay = ['NAMENODE', 'SECONDARY_NAMENODE', 'DATANODE', 'JOBTRACKER', 'ZOOKEEPER_SERVER', 'HIVE_SERVER', 'TASKTRACKER',
       'OOZIE_SERVER', 'NAGIOS_SERVER', 'HBASE_MASTER', 'HBASE_REGIONSERVER', 'HISTORYSERVER', 'RESOURCEMANAGER', 'NODEMANAGER', 'JOURNALNODE',
       'SUPERVISOR', 'NIMBUS', 'STORM_UI_SERVER', 'FALCON_SERVER'];
+    if (App.get('isHadoop22Stack')) {
+      componentsToDisplay.push('DRPC_SERVER');
+    }
     var configs = this.get('content.serviceConfigProperties');
     var componentToOwnerMap = this.buildComponentToOwnerMap(securityUsers);
     var hostName = host.get('hostName');
 
+    var isATSInstalled = this.get('content.isATSInstalled');
+    var doesATSSupportKerberos = App.get("doesATSSupportKerberos");
+
     host.get('hostComponents').forEach(function (hostComponent) {
       if (componentsToDisplay.contains(hostComponent.get('componentName'))) {
         var serviceConfigs = configs.filterProperty('serviceName', hostComponent.get('service.serviceName'));
-        var secureProperties = this.getSecureProperties(serviceConfigs, hostComponent.get('componentName'), hostName);
+        var targetHost = hostName;
+        if (App.get('isHadoop22Stack') && hostComponent.get('componentName') === 'DRPC_SERVER') {
+          targetHost = this.getNimbusHostName()
+        }
+        var secureProperties = this.getSecureProperties(serviceConfigs, hostComponent.get('componentName'), targetHost);
         var displayName = this.changeDisplayName(hostComponent.get('displayName'));
         var key = hostName + "--" + secureProperties.principal;
+
+        if (hostComponent.get('componentName') === "APP_TIMELINE_SERVER" && (!isATSInstalled || !doesATSSupportKerberos)) {
+          return;
+        }
 
         if (Em.isNone(addedPrincipalsHost[key])) {
           var owner = componentToOwnerMap[hostComponent.get('componentName')] || '';
@@ -384,19 +432,7 @@ App.MainAdminSecurityAddStep3Controller = Em.Controller.extend({
    * @return {Array}
    */
   getSecurityUsers: function () {
-    var securityUsers = [];
-    if (App.testMode) {
-      this.get('testModeUsers').forEach(function (user) {
-        securityUsers.push({
-          id: 'puppet var',
-          name: user.name,
-          value: user.value
-        });
-      });
-    } else {
-      securityUsers = App.db.getSecureUserInfo();
-    }
-    return securityUsers;
+    return App.db.getSecureUserInfo();
   },
 
   /**

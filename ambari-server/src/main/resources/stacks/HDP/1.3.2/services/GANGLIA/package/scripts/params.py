@@ -22,7 +22,7 @@ import os
 
 config = Script.get_config()
 
-user_group = config['configurations']['hadoop-env']["user_group"]
+user_group = config['configurations']['cluster-env']["user_group"]
 ganglia_conf_dir = default("/configurations/ganglia-env/ganglia_conf_dir","/etc/ganglia/hdp")
 ganglia_dir = "/etc/ganglia"
 ganglia_runtime_dir = config['configurations']['ganglia-env']["ganglia_runtime_dir"]
@@ -72,12 +72,11 @@ has_hbase_rs = not len(hbase_rs_hosts) == 0
 has_flume = not len(flume_hosts) == 0
 
 ganglia_cluster_names = {
-  "jtnode_host" : [("HDPJournalNode", 8654)],
   "flume_hosts" : [("HDPFlumeServer", 8655)],
   "hbase_rs_hosts" : [("HDPHBaseRegionServer", 8656)],
   "nm_hosts" : [("HDPNodeManager", 8657)],
   "mapred_tt_hosts" : [("HDPTaskTracker", 8658)],
-  "slave_hosts" : [("HDPDataNode", 8659), ("HDPSlaves", 8660)],
+  "slave_hosts" : [("HDPDataNode", 8659)],
   "namenode_host" : [("HDPNameNode", 8661)],
   "jtnode_host" : [("HDPJobTracker", 8662)],
   "hbase_master_hosts" : [("HDPHBaseMaster", 8663)],
@@ -85,7 +84,7 @@ ganglia_cluster_names = {
   "hs_host" : [("HDPHistoryServer", 8666)],
 }
 
-ganglia_clusters = []
+ganglia_clusters = [("HDPSlaves", 8660)]
 
 for key in ganglia_cluster_names:
   property_name = format("/clusterHostInfo/{key}")

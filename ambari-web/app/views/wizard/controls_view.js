@@ -32,6 +32,10 @@ App.ServiceConfigPopoverSupport = Ember.Mixin.create({
   isPopoverEnabled: true,
 
   didInsertElement: function () {
+    $('body').tooltip({
+      selector: '[data-toggle=tooltip]',
+      placement: 'top'
+    });
     // if description for this serviceConfig not exist, then no need to show popover
     if (this.get('isPopoverEnabled') !== 'false' && this.get('serviceConfig.description')) {
       App.popover(this.$(), {
@@ -56,10 +60,25 @@ App.ServiceConfigPopoverSupport = Ember.Mixin.create({
 });
 
 /**
+ * if config value contains &amp;|&lt;|&gt;|&quot;|&apos;
+ * input field converts it to &|<|>|"|'
+ * this mixin helps to aviod such convertation and show values as is.
+ */
+App.SkipXmlEscapingSupport = Ember.Mixin.create({
+  didInsertElement: function() {
+    this._super();
+    if (this.get('serviceConfig.value').match(/(&amp;|&lt;|&gt;|&quot;|&apos;)/g)) {
+      this.set('value', this.get('serviceConfig.value').replace('&','&amp;'));
+      this.set('value', this.get('value').replace('&amp;','&'));
+    }
+  }
+});
+
+/**
  * Default input control
  * @type {*}
  */
-App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupport, {
+App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
 
   valueBinding: 'serviceConfig.value',
   classNameBindings: 'textFieldClassName',
@@ -76,7 +95,7 @@ App.ServiceConfigTextField = Ember.TextField.extend(App.ServiceConfigPopoverSupp
   },
   //Set editDone false for all current category config text field parameter
   focusIn: function (event) {
-    if (!this.get('serviceConfig.isOverridden')) {
+    if (!this.get('serviceConfig.isOverridden') && !this.get('serviceConfig.isComparison')) {
       this.get("parentView.categoryConfigsAll").setEach("editDone", false);
     }
   },
@@ -152,7 +171,7 @@ App.ServiceConfigPasswordField = Ember.TextField.extend({
  * Textarea control
  * @type {*}
  */
-App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, {
+App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
 
   valueBinding: 'serviceConfig.value',
   rows: 4,
@@ -163,7 +182,7 @@ App.ServiceConfigTextArea = Ember.TextArea.extend(App.ServiceConfigPopoverSuppor
  * Textarea control for content type
  * @type {*}
  */
-App.ServiceConfigTextAreaContent = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, {
+App.ServiceConfigTextAreaContent = Ember.TextArea.extend(App.ServiceConfigPopoverSupport, App.SkipXmlEscapingSupport, {
 
   valueBinding: 'serviceConfig.value',
   rows: 20,
@@ -564,6 +583,18 @@ App.ServiceConfigMasterHostView = Ember.View.extend(App.ServiceConfigHostPopover
 });
 
 /**
+ * Show value as plain label in italics
+ * @type {*}
+ */
+App.ServiceConfigLabelView = Ember.View.extend(App.ServiceConfigHostPopoverSupport, {
+
+  classNames: ['master-host', 'span6'],
+  valueBinding: 'serviceConfig.value',
+
+  template: Ember.Handlebars.compile('<i>{{view.value}}</i>')
+});
+
+/**
  * Base component to display Multiple hosts
  * @type {*}
  */
@@ -961,6 +992,7 @@ App.CheckDBConnectionView = Ember.View.extend({
    * @method connectToDatabase
    **/
   connectToDatabase: function() {
+    if (this.get('isBtnDisabled')) return false;
     var self = this;
     self.set('isRequestResolved', false);
     App.db.set('tmp', this.get('parentView.service.serviceName') + '_connection', {});

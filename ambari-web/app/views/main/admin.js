@@ -22,40 +22,22 @@ App.MainAdminView = Em.View.extend({
   templateName: require('templates/main/admin'),
   selectedBinding: 'controller.category',
   categories: function() {
-    var items = [{
-      name: 'user',
-      url: 'admin.index',
-      label: Em.I18n.t('common.users')
-    }];
-    if (App.get('isHadoop2Stack') && App.supports.highAvailability) {
-      items.push({
-        name: 'highAvailability',
-        url: 'adminHighAvailability',
-        label: Em.I18n.t('admin.highAvailability')
-      });
-    }
+    var items = [];
+    items.push({
+      name: 'repositories',
+      url: 'adminRepositories',
+      label: Em.I18n.t('common.repositories')
+    });
+    items.push({
+      name: 'serviceAccounts',
+      url: 'adminServiceAccounts',
+      label: Em.I18n.t('common.serviceAccounts')
+    });
     if (App.supports.secureCluster && !App.get('isHadoopWindowsStack')) {
       items.push({
         name: 'security',
         url: 'adminSecurity.index',
         label: Em.I18n.t('common.security')
-      });
-    }
-    items.push({
-      name: 'cluster',
-      url: 'adminCluster',
-      label: Em.I18n.t('common.cluster')
-    });
-    items.push({
-      name: 'misc',
-      url: 'adminMisc',
-      label: Em.I18n.t('common.misc')
-    });
-    if (this.get('controller.isAccessAvailable')) {
-      items.push({
-        name: 'access',
-        url: 'adminAccess',
-        label: Em.I18n.t('common.access')
       });
     }
     return items;

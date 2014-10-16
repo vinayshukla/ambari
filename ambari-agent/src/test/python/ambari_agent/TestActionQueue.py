@@ -27,6 +27,7 @@ import os, errno, time, pprint, tempfile, threading, json
 import StringIO
 import sys
 from threading import Thread
+import copy
 
 from mock.mock import patch, MagicMock, call
 from ambari_agent.StackVersionsFileHandler import StackVersionsFileHandler
@@ -34,13 +35,11 @@ from ambari_agent.CustomServiceOrchestrator import CustomServiceOrchestrator
 from ambari_agent.PythonExecutor import PythonExecutor
 from ambari_agent.CommandStatusDict import CommandStatusDict
 from ambari_agent.ActualConfigHandler import ActualConfigHandler
+from FileCache import FileCache
 
 
 class TestActionQueue(TestCase):
-
   def setUp(self):
-    out = StringIO.StringIO()
-    sys.stdout = out
     # save original open() method for later use
     self.original_open = open
 
@@ -143,6 +142,19 @@ class TestActionQueue(TestCase):
     'serviceName': u'HDFS',
     'configurations':{'global' : {}},
     'configurationTags':{'global' : { 'tag': 'v123' }},
+    'hostLevelParams':{'custom_command': 'RESTART', 'clientsToUpdateConfigs': []}
+  }
+
+  datanode_restart_command_no_clients_update = {
+    'commandType': 'EXECUTION_COMMAND',
+    'role': u'DATANODE',
+    'roleCommand': u'CUSTOM_COMMAND',
+    'commandId': '1-1',
+    'taskId': 9,
+    'clusterName': u'cc',
+    'serviceName': u'HDFS',
+    'configurations':{'global' : {}},
+    'configurationTags':{'global' : { 'tag': 'v123' }},
     'hostLevelParams':{'custom_command': 'RESTART'}
   }
 
@@ -154,6 +166,49 @@ class TestActionQueue(TestCase):
     'configurations':{},
     'hostLevelParams': {}
   }
+
+  background_command = {
+    'commandType': 'BACKGROUND_EXECUTION_COMMAND',
+    'role': 'NAMENODE',
+    'roleCommand': 'CUSTOM_COMMAND',
+    'commandId': '1-1',
+    'taskId': 19,
+    'clusterName': 'c1',
+    'serviceName': 'HDFS',
+    'configurations':{'global' : {}},
+    'configurationTags':{'global' : { 'tag': 'v123' }},
+    'hostLevelParams':{'custom_command': 'REBALANCE_HDFS'},
+    'commandParams' :  {
+      'script_type' : 'PYTHON',
+      'script' : 'script.py',
+      'command_timeout' : '600',
+      'jdk_location' : '.',
+      'service_package_folder' : '.'
+      }
+  }
+  cancel_background_command = {
+    'commandType': 'EXECUTION_COMMAND',
+    'role': 'NAMENODE',
+    'roleCommand': 'ACTIONEXECUTE',
+    'commandId': '1-1',
+    'taskId': 20,
+    'clusterName': 'c1',
+    'serviceName': 'HDFS',
+    'configurations':{'global' : {}},
+    'configurationTags':{'global' : {}},
+    'hostLevelParams':{},
+    'commandParams' :  {
+      'script_type' : 'PYTHON',
+      'script' : 'cancel_background_task.py',
+      'before_system_hook_function' : 'fetch_bg_pid_by_taskid',
+      'jdk_location' : '.',
+      'command_timeout' : '600',
+      'service_package_folder' : '.',
+      'cancel_policy': 'SIGKILL',
+      'cancel_task_id': "19",
+      }
+  }
+
 
   @patch.object(ActionQueue, "process_command")
   @patch.object(Queue, "get")
@@ -178,7 +233,9 @@ class TestActionQueue(TestCase):
   def test_process_command(self, execute_status_command_mock,
                            execute_command_mock, print_exc_mock):
     dummy_controller = MagicMock()
-    actionQueue = ActionQueue(AmbariConfig().getConfig(), dummy_controller)
+    config = AmbariConfig()
+    config.set('agent', 'tolerate_download_failures', "true")
+    actionQueue = ActionQueue(config, dummy_controller)
     execution_command = {
       'commandType' : ActionQueue.EXECUTION_COMMAND,
     }
@@ -243,7 +300,7 @@ class TestActionQueue(TestCase):
         return self.original_open(file, mode)
     open_mock.side_effect = open_side_effect
 
-    config = AmbariConfig().getConfig()
+    config = AmbariConfig()
     tempdir = tempfile.gettempdir()
     config.set('agent', 'prefix', tempdir)
     config.set('agent', 'cache_dir', "/var/lib/ambari-agent/cache")
@@ -429,6 +486,48 @@ class TestActionQueue(TestCase):
     self.assertEqual(len(report['reports']), 1)
     self.assertEqual(expected, report['reports'][0])
 
+  @patch.object(ActualConfigHandler, "write_client_components")
+  @patch.object(CustomServiceOrchestrator, "runCommand")
+  @patch("CommandStatusDict.CommandStatusDict")
+  @patch.object(ActionQueue, "status_update_callback")
+  def test_store_configuration_tags_no_clients(self, status_update_callback_mock,
+                                    command_status_dict_mock,
+                                    cso_runCommand_mock, write_client_components_mock):
+    custom_service_orchestrator_execution_result_dict = {
+      'stdout': 'out',
+      'stderr': 'stderr',
+      'structuredOut' : '',
+      'exitcode' : 0
+    }
+    cso_runCommand_mock.return_value = custom_service_orchestrator_execution_result_dict
+
+    config = AmbariConfig().getConfig()
+    tempdir = tempfile.gettempdir()
+    config.set('agent', 'prefix', tempdir)
+    config.set('agent', 'cache_dir', "/var/lib/ambari-agent/cache")
+    config.set('agent', 'tolerate_download_failures', "true")
+    dummy_controller = MagicMock()
+    actionQueue = ActionQueue(config, dummy_controller)
+    actionQueue.execute_command(self.datanode_restart_command_no_clients_update)
+    report = actionQueue.result()
+    expected = {'status': 'COMPLETED',
+                'configurationTags': {'global': {'tag': 'v123'}},
+                'stderr': 'stderr',
+                'stdout': 'out',
+                'clusterName': u'cc',
+                'structuredOut': '""',
+                'roleCommand': u'CUSTOM_COMMAND',
+                'serviceName': u'HDFS',
+                'role': u'DATANODE',
+                'actionId': '1-1',
+                'taskId': 9,
+                'customCommand': 'RESTART',
+                'exitCode': 0}
+    # Agent caches configurationTags if custom_command RESTART completed
+    self.assertEqual(len(report['reports']), 1)
+    self.assertEqual(expected, report['reports'][0])
+    self.assertFalse(write_client_components_mock.called)
+
   @patch.object(ActionQueue, "status_update_callback")
   @patch.object(StackVersionsFileHandler, "read_stack_version")
   @patch.object(CustomServiceOrchestrator, "requestComponentStatus")
@@ -485,3 +584,162 @@ class TestActionQueue(TestCase):
     self.assertTrue(requestComponentStatus_mock.called)
     self.assertEqual(len(report['componentStatus']), 1)
     self.assertTrue(report['componentStatus'][0].has_key('alerts'))
+
+  @patch.object(ActionQueue, "process_command")
+  @patch.object(Queue, "get")
+  @patch.object(CustomServiceOrchestrator, "__init__")
+  def test_reset_queue(self, CustomServiceOrchestrator_mock,
+                                get_mock, process_command_mock):
+    CustomServiceOrchestrator_mock.return_value = None
+    dummy_controller = MagicMock()
+    config = MagicMock()
+    actionQueue = ActionQueue(config, dummy_controller)
+    actionQueue.start()
+    actionQueue.put([self.datanode_install_command, self.hbase_install_command])
+    self.assertEqual(2, actionQueue.commandQueue.qsize())
+    actionQueue.reset()
+    self.assertTrue(actionQueue.commandQueue.empty())
+    time.sleep(0.1)
+    actionQueue.stop()
+    actionQueue.join()
+    self.assertEqual(actionQueue.stopped(), True, 'Action queue is not stopped.')
+
+  @patch.object(ActionQueue, "process_command")
+  @patch.object(Queue, "get")
+  @patch.object(CustomServiceOrchestrator, "__init__")
+  def test_cancel(self, CustomServiceOrchestrator_mock,
+                       get_mock, process_command_mock):
+    CustomServiceOrchestrator_mock.return_value = None
+    dummy_controller = MagicMock()
+    config = MagicMock()
+    actionQueue = ActionQueue(config, dummy_controller)
+    actionQueue.start()
+    actionQueue.put([self.datanode_install_command, self.hbase_install_command])
+    self.assertEqual(2, actionQueue.commandQueue.qsize())
+    actionQueue.reset()
+    self.assertTrue(actionQueue.commandQueue.empty())
+    time.sleep(0.1)
+    actionQueue.stop()
+    actionQueue.join()
+    self.assertEqual(actionQueue.stopped(), True, 'Action queue is not stopped.')
+
+  @patch.object(StackVersionsFileHandler, "read_stack_version")
+  @patch.object(CustomServiceOrchestrator, "runCommand")
+  @patch.object(CustomServiceOrchestrator, "__init__")
+  def test_execute_background_command(self, CustomServiceOrchestrator_mock,
+                                  runCommand_mock, read_stack_version_mock
+                                  ):
+    CustomServiceOrchestrator_mock.return_value = None
+    CustomServiceOrchestrator.runCommand.return_value = {'exitcode' : 0,
+                                                         'stdout': 'out-11',
+                                                         'stderr' : 'err-13'}
+
+    dummy_controller = MagicMock()
+    actionQueue = ActionQueue(AmbariConfig().getConfig(), dummy_controller)
+
+    execute_command = copy.deepcopy(self.background_command)
+    actionQueue.put([execute_command])
+    actionQueue.processBackgroundQueueSafeEmpty();
+    actionQueue.processStatusCommandQueueSafeEmpty();
+
+    #assert that python execturor start
+    self.assertTrue(runCommand_mock.called)
+    runningCommand = actionQueue.commandStatuses.current_state.get(execute_command['taskId'])
+    self.assertTrue(runningCommand is not None)
+    self.assertEqual(runningCommand[1]['status'], ActionQueue.IN_PROGRESS_STATUS)
+
+    report = actionQueue.result()
+    self.assertEqual(len(report['reports']),1)
+
+  @patch.object(CustomServiceOrchestrator, "resolve_script_path")
+  @patch.object(StackVersionsFileHandler, "read_stack_version")
+  def test_execute_python_executor(self, read_stack_version_mock, resolve_script_path_mock):
+
+    dummy_controller = MagicMock()
+    cfg = AmbariConfig().getConfig()
+    cfg.set('agent', 'tolerate_download_failures', 'true')
+    cfg.set('agent', 'prefix', '.')
+    cfg.set('agent', 'cache_dir', 'background_tasks')
+
+    actionQueue = ActionQueue(cfg, dummy_controller)
+    patch_output_file(actionQueue.customServiceOrchestrator.python_executor)
+    actionQueue.customServiceOrchestrator.dump_command_to_json = MagicMock()
+
+    result = {}
+    lock = threading.RLock()
+    complete_done = threading.Condition(lock)
+
+    def command_complete_w(process_condenced_result, handle):
+      with lock:
+        result['command_complete'] = {'condenced_result' : copy.copy(process_condenced_result),
+                                      'handle' : copy.copy(handle),
+                                      'command_status' : actionQueue.commandStatuses.get_command_status(handle.command['taskId'])
+                                      }
+        complete_done.notifyAll()
+
+    actionQueue.on_background_command_complete_callback = wraped(actionQueue.on_background_command_complete_callback,None, command_complete_w)
+    actionQueue.put([self.background_command])
+    actionQueue.processBackgroundQueueSafeEmpty();
+    actionQueue.processStatusCommandQueueSafeEmpty();
+
+    with lock:
+      complete_done.wait(.1)
+
+      finished_status = result['command_complete']['command_status']
+      self.assertEqual(finished_status['status'], ActionQueue.COMPLETED_STATUS)
+      self.assertEqual(finished_status['stdout'], 'process_out')
+      self.assertEqual(finished_status['stderr'], 'process_err')
+      self.assertEqual(finished_status['exitCode'], 0)
+
+
+    runningCommand = actionQueue.commandStatuses.current_state.get(self.background_command['taskId'])
+    self.assertTrue(runningCommand is not None)
+
+    report = actionQueue.result()
+    self.assertEqual(len(report['reports']),1)
+    self.assertEqual(report['reports'][0]['stdout'],'process_out')
+#    self.assertEqual(report['reports'][0]['structuredOut'],'{"a": "b."}')
+
+
+
+  cancel_background_command = {
+    "commandType":"CANCEL_COMMAND",
+    "role":"AMBARI_SERVER_ACTION",
+    "roleCommand":"ABORT",
+    "commandId":"2--1",
+    "taskId":20,
+    "clusterName":"c1",
+    "serviceName":"",
+    "hostname":"c6401",
+    "roleParams":{
+      "cancelTaskIdTargets":"13,14"
+    },
+  }
+
+def patch_output_file(pythonExecutor):
+  def windows_py(command, tmpout, tmperr):
+    proc = MagicMock()
+    proc.pid = 33
+    proc.returncode = 0
+    with tmpout:
+      tmpout.write('process_out')
+    with tmperr:
+      tmperr.write('process_err')
+    return proc
+  def open_subporcess_files_win(fout, ferr, f):
+    return MagicMock(), MagicMock()
+  def read_result_from_files(out_path, err_path, structured_out_path):
+    return 'process_out', 'process_err', '{"a": "b."}'
+  pythonExecutor.launch_python_subprocess = windows_py
+  pythonExecutor.open_subporcess_files = open_subporcess_files_win
+  pythonExecutor.read_result_from_files = read_result_from_files
+
+def wraped(func, before = None, after = None):
+    def wrapper(*args, **kwargs):
+      if(before is not None):
+        before(*args, **kwargs)
+      ret =  func(*args, **kwargs)
+      if(after is not None):
+        after(*args, **kwargs)
+      return ret
+    return wrapper

@@ -173,8 +173,8 @@ class TestNagiosServer(RMFTestCase):
                               content=StaticFile('check_cpu.php'),
                               mode=0755
     )
-    self.assertResourceCalled('File', '/usr/lib64/nagios/plugins/check_hbase_cpu.php',
-                              content=StaticFile('check_hbase_cpu.php'),
+    self.assertResourceCalled('File', '/usr/lib64/nagios/plugins/check_cpu_ha.php',
+                              content=StaticFile('check_cpu_ha.php'),
                               mode=0755
     )
     self.assertResourceCalled('File',
@@ -203,8 +203,18 @@ class TestNagiosServer(RMFTestCase):
                               mode=0755
     )
     self.assertResourceCalled('File',
+                              '/usr/lib64/nagios/plugins/check_rpcq_latency_ha.php',
+                              content=StaticFile('check_rpcq_latency_ha.php'),
+                              mode=0755
+    )
+    self.assertResourceCalled('File',
                               '/usr/lib64/nagios/plugins/check_webui.sh',
                               content=StaticFile('check_webui.sh'),
+                              mode=0755
+    )
+    self.assertResourceCalled('File',
+                              '/usr/lib64/nagios/plugins/check_webui_ha.sh',
+                              content=StaticFile('check_webui_ha.sh'),
                               mode=0755
     )
     self.assertResourceCalled('File',
@@ -271,6 +281,11 @@ class TestNagiosServer(RMFTestCase):
     self.assertResourceCalled('File',
                               '/usr/lib64/nagios/plugins/check_ambari_alerts.py',
                               content=StaticFile('check_ambari_alerts.py'),
+                              mode=0755
+    )
+    self.assertResourceCalled('File',
+                              '/usr/lib64/nagios/plugins/check_hive_thrift_port.py',
+                              content=StaticFile('check_hive_thrift_port.py'),
                               mode=0755
     )
     self.assertResourceCalled('Execute',

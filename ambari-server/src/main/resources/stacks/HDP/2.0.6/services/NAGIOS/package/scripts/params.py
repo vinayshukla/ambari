@@ -24,10 +24,13 @@ from functions import is_jdk_greater_6
 from resource_management import *
 import status_params
 
+HADOOP_HTTP_POLICY = "HTTP_ONLY"
+HADOOP_HTTPS_POLICY = "HTTPS_ONLY"
+
 # server configurations
 config = Script.get_config()
 
-if System.get_instance().os_family == "debian":
+if System.get_instance().os_family == "ubuntu":
   nagios_service_name = "nagios3"
 else:
   nagios_service_name = "nagios"
@@ -37,7 +40,12 @@ nagios_obj_dir = format("{conf_dir}/objects")
 nagios_var_dir = status_params.nagios_var_dir
 nagios_rw_dir = status_params.nagios_rw_dir
 
-if System.get_instance().os_family == "debian":
+# HACK: Stylesheets for Nagios UI on Ubuntu are in wrong place so we have to do a symlink.
+# In future we can fix this directly in the package.
+ubuntu_stylesheets_real_location = "/etc/nagios3/stylesheets"
+ubuntu_stylesheets_desired_location = "/usr/share/nagios3/htdocs/stylesheets"
+
+if System.get_instance().os_family == "ubuntu":
   host_template = "generic-host"
   plugins_dir = "/usr/lib/nagios/plugins"
   nagios_web_dir = "/usr/share/nagios3/htdocs"
@@ -80,30 +88,102 @@ nagios_service_cfg = format("{nagios_obj_dir}/hadoop-services.cfg")
 nagios_command_cfg = format("{nagios_obj_dir}/hadoop-commands.cfg")
 eventhandlers_dir = "/usr/lib/nagios/eventhandlers"
 nagios_principal_name = default("/configurations/nagios-env/nagios_principal_name", "nagios")
-hadoop_ssl_enabled = False
 
 oozie_server_port = get_port_from_url(config['configurations']['oozie-site']['oozie.base.url'])
+namenode_host = default("/clusterHostInfo/namenode_host", None)
 
-# different to HDP1    
-if 'dfs.namenode.http-address' in config['configurations']['hdfs-site']:
-  namenode_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.namenode.http-address'])
+has_namenode = not namenode_host == None
+
+# - test for HDFS or HCFS (glusterfs)
+if 'namenode_host' in config['clusterHostInfo']:
+  ishdfs_value = "HDFS"
 else:
-  namenode_port = "50070" 
+  ishdfs_value = None
 
-if 'dfs.namenode.secondary.http-address' in config['configurations']['hdfs-site']:
-  snamenode_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.namenode.secondary.http-address'])
-else:
-  snamenode_port = "50071"
+# HDFS, YARN, and MR use different settings to enable SSL
+hdfs_ssl_enabled = False
+yarn_ssl_enabled = False
+mapreduce_ssl_enabled = False
 
-if 'dfs.journalnode.http-address' in config['configurations']['hdfs-site']:
-  journalnode_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.journalnode.http-address'])
-  datanode_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.datanode.http.address'])
+# initialize all http policies to HTTP_ONLY
+dfs_http_policy = HADOOP_HTTP_POLICY
+yarn_http_policy = HADOOP_HTTP_POLICY
+mapreduce_http_policy = HADOOP_HTTP_POLICY
 
-hbase_master_rpc_port = default('/configurations/hbase-site/hbase.master.port', "60000")
-rm_port = get_port_from_url(config['configurations']['yarn-site']['yarn.resourcemanager.webapp.address'])
-nm_port = "8042"
-hs_port = get_port_from_url(config['configurations']['mapred-site']['mapreduce.jobhistory.webapp.address'])
+#
+if 'dfs.http.policy' in config['configurations']['hdfs-site']:
+  dfs_http_policy = config['configurations']['hdfs-site']['dfs.http.policy']
+
+if 'yarn.http.policy' in config['configurations']['yarn-site']:
+  yarn_http_policy = config['configurations']['yarn-site']['yarn.http.policy']
+
+if 'mapreduce.jobhistory.http.policy' in config['configurations']['mapred-site']:
+  mapreduce_http_policy = config['configurations']['mapred-site']['mapreduce.jobhistory.http.policy']
+
+if dfs_http_policy == HADOOP_HTTPS_POLICY:
+  hdfs_ssl_enabled = True
+
+if yarn_http_policy == HADOOP_HTTPS_POLICY:
+  yarn_ssl_enabled = True
+
+if mapreduce_http_policy == HADOOP_HTTPS_POLICY:
+  mapreduce_ssl_enabled = True
+
+# set default ports and webui lookup properties
+dfs_namenode_webui_default_port = '50070'
+dfs_snamenode_webui_default_port = '50090'
+yarn_nodemanager_default_port = '8042'
+dfs_namenode_webui_property = 'dfs.namenode.http-address'
+dfs_snamenode_webui_property = 'dfs.namenode.secondary.http-address'
+dfs_datanode_webui_property = 'dfs.datanode.http.address'
+yarn_rm_webui_property = 'yarn.resourcemanager.webapp.address'
+yarn_timeline_service_webui_property = 'yarn.timeline-service.webapp.address'
+yarn_nodemanager_webui_property = 'yarn.nodemanager.webapp.address'
+mapreduce_jobhistory_webui_property = 'mapreduce.jobhistory.webapp.address'
+
+# if HDFS is protected by SSL, adjust the ports and lookup properties
+if hdfs_ssl_enabled == True:
+  dfs_namenode_webui_default_port = '50470'
+  dfs_snamenode_webui_default_port = '50091'
+  dfs_namenode_webui_property = 'dfs.namenode.https-address'
+  dfs_snamenode_webui_property = 'dfs.namenode.secondary.https-address'
+  dfs_datanode_webui_property = 'dfs.datanode.https.address'
+
+# if YARN is protected by SSL, adjust the ports and lookup properties
+if yarn_ssl_enabled == True:
+  yarn_rm_webui_property = 'yarn.resourcemanager.webapp.https.address'
+  yarn_nodemanager_webui_property = 'yarn.nodemanager.webapp.https.address'
+  yarn_timeline_service_webui_property = 'yarn.timeline-service.webapp.https.address'
+
+# if MR is protected by SSL, adjust the ports and lookup properties
+if mapreduce_ssl_enabled == True:
+  mapreduce_jobhistory_webui_property = 'mapreduce.jobhistory.webapp.https.address'
+
+if has_namenode:
+  # extract NameNode
+  if dfs_namenode_webui_property in config['configurations']['hdfs-site']:
+    namenode_port = get_port_from_url(config['configurations']['hdfs-site'][dfs_namenode_webui_property])
+  else:
+    namenode_port = dfs_namenode_webui_default_port
+
+  # extract Secondary NameNode
+  if dfs_snamenode_webui_property in config['configurations']['hdfs-site']:
+    snamenode_port = get_port_from_url(config['configurations']['hdfs-site'][dfs_snamenode_webui_property])
+  else:
+    snamenode_port = dfs_snamenode_webui_default_port
+
+  if 'dfs.journalnode.http-address' in config['configurations']['hdfs-site']:
+    journalnode_port = get_port_from_url(config['configurations']['hdfs-site']['dfs.journalnode.http-address'])
+    datanode_port = get_port_from_url(config['configurations']['hdfs-site'][dfs_datanode_webui_property])
+
+nm_port = yarn_nodemanager_default_port
+if yarn_nodemanager_webui_property in config['configurations']['yarn-site']:
+  nm_port = get_port_from_url(config['configurations']['yarn-site'][yarn_nodemanager_webui_property])
+
 flume_port = "4159"
+hbase_master_rpc_port = default('/configurations/hbase-site/hbase.master.port', "60000")
+rm_port = get_port_from_url(config['configurations']['yarn-site'][yarn_rm_webui_property])
+hs_port = get_port_from_url(config['configurations']['mapred-site'][mapreduce_jobhistory_webui_property])
 hive_metastore_port = get_port_from_url(config['configurations']['hive-site']['hive.metastore.uris']) #"9083"
 hive_server_port = default('/configurations/hive-site/hive.server2.thrift.port',"10000")
 templeton_port = config['configurations']['webhcat-site']['templeton.port'] #"50111"
@@ -115,19 +195,21 @@ nimbus_port = config['configurations']['storm-site']['nimbus.thrift.port']
 supervisor_port = "56431"
 storm_rest_api_port = "8745"
 falcon_port = config['configurations']['falcon-env']['falcon_port']
-ahs_port = get_port_from_url(config['configurations']['yarn-site']['yarn.timeline-service.webapp.address'])
+ahs_port = get_port_from_url(config['configurations']['yarn-site'][yarn_timeline_service_webui_property])
+knox_gateway_port = config['configurations']['gateway-site']['gateway.port']
 
 # use sensible defaults for checkpoint as they are required by Nagios and 
 # may not be part of hdfs-site.xml on an upgrade
-if 'dfs.namenode.checkpoint.period' in config['configurations']['hdfs-site']:
-  dfs_namenode_checkpoint_period = config['configurations']['hdfs-site']['dfs.namenode.checkpoint.period']
-else:
-  dfs_namenode_checkpoint_period = '21600'
+if has_namenode:
+  if 'dfs.namenode.checkpoint.period' in config['configurations']['hdfs-site']:
+    dfs_namenode_checkpoint_period = config['configurations']['hdfs-site']['dfs.namenode.checkpoint.period']
+  else:
+    dfs_namenode_checkpoint_period = '21600'
   
-if 'dfs.namenode.checkpoint.txns' in config['configurations']['hdfs-site']:
-  dfs_namenode_checkpoint_txns = config['configurations']['hdfs-site']['dfs.namenode.checkpoint.txns']
-else:
-  dfs_namenode_checkpoint_txns = '1000000'
+  if 'dfs.namenode.checkpoint.txns' in config['configurations']['hdfs-site']:
+    dfs_namenode_checkpoint_txns = config['configurations']['hdfs-site']['dfs.namenode.checkpoint.txns']
+  else:
+    dfs_namenode_checkpoint_txns = '1000000'
 
 # this is different for HDP1
 nn_metrics_property = "FSNamesystem"
@@ -136,9 +218,7 @@ clientPort = config['configurations']['zookeeper-env']['clientPort'] #ZK
 
 java64_home = config['hostLevelParams']['java_home']
 check_cpu_on = is_jdk_greater_6(java64_home)
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
-
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 nagios_keytab_path = default("/configurations/nagios-env/nagios_keytab_path", "/etc/security/keytabs/nagios.service.keytab")
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 
@@ -180,7 +260,7 @@ if System.get_instance().os_family == "suse":
   nagios_p1_pl = "/usr/lib/nagios/p1.pl"
   htpasswd_cmd = "htpasswd2"
   web_conf_dir = "/etc/apache2/conf.d"
-elif System.get_instance().os_family == "debian":
+elif System.get_instance().os_family == "ubuntu":
   nagios_p1_pl = "/usr/lib/nagios3/p1.pl"
   htpasswd_cmd = "htpasswd"
   web_conf_dir = "/etc/apache2/conf.d"
@@ -199,16 +279,9 @@ nagios_user = config['configurations']['nagios-env']['nagios_user']
 nagios_group = config['configurations']['nagios-env']['nagios_group']
 nagios_web_login = config['configurations']['nagios-env']['nagios_web_login']
 nagios_web_password = config['configurations']['nagios-env']['nagios_web_password']
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 nagios_contact = config['configurations']['nagios-env']['nagios_contact']
 
-# - test for HDFS or HCFS (glusterfs)
-if 'namenode_host' in config['clusterHostInfo']:
-  namenode_host = default("/clusterHostInfo/namenode_host", None)
-  ishdfs_value = "HDFS"
-else:
-  namenode_host = None
-  ishdfs_value = None 
 
 _snamenode_host = default("/clusterHostInfo/snamenode_host", None)
 _jtnode_host = default("/clusterHostInfo/jtnode_host", None)
@@ -216,6 +289,8 @@ _slave_hosts = default("/clusterHostInfo/slave_hosts", None)
 _journalnode_hosts = default("/clusterHostInfo/journalnode_hosts", None)
 _zkfc_hosts = default("/clusterHostInfo/zkfc_hosts", None)
 _rm_host = default("/clusterHostInfo/rm_host", None)
+if type(_rm_host) is list:
+  rm_hosts_in_str = ','.join(_rm_host)
 _nm_hosts = default("/clusterHostInfo/nm_hosts", None)
 _hs_host = default("/clusterHostInfo/hs_host", None)
 _zookeeper_hosts = default("/clusterHostInfo/zookeeper_hosts", None)
@@ -240,6 +315,7 @@ _falcon_host = default("/clusterHostInfo/falcon_server_hosts", None)
 #if hbase_rs_hosts not given it is assumed that region servers on same nodes as slaves
 _hbase_rs_hosts = default("/clusterHostInfo/hbase_rs_hosts", _slave_hosts)
 _hue_server_host = default("/clusterHostInfo/hue_server_host", None)
+_knox_gateway_host =  default("/clusterHostInfo/knox_gateway_hosts", None)
 all_hosts = config['clusterHostInfo']['all_hosts']
 
 if 'namenode_host' in config['clusterHostInfo']:
@@ -274,5 +350,6 @@ hostgroup_defs = {
     'supervisors' : _supervisor_hosts,
     'storm_rest_api' : _storm_rest_api_hosts,
     'falcon-server' : _falcon_host,
-    'ats-servers' : _app_timeline_server_hosts
+    'ats-servers' : _app_timeline_server_hosts,
+    'knox-gateway' : _knox_gateway_host
 }

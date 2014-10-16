@@ -23,22 +23,45 @@ App.usersMapper = App.QuickDataMapper.create({
   config : {
     id : 'Users.user_name',
     user_name : 'Users.user_name',
-    roles : 'Users.roles',
     is_ldap: 'Users.ldap_user',
-    admin: 'Users.admin'
+    admin: 'Users.admin',
+    operator: 'Users.operator',
+    permissions: 'permissions'
   },
   map: function (json) {
     var self = this;
     json.items.forEach(function (item) {
       var result= [];
       if(!App.User.find().someProperty("userName", item.Users.user_name)) {
-        item.Users.admin = self.isAdmin(item.Users.roles);
+        item.permissions = [];
+        var privileges = item.privileges;
+        if (!!Em.get(privileges, 'length')) {
+          item.permissions = privileges.mapProperty('PrivilegeInfo.permission_name');
+        }
+        item.Users.admin = self.isAdmin(item.permissions);
+        item.Users.operator = self.isOperator(item.permissions);
         result.push(self.parseIt(item, self.config));
         App.store.loadMany(self.get('model'), result);
       }
     });
   },
-  isAdmin: function(roles) {
-    return (roles.indexOf("admin") >= 0);
+
+  /**
+   * Check if user is admin.
+   * @param {Array} permissionList
+   * @return {Boolean}
+   **/
+  isAdmin: function(permissionList) {
+    //TODO: Separate cluster operator from admin
+    return permissionList.indexOf('AMBARI.ADMIN') > -1 || permissionList.indexOf('CLUSTER.OPERATE') > -1;
+  },
+
+  /**
+   * Check if user is operator.
+   * @param {Array} permissionList
+   * @return {Boolean}
+   **/
+  isOperator: function(permissionList) {
+    return permissionList.indexOf('CLUSTER.OPERATE') > -1;
   }
 });

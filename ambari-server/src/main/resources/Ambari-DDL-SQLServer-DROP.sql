@@ -159,7 +159,45 @@ IF OBJECT_ID('clusterservices', 'U') IS NOT NULL DROP TABLE clusterservices
 GO
 IF OBJECT_ID('clusterconfigmapping', 'U') IS NOT NULL DROP TABLE clusterconfigmapping
 GO
+
+IF OBJECT_ID('alert_notice', 'U') IS NOT NULL DROP TABLE alert_notice
+GO
+IF OBJECT_ID('alert_grouping', 'U') IS NOT NULL DROP TABLE alert_grouping
+GO
+IF OBJECT_ID('alert_group_target', 'U') IS NOT NULL DROP TABLE alert_group_target
+GO
+IF OBJECT_ID('alert_target', 'U') IS NOT NULL DROP TABLE alert_target
+GO
+IF OBJECT_ID('alert_group', 'U') IS NOT NULL DROP TABLE alert_group
+GO
+IF OBJECT_ID('alert_current', 'U') IS NOT NULL DROP TABLE alert_current
+GO
+IF OBJECT_ID('alert_history', 'U') IS NOT NULL DROP TABLE alert_history
+GO
+IF OBJECT_ID('alert_definition', 'U') IS NOT NULL DROP TABLE alert_definition
+GO
+
+IF OBJECT_ID('serviceconfighosts', 'U') IS NOT NULL DROP TABLE serviceconfighosts
+GO
+IF OBJECT_ID('serviceconfigmapping', 'U') IS NOT NULL DROP TABLE serviceconfigmapping
+GO
+IF OBJECT_ID('serviceconfig', 'U') IS NOT NULL DROP TABLE serviceconfig
+GO
+
 IF OBJECT_ID('clusterconfig', 'U') IS NOT NULL DROP TABLE clusterconfig
 GO
 IF OBJECT_ID('clusters', 'U') IS NOT NULL DROP TABLE clusters
+GO
+
+IF OBJECT_ID('adminprivilege', 'U') IS NOT NULL DROP TABLE adminprivilege
+GO
+IF OBJECT_ID('adminresource', 'U') IS NOT NULL DROP TABLE adminresource
+GO
+IF OBJECT_ID('adminpermission', 'U') IS NOT NULL DROP TABLE adminpermission
+GO
+IF OBJECT_ID('adminprincipal', 'U') IS NOT NULL DROP TABLE adminprincipal
+GO
+IF OBJECT_ID('adminprincipaltype', 'U') IS NOT NULL DROP TABLE adminprincipaltype
+GO
+IF OBJECT_ID('adminresourcetype', 'U') IS NOT NULL DROP TABLE adminresourcetype
 GO

@@ -28,25 +28,17 @@ import subprocess
 import threading
 import shlex
 import platform
+import hostname
 from PackagesAnalyzer import PackagesAnalyzer
 from HostCheckReportFileHandler import HostCheckReportFileHandler
 from Hardware import Hardware
-from ambari_commons import OSCheck, OSConst
+from ambari_commons import OSCheck, OSConst, Firewall
 import socket
 
 logger = logging.getLogger()
 
-# OS info
-OS_VERSION = OSCheck().get_os_major_version()
-OS_TYPE = OSCheck.get_os_type()
-OS_FAMILY = OSCheck.get_os_family()
-
 # service cmd
 SERVICE_CMD = "/sbin/service"
-
-# on ubuntu iptables service is called ufw
-if OS_FAMILY == OSConst.DEBIAN_FAMILY:
-  SERVICE_CMD = "/usr/sbin/service"
 
 
 class HostInfo:
@@ -61,14 +53,14 @@ class HostInfo:
 
   # List of live services checked for on the host, takes a map of plan strings
   DEFAULT_LIVE_SERVICES = [
-    {OSConst.REDHAT_FAMILY: "ntpd", OSConst.SUSE_FAMILY: "ntp", OSConst.DEBIAN_FAMILY: "ntp"}
+    {OSConst.REDHAT_FAMILY: "ntpd", OSConst.SUSE_FAMILY: "ntp", OSConst.UBUNTU_FAMILY: "ntp"}
   ]
 
   # Set of default users (need to be replaced with the configured user names)
   DEFAULT_USERS = [
     "nagios", "hive", "ambari-qa", "oozie", "hbase", "hcat", "mapred",
     "hdfs", "rrdcached", "zookeeper", "flume", "sqoop", "sqoop2",
-    "hue", "yarn"
+    "hue", "yarn", "tez", "storm", "falcon"
   ]
 
   # Filters used to identify processed
@@ -127,6 +119,7 @@ class HostInfo:
 
   def __init__(self, config=None):
     self.packages = PackagesAnalyzer()
+    self.config = config
     self.reportFileHandler = HostCheckReportFileHandler(config)
 
   def dirType(self, path):
@@ -221,6 +214,37 @@ class HostInfo:
       pass
     return diskInfo
 
+  def createAlerts(self, alerts):
+    existingUsers = []
+    self.checkUsers(self.DEFAULT_USERS, existingUsers)
+    dirs = []
+    self.checkFolders(self.DEFAULT_DIRS, self.DEFAULT_PROJECT_NAMES, existingUsers, dirs)
+    alert = {
+      'name': 'host_alert',
+      'instance': None,
+      'service': 'AMBARI',
+      'component': 'host',
+      'host': hostname.hostname(self.config),
+      'state': 'OK',
+      'label': 'Disk space',
+      'text': 'Used disk space less than 80%'}
+    message = ""
+    mountinfoSet = []
+    for dir in dirs:
+      if dir["type"] == 'directory':
+        mountinfo = self.osdiskAvailableSpace(dir['name'])
+        if int(mountinfo["percent"].strip('%')) >= 80:
+          if not mountinfo in mountinfoSet:
+            mountinfoSet.append(mountinfo)
+          message += str(dir['name']) + ";\n"
+
+    if message != "":
+      message = "These discs have low space:\n" + str(mountinfoSet) + "\n They include following critical directories:\n" + message
+      alert['state'] = 'WARNING'
+      alert['text'] = message
+    alerts.append(alert)
+    return alerts
+
   def checkFolders(self, basePaths, projectNames, existingUsers, dirs):
     foldersToIgnore = []
     for user in existingUsers:
@@ -291,25 +315,8 @@ class HostInfo:
     else:
       return ""
 
-  def getFirewallObject(self):
-    if OS_TYPE == OSConst.OS_UBUNTU:
-      return UbuntuFirewallChecks()
-    elif OS_TYPE == OSConst.OS_FEDORA and int(OS_VERSION) >= 18:
-      return Fedora18FirewallChecks()
-    elif OS_FAMILY == OSConst.SUSE_FAMILY:
-      return SuseFirewallChecks()
-    else:
-      return FirewallChecks()
-
-  def getFirewallObjectTypes(self):
-    # To support test code, so tests can loop through the types
-    return (FirewallChecks,
-            UbuntuFirewallChecks,
-            Fedora18FirewallChecks,
-            SuseFirewallChecks)
-
   def checkIptables(self):
-    return self.getFirewallObject().check_iptables()
+    return Firewall().getFirewallObject().check_iptables()
 
   """ Return various details about the host
   componentsMapped: indicates if any components are mapped to this host
@@ -383,88 +390,14 @@ class HostInfo:
     Check if host fqdn resolves to current host ip
     """
     try:
-      host_name = socket.gethostname().lower()
+      host_name = socket.gethostname()
       host_ip = socket.gethostbyname(host_name)
-      host_fqdn = socket.getfqdn().lower()
+      host_fqdn = socket.getfqdn()
       fqdn_ip = socket.gethostbyname(host_fqdn)
       return host_ip == fqdn_ip
     except socket.error:
       pass
     return False
-
-
-class FirewallChecks(object):
-  def __init__(self):
-    self.FIREWALL_SERVICE_NAME = "iptables"
-    self.SERVICE_CMD = SERVICE_CMD
-    self.SERVICE_SUBCMD = "status"
-
-  def get_command(self):
-    return "%s %s %s" % (self.SERVICE_CMD, self.FIREWALL_SERVICE_NAME, self.SERVICE_SUBCMD)
-
-  def check_result(self, retcode, out, err):
-      return retcode == 0
-
-  def check_iptables(self):
-    retcode, out, err = self.run_os_command(self.get_command())
-    return self.check_result(retcode, out, err)
-
-  def get_running_result(self):
-    # To support test code.  Expected ouput from run_os_command.
-    return (0, "", "")
-
-  def get_stopped_result(self):
-    # To support test code.  Expected output from run_os_command.
-    return (3, "", "")
-
-  def run_os_command(self, cmd):
-    if type(cmd) == str:
-      cmd = shlex.split(cmd)
-
-    try:
-      process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=subprocess.PIPE,
-        stderr=subprocess.PIPE)
-      (stdoutdata, stderrdata) = process.communicate()
-      return process.returncode, stdoutdata, stderrdata
-    except OSError:
-      return self.get_stopped_result()
-
-
-class UbuntuFirewallChecks(FirewallChecks):
-  def __init__(self):
-    super(UbuntuFirewallChecks, self).__init__()
-
-    self.FIREWALL_SERVICE_NAME = "ufw"
-    self.SERVICE_CMD = 'service'
-
-  def check_result(self, retcode, out, err):
-    # On ubuntu, the status command returns 0 whether running or not
-    return out and len(out) > 0 and out.strip() != "ufw stop/waiting"
-
-  def get_running_result(self):
-    # To support test code.  Expected ouput from run_os_command.
-    return (0, "ufw start/running", "")
-
-  def get_stopped_result(self):
-    # To support test code.  Expected output from run_os_command.
-    return (0, "ufw stop/waiting", "")
-
-
-class Fedora18FirewallChecks(FirewallChecks):
-  def __init__(self):
-    self.FIREWALL_SERVICE_NAME = "firewalld.service"
-
-  def get_command(self):
-    return "systemctl is-active firewalld.service"
-
-
-class SuseFirewallChecks(FirewallChecks):
-  def __init__(self):
-    self.FIREWALL_SERVICE_NAME = "SuSEfirewall2"
-
-  def get_command(self):
-    return "/sbin/SuSEfirewall2 status"
-
 
 def main(argv=None):
   h = HostInfo()

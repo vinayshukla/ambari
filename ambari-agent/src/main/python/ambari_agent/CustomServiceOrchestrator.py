@@ -22,6 +22,8 @@ import logging
 import os
 import json
 import sys
+import shell
+import threading
 
 from FileCache import FileCache
 from AgentException import AgentException
@@ -52,22 +54,42 @@ class CustomServiceOrchestrator():
   def __init__(self, config, controller):
     self.config = config
     self.tmp_dir = config.get('agent', 'prefix')
+    self.exec_tmp_dir = config.get('agent', 'tmp_dir')
     self.file_cache = FileCache(config)
     self.python_executor = PythonExecutor(self.tmp_dir, config)
     self.status_commands_stdout = os.path.join(self.tmp_dir,
                                                'status_command_stdout.txt')
     self.status_commands_stderr = os.path.join(self.tmp_dir,
                                                'status_command_stderr.txt')
-    self.public_fqdn = hostname.public_hostname()
+    self.public_fqdn = hostname.public_hostname(config)
     # cache reset will be called on every agent registration
     controller.registration_listeners.append(self.file_cache.reset)
+
     # Clean up old status command files if any
     try:
       os.unlink(self.status_commands_stdout)
       os.unlink(self.status_commands_stderr)
     except OSError:
       pass # Ignore fail
+    self.commands_in_progress_lock = threading.RLock()
+    self.commands_in_progress = {}
 
+  def map_task_to_process(self, task_id, processId):
+    with self.commands_in_progress_lock:
+      logger.debug('Maps taskId=%s to pid=%s'%(task_id, processId))
+      self.commands_in_progress[task_id] = processId
+
+  def cancel_command(self, task_id, reason):
+    with self.commands_in_progress_lock:
+      if task_id in self.commands_in_progress.keys():
+        pid = self.commands_in_progress.get(task_id)
+        self.commands_in_progress[task_id] = reason
+        logger.info("Canceling command with task_id - {tid}, " \
+                    "reason - {reason} . Killing process {pid}"
+        .format(tid = str(task_id), reason = reason, pid = pid))
+        shell.kill_process_with_children(pid)
+      else:
+        logger.warn("Unable to find pid by taskId = %s"%task_id)
 
   def runCommand(self, command, tmpoutfile, tmperrfile, forced_command_name = None,
                  override_output_files = True):
@@ -79,6 +101,7 @@ class CustomServiceOrchestrator():
       script_type = command['commandParams']['script_type']
       script = command['commandParams']['script']
       timeout = int(command['commandParams']['command_timeout'])
+
       if 'hostLevelParams' in command and 'jdk_location' in command['hostLevelParams']:
         server_url_prefix = command['hostLevelParams']['jdk_location']
       else:
@@ -113,6 +136,12 @@ class CustomServiceOrchestrator():
         message = "Unknown script type {0}".format(script_type)
         raise AgentException(message)
       # Execute command using proper interpreter
+      handle = None
+      if(command.has_key('__handle')):
+        handle = command['__handle']
+        handle.on_background_command_started = self.map_task_to_process
+        del command['__handle']
+
       json_path = self.dump_command_to_json(command)
       pre_hook_tuple = self.resolve_hook_script_path(hook_dir,
           self.PRE_HOOK_PREFIX, command_name, script_type)
@@ -121,17 +150,21 @@ class CustomServiceOrchestrator():
       py_file_list = [pre_hook_tuple, script_tuple, post_hook_tuple]
       # filter None values
       filtered_py_file_list = [i for i in py_file_list if i]
-      
+
       logger_level = logging.getLevelName(logger.level)
 
       # Executing hooks and script
       ret = None
-      
+      from ActionQueue import ActionQueue
+      if(command.has_key('commandType') and command['commandType'] == ActionQueue.BACKGROUND_EXECUTION_COMMAND and len(filtered_py_file_list) > 1):
+        raise AgentException("Background commands are supported without hooks only")
+
       for py_file, current_base_dir in filtered_py_file_list:
         script_params = [command_name, json_path, current_base_dir]
         ret = self.python_executor.run_file(py_file, script_params,
-                               tmpoutfile, tmperrfile, timeout,
-                               tmpstrucoutfile, logger_level, override_output_files)
+                               self.exec_tmp_dir, tmpoutfile, tmperrfile, timeout,
+                               tmpstrucoutfile, logger_level, self.map_task_to_process,
+                               task_id, override_output_files, handle = handle)
         # Next run_file() invocations should always append to current output
         override_output_files = False
         if ret['exitcode'] != 0:
@@ -139,6 +172,18 @@ class CustomServiceOrchestrator():
 
       if not ret: # Something went wrong
         raise AgentException("No script has been executed")
+
+      # if canceled and not background command
+      if handle is None:
+        cancel_reason = self.command_canceled_reason(task_id)
+        if cancel_reason:
+          ret['stdout'] += cancel_reason
+          ret['stderr'] += cancel_reason
+
+          with open(tmpoutfile, "a") as f:
+            f.write(cancel_reason)
+          with open(tmperrfile, "a") as f:
+            f.write(cancel_reason)
 
     except Exception: # We do not want to let agent fail completely
       exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -152,7 +197,14 @@ class CustomServiceOrchestrator():
         'exitcode': 1,
       }
     return ret
-
+  def command_canceled_reason(self, task_id):
+    with self.commands_in_progress_lock:
+      if self.commands_in_progress.has_key(task_id):#Background command do not push in this collection (TODO)
+        logger.debug('Pop with taskId %s' % task_id)
+        pid = self.commands_in_progress.pop(task_id)
+        if not isinstance(pid, int):
+          return '\nCommand aborted. ' + pid
+    return None
 
   def requestComponentStatus(self, command):
     """

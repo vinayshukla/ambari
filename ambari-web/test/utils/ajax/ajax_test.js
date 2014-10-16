@@ -24,15 +24,16 @@ describe('App.ajax', function() {
   beforeEach(function() {
     App.set('apiPrefix', '/api/v1');
     App.set('clusterName', 'tdk');
-    sinon.spy($, 'ajax');
-  });
-
-  afterEach(function() {
-    $.ajax.restore();
   });
 
   describe('#send', function() {
+    beforeEach(function() {
+      sinon.spy($, 'ajax');
+    });
 
+    afterEach(function() {
+      $.ajax.restore();
+    });
     it('Without sender', function() {
       expect(App.ajax.send({})).to.equal(null);
       expect($.ajax.called).to.equal(false);
@@ -93,33 +94,28 @@ describe('App.ajax', function() {
     });
   });
 
-  describe('Check "real" and "mock" properties for each url object', function() {
+  describe('Check "real" property for each url object', function() {
     var names = App.ajax.fakeGetUrlNames();
     names.forEach(function(name) {
       it(name, function() {
         var url = App.ajax.fakeGetUrl(name);
         expect(url.real).to.be.a('string');
-        expect(url.real.length > 0).to.equal(true);
-        expect(url.mock).to.be.a('string');
       });
     });
   });
 
   describe('#formatRequest', function() {
 
-    beforeEach(function() {
-      App.testMode = false;
-    });
-    afterEach(function() {
-      App.testMode = true;
-    });
-
     it('App.testMode = true', function() {
-      App.testMode = true;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return true;
+        return Em.get(App, k);
+      });
       var r = App.ajax.fakeFormatRequest({real:'/', mock: '/some_url'}, {});
       expect(r.type).to.equal('GET');
       expect(r.url).to.equal('/some_url');
       expect(r.dataType).to.equal('json');
+      App.get.restore();
     });
     var tests = [
       {
@@ -138,9 +134,14 @@ describe('App.ajax', function() {
     ];
     tests.forEach(function(test) {
       it(test.m, function() {
+        sinon.stub(App, 'get', function(k) {
+          if ('testMode' === k) return false;
+          return Em.get(App, k);
+        });
         var r = App.ajax.fakeFormatRequest(test.urlObj, test.data);
         expect(r.type).to.equal(test.e.type);
         expect(r.url).to.equal(test.e.url);
+        App.get.restore();
       });
     });
   });

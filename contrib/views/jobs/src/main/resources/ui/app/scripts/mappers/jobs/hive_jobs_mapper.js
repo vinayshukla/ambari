@@ -17,12 +17,45 @@
 
 App.hiveJobsMapper = App.QuickDataMapper.create({
 
-  model: App.HiveJob,
+  json_map: {
+    id: 'entity',
+    name: 'entity',
+    user: 'primaryfilters.user',
+    hasTezDag: {
+      custom: function(source) {
+        var query = Ember.get(source, 'otherinfo.query');
+        return Ember.isNone(query) ? false : query.match("\"Tez\".*\"DagName:\"");
+      }
+    },
+    queryText: {
+      custom: function(source) {
+        var query = Ember.get(source, 'otherinfo.query');
+        return Ember.isNone(query) ? '' : $.parseJSON(query).queryText;
+      }
+    },
+    failed: {
+      custom: function(source) {
+        return Ember.get(source ,'otherinfo.status') === false;
+      }
+    },
+    startTime: {
+      custom: function(source) {
+        return source.starttime > 0 ? source.starttime : null
+      }
+    },
+    endTime: {
+      custom: function(source) {
+        return source.endtime > 0 ? source.endtime : null
+      }
+    }
+  },
 
   map: function (json) {
 
     var model = this.get('model'),
+      map = this.get('json_map'),
       hiveJobs = [];
+
     if (json) {
       if (!json.entities) {
         json.entities = [];
@@ -33,64 +66,45 @@ App.hiveJobsMapper = App.QuickDataMapper.create({
       var currentEntityMap = {};
       json.entities.forEach(function (entity) {
         currentEntityMap[entity.entity] = entity.entity;
-        var hiveJob = {
-          id: entity.entity,
-          name: entity.entity,
-          user: entity.primaryfilters.user
-        };
-        hiveJob.has_tez_dag = false;
-        hiveJob.query_text = '';
-        if (entity.otherinfo && entity.otherinfo.query) {
-          // Explicit false match needed for when failure hook not set
-          hiveJob.failed = entity.otherinfo.status === false;
-          hiveJob.has_tez_dag = entity.otherinfo.query.match("\"Tez\".*\"DagName:\"");
-          var queryJson = $.parseJSON(entity.otherinfo.query);
-          if (queryJson && queryJson.queryText) {
-            hiveJob.query_text = queryJson.queryText;
-          }
-        }
+        var hiveJob = Ember.JsonMapper.map(entity, map);
+
         if (entity.events != null) {
           entity.events.forEach(function (event) {
             switch (event.eventtype) {
               case "QUERY_SUBMITTED":
-                hiveJob.start_time = event.timestamp;
+                hiveJob.startTime = event.timestamp;
                 break;
               case "QUERY_COMPLETED":
-                hiveJob.end_time = event.timestamp;
+                hiveJob.endTime = event.timestamp;
                 break;
               default:
                 break;
             }
           });
         }
-        if (!hiveJob.start_time && entity.starttime > 0) {
-          hiveJob.start_time = entity.starttime;
-        }
-        if (!hiveJob.end_time && entity.endtime > 0) {
-          hiveJob.end_time = entity.endtime;
-        }
         hiveJobs.push(hiveJob);
-        hiveJob = null;
-        entity = null;
+        var tezDag = App.HiveJob.store.all('tezDag').findBy('hiveJob.id', hiveJob.id);
+        if (!Em.isNone(tezDag)) {
+          hiveJob.tezDag = tezDag.id;
+        }
       });
 
-      /*if(hiveJobs.length > App.router.get('mainJobsController.filterObject.jobsLimit')) {
-       var lastJob = hiveJobs.pop();
-       if(App.router.get('mainJobsController.navIDs.nextID') != lastJob.id) {
-       App.router.set('mainJobsController.navIDs.nextID', lastJob.id);
-       }
-       currentEntityMap[lastJob.id] = null;
-       }*/
+      var jobsController = App.__container__.lookup('controller:Jobs');
+      if(hiveJobs.length > jobsController.get('filterObject.jobsLimit')) {
+        var lastJob = hiveJobs.pop();
+        if(jobsController.get('navIDs.nextID') != lastJob.id) {
+          jobsController.set('navIDs.nextID', lastJob.id);
+        }
+        currentEntityMap[lastJob.id] = null;
+      }
+      App.HiveJob.store.all('hiveJob').forEach(function (r) {
+        if(r && !currentEntityMap[r.get('id')]) {
+          r.destroyRecord();
+        }
+      });
 
-      // Delete IDs not seen from server
-      /*var hiveJobsModel = model.find().toArray();
-       hiveJobsModel.forEach(function(job) {
-       if (job && !currentEntityMap[job.get('id')]) {
-       this.deleteRecord(job);
-       }
-       }, this);*/
     }
     App.HiveJob.store.pushMany('hiveJob', hiveJobs);
-  },
-  config: {}
+  }
+
 });

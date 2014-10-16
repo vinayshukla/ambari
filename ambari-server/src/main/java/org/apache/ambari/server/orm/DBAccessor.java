@@ -18,6 +18,7 @@
 package org.apache.ambari.server.orm;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -29,6 +30,11 @@ import org.eclipse.persistence.sessions.DatabaseSession;
  * Note: IF NOT EXISTS is default for all supported DDL statements
  */
 public interface DBAccessor {
+
+  /**
+   * @return new database connection
+   */
+  Connection getNewConnection();
 
   /**
    * Wraps object name with dbms-specific quotes
@@ -146,6 +152,18 @@ public interface DBAccessor {
                          String whereClause) throws SQLException;
 
   /**
+   * Simple update operation on table
+   *
+   * @param tableName
+   * @param columnNameSrc
+   * @param columnNameTgt
+   * @return
+   * @throws SQLException
+   */
+  public void updateTable(String tableName, DBColumnInfo columnNameSrc,
+                         DBColumnInfo columnNameTgt) throws SQLException;
+
+  /**
    * Helper method to run third party scripts like Quartz DDL
    * @param filePath
    * @throws SQLException
@@ -167,6 +185,16 @@ public interface DBAccessor {
    * @throws SQLException
    */
   ResultSet executeSelect(String query) throws SQLException;
+
+  /**
+   * Execute select query
+   * @param query
+   * @param resultSetType
+   * @param resultSetConcur
+   * @return
+   * @throws SQLException
+   */
+  ResultSet executeSelect(String query, int resultSetType, int resultSetConcur) throws SQLException;
 
   /**
    * Execute query on DB
@@ -304,15 +332,29 @@ public interface DBAccessor {
    * 
    * @param tableName
    *          the name of the table (not {@code null}).
-   * @param columnName
-   *          the name of the column to alter (not {@code null}).
+   * @param columnInfo
+   *          the column object to get name and type of column (not {@code null}).
    * @param nullable
    *          {@code true} to indicate that the column allows {@code NULL}
    *          values, {@code false} otherwise.
    * @throws SQLException
    */
-  public void setNullable(String tableName, String columnName, boolean nullable)
+  public void setNullable(String tableName, DBAccessor.DBColumnInfo columnInfo, boolean nullable)
       throws SQLException;
+
+  public static enum DbType {
+    ORACLE,
+    MYSQL,
+    POSTGRES,
+    DERBY,
+    UNKNOWN
+  }
+
+  /**
+   * Get type of database platform
+   * @return @DbType
+   */
+  public DbType getDbType();
 
   /**
    * Capture column type

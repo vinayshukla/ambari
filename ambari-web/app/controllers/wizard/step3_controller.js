@@ -148,7 +148,7 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @type {bool}
    */
   isWarningsBoxVisible: function () {
-    return (App.testMode) ? true : !this.get('isRegistrationInProgress');
+    return (App.get('testMode')) ? true : !this.get('isRegistrationInProgress');
   }.property('isRegistrationInProgress'),
 
   /**
@@ -225,7 +225,7 @@ App.WizardStep3Controller = Em.Controller.extend({
     var hostsInfo = this.get('content.hosts');
     var hosts = [];
     var bootStatus = (this.get('content.installOptions.manualInstall')) ? 'DONE' : 'PENDING';
-    if (App.testMode) {
+    if (App.get('testMode')) {
       bootStatus = 'REGISTERED';
     }
 
@@ -574,7 +574,7 @@ App.WizardStep3Controller = Em.Controller.extend({
     var stopPolling = true;
     hosts.forEach(function (_host, index) {
       // Change name of first host for test mode.
-      if (App.testMode) {
+      if (App.get('testMode')) {
         if (index == 0) {
           _host.set('name', 'localhost.localdomain');
         }
@@ -833,14 +833,14 @@ App.WizardStep3Controller = Em.Controller.extend({
       "parameters": {
         "check_execute_list": "host_resolution_check",
         "jdk_location" : jdk_location,
-        "hosts": hosts,
-        "threshold": "20"
+        "threshold": "20",
+        "hosts": hosts
       }
     };
     var resource_filters = {
       "hosts": hosts
     };
-    if (App.testMode) {
+    if (App.get('testMode')) {
       this.getHostNameResolutionSuccess();
     } else {
       return App.ajax.send({
@@ -857,7 +857,7 @@ App.WizardStep3Controller = Em.Controller.extend({
   },
 
   getHostNameResolutionSuccess: function(response) {
-    if (!App.testMode) {
+    if (!App.get('testMode')) {
       this.set("requestId", response.Requests.id);
     }
     this.getHostCheckTasks();
@@ -982,7 +982,7 @@ App.WizardStep3Controller = Em.Controller.extend({
             hostsDiskNames.push(host_name);
           }
           // "Transparent Huge Pages" check
-          context = self.checkTHP(host_name, host.Hosts.last_agent_env.transparentHugePage);
+          context = self.checkTHP(host_name, Em.get(host, 'Hosts.last_agent_env.transparentHugePage'));
           if (context) {
             thpContext.push(context);
             thpHostsNames.push(host_name);
@@ -1112,10 +1112,10 @@ App.WizardStep3Controller = Em.Controller.extend({
       var selectedOS = [];
       var self = this;
       var isValid = false;
-      if (selectedStack && selectedStack.operatingSystems) {
-        selectedStack.get('operatingSystems').filterProperty('selected', true).forEach(function (os) {
-          selectedOS.pushObject(os.osType);
-          if (self.repoToAgentOsType(os.osType).indexOf(osType) >= 0) {
+      if (selectedStack && selectedStack.get('operatingSystems')) {
+        selectedStack.get('operatingSystems').filterProperty('isSelected', true).forEach(function (os) {
+          selectedOS.pushObject(os.get('osType'));
+          if (self.repoToAgentOsType(os.get('osType')).indexOf(osType) >= 0) {
             isValid = true;
           }
         });
@@ -1139,6 +1139,7 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @method repoToAgentOsType
    */
   repoToAgentOsType : function (repoType) {
+    /* istanbul ignore next */
     switch (repoType) {
       case "redhat6":
         return ["redhat6", "centos6", "oraclelinux6", "rhel6"];
@@ -1146,7 +1147,7 @@ App.WizardStep3Controller = Em.Controller.extend({
         return ["redhat5", "centos5", "oraclelinux5", "rhel5"];
       case "suse11":
         return ["suse11", "sles11", "opensuse11"];
-      case "debian12":
+      case "ubuntu12":
         return ["debian12", "ubuntu12"];
       default:
         return [];
@@ -1305,7 +1306,7 @@ App.WizardStep3Controller = Em.Controller.extend({
    * @method parseWarnings
    */
   parseWarnings: function (data) {
-    data = App.testMode ? data : this.filterBootHosts(data);
+    data = App.get('testMode') ? data : this.filterBootHosts(data);
     var warnings = [];
     var warning;
     var hosts = [];

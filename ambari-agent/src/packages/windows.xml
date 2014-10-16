@@ -32,7 +32,7 @@
       <outputDirectory>/sbin/ambari_agent</outputDirectory>
     </fileSet>
     <fileSet>
-      <directory>src/main/python/resource_management</directory>
+      <directory>${project.basedir}/../ambari-common/src/main/python/resource_management</directory>
       <outputDirectory>/sbin/resource_management</outputDirectory>
     </fileSet>
     <fileSet>
@@ -40,8 +40,8 @@
       <outputDirectory>/sbin/ambari_commons</outputDirectory>
     </fileSet>
     <fileSet>
-      <directory>${project.basedir}/../ambari-common/src/main/python/jinja2/jinja2</directory>
-      <outputDirectory>/sbin/jinja2</outputDirectory>
+      <directory>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2</directory>
+      <outputDirectory>/sbin/ambari_jinja2</outputDirectory>
     </fileSet>
     <fileSet>
       <directory>${project.basedir}/conf/windows</directory>

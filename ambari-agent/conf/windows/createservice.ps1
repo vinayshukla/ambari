@@ -150,7 +150,7 @@ function CreateAndConfigureHadoopService(
                 throw "CreateAndConfigureHadoopService: Service `"$service`" creation failed"
             }
         }
-		
+
         $cmd="$ENV:WINDIR\system32\sc.exe failure $service reset= 30 actions= restart/5000"
         Invoke-CmdChk $cmd
 
@@ -158,7 +158,7 @@ function CreateAndConfigureHadoopService(
         Invoke-CmdChk $cmd
 
 
-		Write-Output "Creating service config ${serviceBinDir}\$service.xml"
+        Write-Output "Creating service config ${serviceBinDir}\$service.xml"
         $cmd = "$servicecmdpath --service $service > `"$serviceBinDir\$service.xml`""
         Invoke-CmdChk $cmd
     }
@@ -173,20 +173,20 @@ function CreateAndConfigureHadoopService(
 
 try
 {
-	Write-Output "Creating credential object"
- 	###
+    Write-Output "Creating credential object"
+    ###
     ### Create the Credential object from the given username and password or the provided credentials file
     ###
     $serviceCredential = Get-HadoopUserCredentials -credentialsHash @{"username" = $username; "password" = $password}
     $username = $serviceCredential.UserName
     Write-Output "Username: $username"
-	
-	Write-Output "Creating service $service"
-	###
+
+    Write-Output "Creating service $service"
+    ###
     ### Create Service
     ###
-	CreateAndConfigureHadoopService $servicename $hdpResourcesDir $hdpResourcesDir $servicecmdpath $serviceCredential 
-	Write-Output "Done"
+    CreateAndConfigureHadoopService $servicename $hdpResourcesDir $hdpResourcesDir $servicecmdpath $serviceCredential
+    Write-Output "Done"
 }
 catch
 {

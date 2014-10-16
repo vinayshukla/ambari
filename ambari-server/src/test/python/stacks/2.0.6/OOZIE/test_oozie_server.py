@@ -31,7 +31,9 @@ class TestOozieServer(RMFTestCase):
     self.assertNoMoreResources()
 
 
-  def test_start_default(self):
+  @patch("os.path.isfile")
+  def test_start_default(self, isfile_mock):
+    isfile_mock.return_value = True
     self.executeScript("2.0.6/services/OOZIE/package/scripts/oozie_server.py",
                          classname = "OozieServer",
                          command = "start",
@@ -43,9 +45,10 @@ class TestOozieServer(RMFTestCase):
         ignore_failures = True,
         user = 'oozie',
         )
-    self.assertResourceCalled('Execute', ' hadoop dfs -put /usr/lib/oozie/share /user/oozie ; hadoop dfs -chmod -R 755 /user/oozie/share',
-        not_if = " hadoop dfs -ls /user/oozie/share | awk 'BEGIN {count=0;} /share/ {count++} END {if (count > 0) {exit 0} else {exit 1}}'",
+    self.assertResourceCalled('Execute', ' hadoop --config /etc/hadoop/conf dfs -put /usr/lib/oozie/share /user/oozie ; hadoop --config /etc/hadoop/conf dfs -chmod -R 755 /user/oozie/share',
+        not_if = " hadoop --config /etc/hadoop/conf dfs -ls /user/oozie/share | awk 'BEGIN {count=0;} /share/ {count++} END {if (count > 0) {exit 0} else {exit 1}}'",
         user = 'oozie',
+        path = ['/usr/bin:/usr/bin'],
         )
     self.assertResourceCalled('Execute', 'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-start.sh',
         not_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
@@ -60,7 +63,7 @@ class TestOozieServer(RMFTestCase):
                          command = "stop",
                          config_file="default.json"
     )
-    self.assertResourceCalled('Execute', "su - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
+    self.assertResourceCalled('Execute', "su -s /bin/bash - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
       only_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
     )
     self.assertNoMoreResources()
@@ -75,8 +78,9 @@ class TestOozieServer(RMFTestCase):
     self.assert_configure_secured()
     self.assertNoMoreResources()
 
-
-  def test_start_secured(self):
+  @patch("os.path.isfile")
+  def test_start_secured(self, isfile_mock):
+    isfile_mock.return_value = True
     self.executeScript("2.0.6/services/OOZIE/package/scripts/oozie_server.py",
                          classname = "OozieServer",
                          command = "start",
@@ -88,9 +92,10 @@ class TestOozieServer(RMFTestCase):
                               ignore_failures = True,
                               user = 'oozie',
                               )
-    self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/oozie.service.keytab oozie/c6402.ambari.apache.org@EXAMPLE.COM; hadoop dfs -put /usr/lib/oozie/share /user/oozie ; hadoop dfs -chmod -R 755 /user/oozie/share',
-                              not_if = "/usr/bin/kinit -kt /etc/security/keytabs/oozie.service.keytab oozie/c6402.ambari.apache.org@EXAMPLE.COM; hadoop dfs -ls /user/oozie/share | awk 'BEGIN {count=0;} /share/ {count++} END {if (count > 0) {exit 0} else {exit 1}}'",
+    self.assertResourceCalled('Execute', '/usr/bin/kinit -kt /etc/security/keytabs/oozie.service.keytab oozie/c6402.ambari.apache.org@EXAMPLE.COM; hadoop --config /etc/hadoop/conf dfs -put /usr/lib/oozie/share /user/oozie ; hadoop --config /etc/hadoop/conf dfs -chmod -R 755 /user/oozie/share',
+                              not_if = "/usr/bin/kinit -kt /etc/security/keytabs/oozie.service.keytab oozie/c6402.ambari.apache.org@EXAMPLE.COM; hadoop --config /etc/hadoop/conf dfs -ls /user/oozie/share | awk 'BEGIN {count=0;} /share/ {count++} END {if (count > 0) {exit 0} else {exit 1}}'",
                               user = 'oozie',
+                              path = ['/usr/bin:/usr/bin'],
                               )
     self.assertResourceCalled('Execute', 'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-start.sh',
                               not_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
@@ -104,16 +109,13 @@ class TestOozieServer(RMFTestCase):
                          command = "stop",
                          config_file="secured.json"
     )
-    self.assertResourceCalled('Execute', "su - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
+    self.assertResourceCalled('Execute', "su -s /bin/bash - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
                               only_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
                               )
     self.assertNoMoreResources()
 
 
   def assert_configure_default(self):
-    # Hack for oozie.py changing conf on fly
-    oozie_site = self.getConfig()['configurations']['oozie-site'].copy()
-    oozie_site["oozie.services.ext"] = 'org.apache.oozie.service.JMSAccessorService,' + oozie_site["oozie.services.ext"]
     self.assertResourceCalled('HdfsDirectory', '/user/oozie',
                               security_enabled = False,
                               keytab = UnknownConfigurationMock(),
@@ -122,18 +124,21 @@ class TestOozieServer(RMFTestCase):
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0775,
                               owner = 'oozie',
+                              bin_dir = '/usr/bin',
                               action = ['create'],
+    )
+    self.assertResourceCalled('Directory', '/etc/oozie/conf',
+                              owner = 'oozie',
+                              group = 'hadoop',
+                              recursive = True
     )
     self.assertResourceCalled('XmlConfig', 'oozie-site.xml',
                               owner = 'oozie',
                               group = 'hadoop',
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
-                              configurations = oozie_site,
-                              )
-    self.assertResourceCalled('Directory', '/etc/oozie/conf',
-                              owner = 'oozie',
-                              group = 'hadoop',
+                              configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('File', '/etc/oozie/conf/oozie-env.sh',
                               owner = 'oozie',
@@ -195,6 +200,16 @@ class TestOozieServer(RMFTestCase):
                               mode = 0755,
                               )
     self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server/webapps/',
+                              owner = 'oozie',
+                              recursive = True,
+                              mode = 0755,
+                              )
+    self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server/conf',
+                              owner = 'oozie',
+                              recursive = True,
+                              mode = 0755,
+                              )
+    self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server',
                               owner = 'oozie',
                               recursive = True,
                               mode = 0755,
@@ -215,9 +230,6 @@ class TestOozieServer(RMFTestCase):
 
 
   def assert_configure_secured(self):
-    # Hack for oozie.py changing conf on fly
-    oozie_site = self.getConfig()['configurations']['oozie-site'].copy()
-    oozie_site["oozie.services.ext"] = 'org.apache.oozie.service.JMSAccessorService,' + oozie_site["oozie.services.ext"]
     self.assertResourceCalled('HdfsDirectory', '/user/oozie',
                               security_enabled = True,
                               keytab = '/etc/security/keytabs/hdfs.headless.keytab',
@@ -226,18 +238,21 @@ class TestOozieServer(RMFTestCase):
                               kinit_path_local = '/usr/bin/kinit',
                               mode = 0775,
                               owner = 'oozie',
+                              bin_dir = '/usr/bin',
                               action = ['create'],
+                              )
+    self.assertResourceCalled('Directory', '/etc/oozie/conf',
+                              owner = 'oozie',
+                              group = 'hadoop',
+                              recursive = True
                               )
     self.assertResourceCalled('XmlConfig', 'oozie-site.xml',
                               owner = 'oozie',
                               group = 'hadoop',
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
-                              configurations = oozie_site,
-                              )
-    self.assertResourceCalled('Directory', '/etc/oozie/conf',
-                              owner = 'oozie',
-                              group = 'hadoop',
+                              configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('File', '/etc/oozie/conf/oozie-env.sh',
                               owner = 'oozie',
@@ -300,6 +315,16 @@ class TestOozieServer(RMFTestCase):
                               mode = 0755,
                               )
     self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server/webapps/',
+                              owner = 'oozie',
+                              recursive = True,
+                              mode = 0755,
+                              )
+    self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server/conf',
+                              owner = 'oozie',
+                              recursive = True,
+                              mode = 0755,
+                              )
+    self.assertResourceCalled('Directory', '/var/lib/oozie/oozie-server',
                               owner = 'oozie',
                               recursive = True,
                               mode = 0755,

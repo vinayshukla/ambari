@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.ambari.server.AmbariException;
-import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.orm.DBAccessor;
 
 import com.google.inject.Inject;
@@ -35,7 +34,7 @@ import com.google.inject.Injector;
  */
 public class UpgradeCatalog160 extends AbstractUpgradeCatalog {
 
-  //SourceVersion is only for book-keeping purpos  
+  //SourceVersion is only for book-keeping purpos
   @Override
   public String getSourceVersion() {
     return "1.5.1";
@@ -60,7 +59,7 @@ public class UpgradeCatalog160 extends AbstractUpgradeCatalog {
     columns.add(new DBAccessor.DBColumnInfo("blueprint_name", String.class, 255, null, false));
     columns.add(new DBAccessor.DBColumnInfo("hostgroup_name", String.class, 255, null, false));
     columns.add(new DBAccessor.DBColumnInfo("type_name", String.class, 255, null, false));
-    columns.add(new DBAccessor.DBColumnInfo("config_data", byte[].class, null, null, false));
+    columns.add(new DBAccessor.DBColumnInfo("config_data", char[].class, null, null, false));
 
     dbAccessor.createTable("hostgroup_configuration", columns, "blueprint_name",
         "hostgroup_name", "type_name");
@@ -99,19 +98,12 @@ public class UpgradeCatalog160 extends AbstractUpgradeCatalog {
 
   @Override
   protected void executeDMLUpdates() throws AmbariException, SQLException {
-    String dbType = getDbType();
-
     //add new sequences for view entity
-    String valueColumnName = "\"value\"";
-    if (Configuration.ORACLE_DB_NAME.equals(dbType) || Configuration.MYSQL_DB_NAME.equals(dbType)) {
-      valueColumnName = "value";
-    }
-
-    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, " + valueColumnName + ") " +
+    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, sequence_value) " +
         "VALUES('viewentity_id_seq', 0)", true);
 
     // Add missing property for YARN
-    updateConfigurationProperties("global", Collections.singletonMap("jobhistory_heapsize", "900"), false);
+    updateConfigurationProperties("global", Collections.singletonMap("jobhistory_heapsize", "900"), false, false);
   }
 
   @Override

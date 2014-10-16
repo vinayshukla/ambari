@@ -62,27 +62,7 @@ App.Helpers.date = {
         format += ':SSS';
       }
     }
-    return moment((new Date(timestamp)).toISOString().replace('Z', '')).format(format);
-  },
-
-  /**
-   * Convert timestamp to date-string 'DAY_OF_THE_WEEK MONTH DAY YEAR'
-   *
-   * @param {string} timestamp
-   * @return {string}
-   * @method dateFormatShort
-   */
-  dateFormatShort: function (timestamp) {
-    if (!App.Helpers.validator.isValidInt(timestamp)) {
-      return timestamp;
-    }
-    var format = 'ddd MMM DD YYYY';
-    var date = moment((new Date(timestamp)).toISOString().replace('Z', '')).format(format);
-    var today = moment((new Date()).toISOString().replace('Z', '')).format(format);
-    if (date === today) {
-      return 'Today ' + (new Date(timestamp)).toLocaleTimeString();
-    }
-    return date;
+    return moment(new Date(timestamp)).format(format);
   },
 
   /**
@@ -129,7 +109,6 @@ App.Helpers.date = {
     var durationSummary = '';
     var startDate = new Date(startTimestamp);
     var endDate = new Date(endTimestamp);
-    var self = this;
     if (startDate.getFullYear() == 1969 || startTimestamp < 1) {
       // not started
       return Em.I18n.t('common.na');

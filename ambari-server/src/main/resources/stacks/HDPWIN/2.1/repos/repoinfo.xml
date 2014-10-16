@@ -16,7 +16,7 @@
    limitations under the License.
 -->
 <reposinfo>
-  <os type="winsrv6">
+  <os family="winsrv6">
     <repo>
       <baseurl>http://dummy_repo</baseurl>
       <repoid>HDPWIN-2.1</repoid>

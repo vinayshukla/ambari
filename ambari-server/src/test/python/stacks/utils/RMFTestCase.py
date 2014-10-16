@@ -17,7 +17,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-__all__ = ["RMFTestCase", "Template", "StaticFile", "InlineTemplate","UnknownConfigurationMock"]
+__all__ = ["RMFTestCase", "Template", "StaticFile", "InlineTemplate", "UnknownConfigurationMock"]
 
 from unittest import TestCase
 import json
@@ -27,6 +27,7 @@ import sys
 import pprint
 from mock.mock import MagicMock, patch
 import platform
+
 with patch("platform.linux_distribution", return_value = ('Suse','11','Final')):
   from resource_management.core.environment import Environment
   from resource_management.libraries.script.config_dictionary import ConfigDictionary
@@ -39,6 +40,7 @@ PATH_TO_STACK_TESTS = os.path.normpath("test/python/stacks/")
 
 class RMFTestCase(TestCase):
   def executeScript(self, path, classname=None, command=None, config_file=None,
+                    config_dict=None,
                     # common mocks for all the scripts
                     config_overrides = None,
                     shell_mock_value = (0, "OK."), 
@@ -51,13 +53,17 @@ class RMFTestCase(TestCase):
     stacks_path = os.path.join(src_dir, PATH_TO_STACKS)
     configs_path = os.path.join(src_dir, PATH_TO_STACK_TESTS, stack_version, "configs")
     script_path = os.path.join(stacks_path, norm_path)
-    config_file_path = os.path.join(configs_path, config_file)
-
-    try:
-      with open(config_file_path, "r") as f:
-        self.config_dict = json.load(f)
-    except IOError:
-      raise RuntimeError("Can not read config file: "+ config_file_path)
+    if config_file is not None and config_dict is None:
+      config_file_path = os.path.join(configs_path, config_file)
+      try:
+        with open(config_file_path, "r") as f:
+          self.config_dict = json.load(f)
+      except IOError:
+        raise RuntimeError("Can not read config file: "+ config_file_path)
+    elif config_dict is not None and config_file is None:
+      self.config_dict = config_dict
+    else:
+      raise RuntimeError("Please specify either config_file_path or config_dict parameter")
 
     if config_overrides:
       for key, value in config_overrides.iteritems():
@@ -88,10 +94,11 @@ class RMFTestCase(TestCase):
     with Environment(basedir, test_mode=True) as RMFTestCase.env:
       with patch('resource_management.core.shell.checked_call', return_value=shell_mock_value): # we must always mock any shell calls
         with patch.object(Script, 'get_config', return_value=self.config_dict): # mocking configurations
-          with patch.object(Script, 'install_packages'):
-            with patch('resource_management.libraries.functions.get_kinit_path', return_value=kinit_path_local):
-              with patch.object(platform, 'linux_distribution', return_value=os_type):
-                method(RMFTestCase.env)
+          with patch.object(Script, 'get_tmp_dir', return_value="/tmp"):
+            with patch.object(Script, 'install_packages'):
+              with patch('resource_management.libraries.functions.get_kinit_path', return_value=kinit_path_local):
+                with patch.object(platform, 'linux_distribution', return_value=os_type):
+                  method(RMFTestCase.env)
     sys.path.remove(scriptsdir)
   
   def getConfig(self):
@@ -176,7 +183,8 @@ class RMFTestCase(TestCase):
     self.assertEquals(resource_type, resource.__class__.__name__)
     self.assertEquals(name, resource.name)
     self.assertEquals(kwargs, resource.arguments)
-    
+
+
 # HACK: This is used to check Templates, StaticFile, InlineTemplate in testcases    
 def Template(name, **kwargs):
   with RMFTestCase.env:
@@ -192,7 +200,8 @@ def InlineTemplate(name, **kwargs):
   with RMFTestCase.env:
     from resource_management.core.source import InlineTemplate
     return InlineTemplate(name, **kwargs)
-  
+
+
 class UnknownConfigurationMock():
   def __eq__(self, other):
     return isinstance(other, UnknownConfiguration)

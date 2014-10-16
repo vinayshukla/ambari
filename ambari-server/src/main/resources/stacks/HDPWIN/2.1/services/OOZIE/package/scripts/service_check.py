@@ -30,4 +30,3 @@ class OozieServiceCheck(Script):
 
 if __name__ == "__main__":
   OozieServiceCheck().execute()
-  

@@ -29,6 +29,17 @@ App.initializer({
   name: "preload",
 
   initialize: function(container, application) {
+    var viewId = 'SLIDER';
+    var viewVersion = '1.0.0';
+    var instanceName = 'SLIDER_1';
+    if (location.pathname != null) {
+      var splits = location.pathname.split('/');
+      if (splits != null && splits.length > 4) {
+        viewId = splits[2];
+        viewVersion = splits[3];
+        instanceName = splits[4];
+      }
+    }
 
     application.reopen({
       /**
@@ -40,24 +51,28 @@ App.initializer({
       /**
        * @type {string}
        */
-      name: 'SLIDER',
+      name: viewId,
 
       /**
        * Slider version
        * @type {string}
        */
-      version: '1.0.0',
-
-      /**
-       * Version of SLIDER_1 resource
-       * @type {string}
-       */
-      resourcesVersion: '',
+      version: viewVersion,
 
       /**
        * @type {string}
        */
-      instance: 'SLIDER_1',
+      instance: instanceName,
+
+      /**
+       * @type {string}
+       */
+      label: instanceName,
+
+      /**
+       * @type {string|null}
+       */
+      description: null,
 
       /**
        * API url for Slider
@@ -79,16 +94,39 @@ App.initializer({
        * List of errors
        * @type {string[]}
        */
-      viewErrors: []
+      viewErrors: [],
+
+      /**
+       * Host with Ganglia Server
+       * @type {string|null}
+       */
+      gangliaHost: null,
+
+      /**
+       * List of Ganglia clusters
+       * @type {array|null}
+       */
+      gangliaClusters: null,
+
+      /**
+       * Last time when mapper ran
+       * @type {null|number}
+       */
+      mapperTime: null
 
     });
-    application.ApplicationStatusMapper.loop('load');
-    application.ApplicationTypeMapper.loop('load');
-    application.SliderAppsMapper.loop('load');
+    if(!window.QUnit) {
+      var sliderController = application.__container__.lookup('controller:Slider');
+      sliderController.getViewDisplayParameters().done(function() {
+        sliderController.run('initResources');
+      });
+      application.ApplicationTypeMapper.load();
+      application.SliderAppsMapper.run('load');
+    }
   }
 });
 
-// Load all modules in order automagically. Ember likes things to work this
+// Load all modules in order automatically. Ember likes things to work this
 // way so everything is in the App.* namespace.
 var folderOrder = [
     'initializers', 'mixins', 'routes', 'models', 'mappers',

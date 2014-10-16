@@ -80,6 +80,7 @@ public interface Resource {
     Component,
     HostComponent,
     Configuration,
+    ServiceConfigVersion,
     ConfigGroup,
     Action,
     Request,
@@ -109,8 +110,24 @@ public interface Resource {
     ViewVersion,
     ViewInstance,
     Blueprint,
+    Recommendation,
+    Validation,
     HostComponentProcess,
-    Permission;
+    Permission,
+    Alert,
+    AlertDefinition,
+    AlertHistory,
+    AlertGroup,
+    AlertTarget,
+    AlertNotice,
+    AmbariPrivilege,
+    ClusterPrivilege,
+    ViewPrivilege,
+    ViewPermission,
+    ClientConfig,
+    StackLevelConfiguration,
+    LdapSyncEvent,
+    UserPrivilege;
 
     /**
      * Get the {@link Type} that corresponds to this InternalType.
@@ -151,6 +168,7 @@ public interface Resource {
     public static final Type Component = InternalType.Component.getType();
     public static final Type HostComponent = InternalType.HostComponent.getType();
     public static final Type Configuration = InternalType.Configuration.getType();
+    public static final Type ServiceConfigVersion = InternalType.ServiceConfigVersion.getType();
     public static final Type ConfigGroup = InternalType.ConfigGroup.getType();
     public static final Type Action = InternalType.Action.getType();
     public static final Type Request = InternalType.Request.getType();
@@ -180,8 +198,24 @@ public interface Resource {
     public static final Type ViewVersion = InternalType.ViewVersion.getType();
     public static final Type ViewInstance = InternalType.ViewInstance.getType();
     public static final Type Blueprint = InternalType.Blueprint.getType();
+    public static final Type Recommendation = InternalType.Recommendation.getType();
+    public static final Type Validation = InternalType.Validation.getType();
     public static final Type HostComponentProcess = InternalType.HostComponentProcess.getType();
     public static final Type Permission = InternalType.Permission.getType();
+    public static final Type Alert = InternalType.Alert.getType();
+    public static final Type AlertDefinition = InternalType.AlertDefinition.getType();
+    public static final Type AlertHistory = InternalType.AlertHistory.getType();
+    public static final Type AlertGroup = InternalType.AlertGroup.getType();
+    public static final Type AlertTarget = InternalType.AlertTarget.getType();
+    public static final Type AlertNotice = InternalType.AlertNotice.getType();
+    public static final Type AmbariPrivilege = InternalType.AmbariPrivilege.getType();
+    public static final Type ClusterPrivilege = InternalType.ClusterPrivilege.getType();
+    public static final Type ViewPrivilege = InternalType.ViewPrivilege.getType();
+    public static final Type ViewPermission = InternalType.ViewPermission.getType();
+    public static final Type ClientConfig = InternalType.ClientConfig.getType();
+    public static final Type StackLevelConfiguration = InternalType.StackLevelConfiguration.getType();
+    public static final Type LdapSyncEvent = InternalType.LdapSyncEvent.getType();
+    public static final Type UserPrivilege = InternalType.UserPrivilege.getType();
 
     /**
      * The type name.
@@ -295,8 +329,13 @@ public interface Resource {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
 
       Type type = (Type) o;
 

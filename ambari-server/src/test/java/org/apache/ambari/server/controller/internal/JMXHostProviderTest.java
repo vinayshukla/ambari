@@ -46,6 +46,9 @@ import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.state.Service;
+import org.apache.ambari.server.state.ServiceComponent;
+import org.apache.ambari.server.state.ServiceComponentHost;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -57,6 +60,7 @@ import com.google.inject.persist.PersistService;
 
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.expect;
 
 public class JMXHostProviderTest {
   private Injector injector;
@@ -184,7 +188,7 @@ public class JMXHostProviderTest {
       ConfigurationRequest cr = new ConfigurationRequest(clusterName,
         "hdfs-site", "version1", configs, null);
       ClusterRequest crequest = new ClusterRequest(null, clusterName, null, null);
-      crequest.setDesiredConfig(cr);
+      crequest.setDesiredConfig(Collections.singletonList(cr));
       controller.updateClusters(Collections.singleton(crequest), new HashMap<String,String>());
       
     } else {
@@ -196,7 +200,7 @@ public class JMXHostProviderTest {
         "hdfs-site", "version2", configs, null);
       
       ClusterRequest crequest = new ClusterRequest(null, clusterName, null, null);
-      crequest.setDesiredConfig(cr);
+      crequest.setDesiredConfig(Collections.singletonList(cr));
       controller.updateClusters(Collections.singleton(crequest), new HashMap<String,String>());
     }
   }
@@ -268,19 +272,19 @@ public class JMXHostProviderTest {
       "hdfs-site", "versionN", configs, null);
 
     ClusterRequest crReq = new ClusterRequest(null, clusterName, null, null);
-    crReq.setDesiredConfig(cr1);
+    crReq.setDesiredConfig(Collections.singletonList(cr1));
     controller.updateClusters(Collections.singleton(crReq), null);
     Cluster cluster = clusters.getCluster(clusterName);
     Assert.assertEquals("versionN", cluster.getDesiredConfigByType("hdfs-site")
-      .getVersionTag());
+      .getTag());
 
     ConfigurationRequest cr2 = new ConfigurationRequest(clusterName,
       "yarn-site", "versionN", yarnConfigs, null);
-    crReq.setDesiredConfig(cr2);
+    crReq.setDesiredConfig(Collections.singletonList(cr2));
     controller.updateClusters(Collections.singleton(crReq), null);
 
     Assert.assertEquals("versionN", cluster.getDesiredConfigByType("yarn-site")
-      .getVersionTag());
+      .getTag());
     Assert.assertEquals("localhost:${ambari.dfs.datanode.http.port}", cluster.getDesiredConfigByType
       ("hdfs-site").getProperties().get(NAMENODE_PORT_V1));
   }
@@ -347,6 +351,35 @@ public class JMXHostProviderTest {
   }
 
   @Test
+  public void testGetHostNames() throws AmbariException {
+    JMXHostProviderModule providerModule = new JMXHostProviderModule();
+
+
+    AmbariManagementController managementControllerMock = createNiceMock(AmbariManagementController.class);
+    Clusters clustersMock = createNiceMock(Clusters.class);
+    Cluster clusterMock = createNiceMock(Cluster.class);
+    Service serviceMock = createNiceMock(Service.class);
+    ServiceComponent serviceComponentMock = createNiceMock(ServiceComponent.class);
+
+    Map<String, ServiceComponentHost> hostComponents = new HashMap<String, ServiceComponentHost>();
+    hostComponents.put("host1", null);
+
+    expect(managementControllerMock.getClusters()).andReturn(clustersMock).anyTimes();
+    expect(managementControllerMock.findServiceName(clusterMock, "DATANODE")).andReturn("HDFS");
+    expect(clustersMock.getCluster("c1")).andReturn(clusterMock).anyTimes();
+    expect(clusterMock.getService("HDFS")).andReturn(serviceMock).anyTimes();
+    expect(serviceMock.getServiceComponent("DATANODE")).andReturn(serviceComponentMock).anyTimes();
+    expect(serviceComponentMock.getServiceComponentHosts()).andReturn(hostComponents).anyTimes();
+
+    replay(managementControllerMock, clustersMock, clusterMock, serviceMock, serviceComponentMock);
+    providerModule.managementController = managementControllerMock;
+
+    Set<String> result = providerModule.getHostNames("c1", "DATANODE");
+    Assert.assertTrue(result.iterator().next().toString().equals("host1"));
+
+  }
+
+  @Test
   public void testJMXPortMapUpdate() throws
     NoSuchParentResourceException,
     ResourceAlreadyExistsException, UnsupportedPropertyException,
@@ -367,7 +400,7 @@ public class JMXHostProviderTest {
       "yarn-site", "versionN+1", yarnConfigs, null);
 
     ClusterRequest crReq = new ClusterRequest(null, "c1", null, null);
-    crReq.setDesiredConfig(cr2);
+    crReq.setDesiredConfig(Collections.singletonList(cr2));
     controller.updateClusters(Collections.singleton(crReq), null);
     Assert.assertEquals("50030", providerModule.getPort("c1", "RESOURCEMANAGER"));
     Assert.assertEquals("11111", providerModule.getPort("c1", "NODEMANAGER"));
@@ -385,9 +418,11 @@ public class JMXHostProviderTest {
       .Cluster), PropertyHelper.getKeyPropertyIds(Resource.Type.Cluster),
       controller);
 
+    Injector injector = createNiceMock(Injector.class);
     MaintenanceStateHelper maintenanceStateHelper = createNiceMock(MaintenanceStateHelper.class);
     {
-      replay(maintenanceStateHelper);
+      expect(injector.getInstance(Clusters.class)).andReturn(null);
+      replay(maintenanceStateHelper, injector);
     }
 
     ResourceProvider serviceResourceProvider = new ServiceResourceProvider(PropertyHelper
@@ -397,7 +432,7 @@ public class JMXHostProviderTest {
     ResourceProvider hostCompResourceProvider = new
       HostComponentResourceProvider(PropertyHelper.getPropertyIds(Resource
       .Type.HostComponent), PropertyHelper.getKeyPropertyIds(Resource.Type
-      .HostComponent), controller);
+      .HostComponent), controller, injector);
 
     ResourceProvider configResourceProvider = new
       ConfigurationResourceProvider(PropertyHelper.getPropertyIds(Resource

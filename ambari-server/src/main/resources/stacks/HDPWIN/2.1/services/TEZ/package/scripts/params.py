@@ -28,5 +28,3 @@ tez_conf_dir = "conf"
 if os.environ.has_key("TEZ_HOME"):
   tez_home_dir = os.environ["TEZ_HOME"]
   tez_conf_dir = os.path.join(tez_home_dir, "conf")
-
-

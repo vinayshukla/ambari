@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var stringUtils = require('utils/string_utils');
 
 /**
  * Remove spaces at beginning and ending of line.
@@ -223,6 +224,8 @@ Em.CoreObject.reopen({
   }
 });
 
+Em.TextArea.reopen(Em.I18n.TranslateableAttributes);
+
 /** @namespace Em.Handlebars **/
 Em.Handlebars.registerHelper('log', function (variable) {
   console.log(variable);
@@ -285,6 +288,34 @@ App.isEmptyObject = function(obj) {
   for (var prop in obj) { if (obj.hasOwnProperty(prop)) {empty = false; break;} }
   return empty;
 }
+
+/**
+ * Convert object under_score keys to camelCase
+ *
+ * @param {Object} object
+ * @return {Object}
+ **/
+App.keysUnderscoreToCamelCase = function(object) {
+  var tmp = {};
+  for (var key in object) {
+    tmp[stringUtils.underScoreToCamelCase(key)] = object[key];
+  }
+  return tmp;
+};
+
+/**
+ * Convert dotted keys to camelcase
+ *
+ * @param {Object} object
+ * @return {Object}
+ **/
+App.keysDottedToCamelCase = function(object) {
+  var tmp = {};
+  for (var key in object) {
+    tmp[key.split('.').reduce(function(p, c) { return p + c.capitalize()})] = object[key];
+  }
+  return tmp;
+};
 /**
  * Returns object with defined keys only.
  *
@@ -319,11 +350,11 @@ App.format = {
     'API': 'API',
     'DECOMMISSION_DATANODE': 'Update Exclude File',
     'DRPC': 'DRPC',
-    'FLUME_HANDLER': 'Flume Agent',
+    'FLUME_HANDLER': 'Flume',
     'GLUSTERFS': 'GLUSTERFS',
     'HBASE': 'HBase',
     'HBASE_REGIONSERVER': 'RegionServer',
-    'HCAT': 'HCat',
+    'HCAT': 'HCat Client',
     'HDFS': 'HDFS',
     'HISTORYSERVER': 'History Server',
     'HIVE_SERVER': 'HiveServer2',
@@ -370,7 +401,18 @@ App.format = {
    * return {string}
    */
   role:function (role) {
-    return this.normalizeName(role);
+    var result;
+    var models = [App.StackService, App.StackServiceComponent];
+    models.forEach(function(model){
+      var instance =  model.find().findProperty('id',role);
+      if (instance) {
+        result = instance.get('displayName');
+      }
+    },this);
+    if (!result)  {
+      result =  this.normalizeName(role);
+    }
+    return result;
   },
 
   /**
@@ -394,7 +436,7 @@ App.format = {
       suffixRegExp.lastIndex = 0;
       var matches = suffixRegExp.exec(name);
       name = matches[1].capitalize() + matches[2].capitalize();
-    };
+    }
     return name.capitalize();
   },
 
@@ -404,9 +446,10 @@ App.format = {
    * @memberof App.format
    * @method commandDetail
    * @param {string} command_detail
+   * @param {string} request_inputs
    * @return {string}
    */
-  commandDetail: function (command_detail) {
+  commandDetail: function (command_detail, request_inputs) {
     var detailArr = command_detail.split(' ');
     var self = this;
     var result = '';
@@ -415,9 +458,9 @@ App.format = {
       if (item.contains('/')) {
         item = item.split('/')[1];
       }
-      // ignore 'DECOMMISSION', command came from 'excluded/included'
       if (item == 'DECOMMISSION,') {
-        item = '';
+        // ignore text 'DECOMMISSION,'( command came from 'excluded/included'), here get the component name from request_inputs
+        item = (jQuery.parseJSON(request_inputs)) ? jQuery.parseJSON(request_inputs).slave_type : '';
       }
       if (self.components[item]) {
         result = result + ' ' + self.components[item];
@@ -427,8 +470,16 @@ App.format = {
         result = result + ' ' + self.role(item);
       }
     });
+
+    if (result.indexOf('Decommission:') > -1 || result.indexOf('Recommission:') > -1) {
+      // for Decommission command, make sure the hostname is in lower case
+       result = result.split(':')[0] + ': ' + result.split(':')[1].toLowerCase();
+    }
     if (result === ' Nagios Update Ignore Actionexecute') {
        result = Em.I18n.t('common.maintenance.task');
+    }
+    if (result === ' Rebalancehdfs NameNode') {
+       result = Em.I18n.t('services.service.actions.run.rebalanceHdfsNodes.title');
     }
     return result;
   },
@@ -735,5 +786,31 @@ DS.attr.transforms.array = {
   },
   to : function(deserialized) {
     return deserialized;
+  }
+};
+
+/**
+ *  Utility method to delete all existing records of a DS.Model type from the model's associated map and
+ *  store's persistence layer (recordCache)
+ * @param type DS.Model Class
+ */
+App.resetDsStoreTypeMap = function(type) {
+  var allRecords = App.get('store.recordCache');  //This fetches all records in the ember-data persistence layer
+  var typeMaps = App.get('store.typeMaps');
+  var guidForType = Em.guidFor(type);
+  var typeMap = typeMaps[guidForType];
+  if (typeMap) {
+    var idToClientIdMap = typeMap.idToCid;
+    for (var id in idToClientIdMap) {
+      if (idToClientIdMap.hasOwnProperty(id) && idToClientIdMap[id]) {
+        delete allRecords[idToClientIdMap[id]];  // deletes the cached copy of the record from the store
+      }
+    }
+    typeMaps[guidForType] = {
+      idToCid: {},
+      clientIds: [],
+      cidToHash: {},
+      recordArrays: []
+    };
   }
 };

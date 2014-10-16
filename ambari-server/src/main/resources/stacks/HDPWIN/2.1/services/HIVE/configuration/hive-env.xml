@@ -93,7 +93,7 @@
     <value>hcat</value>
     <description>WebHCat User.</description>
   </property>-->
-  
+
   <!-- hive-env.cmd -->
   <property>
     <name>content</name>
@@ -101,5 +101,5 @@
     <value>
     </value>
   </property>
-  
+
 </configuration>

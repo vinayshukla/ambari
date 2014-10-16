@@ -3,7 +3,7 @@
 <!--
 
  Copyright 2011 The Apache Software Foundation
- 
+
  Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.  See the NOTICE file
  distributed with this work for additional information
@@ -129,7 +129,7 @@
     <name>security.mrhs.client.protocol.acl</name>
     <value>*</value>
     <description>ACL for HSClientProtocol, used by job clients to
-    communciate with the MR History Server job status etc. 
+    communciate with the MR History Server job status etc.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
     A special value of "*" means all users are allowed.</description>
@@ -150,7 +150,7 @@
   <property>
     <name>security.resourcemanager-administration.protocol.acl</name>
     <value>*</value>
-    <description>ACL for ResourceManagerAdministrationProtocol, for admin commands. 
+    <description>ACL for ResourceManagerAdministrationProtocol, for admin commands.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
     A special value of "*" means all users are allowed.</description>
@@ -159,7 +159,7 @@
   <property>
     <name>security.applicationclient.protocol.acl</name>
     <value>*</value>
-    <description>ACL for ApplicationClientProtocol, used by the ResourceManager 
+    <description>ACL for ApplicationClientProtocol, used by the ResourceManager
     and applications submission clients to communicate with each other.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
@@ -169,7 +169,7 @@
   <property>
     <name>security.applicationmaster.protocol.acl</name>
     <value>*</value>
-    <description>ACL for ApplicationMasterProtocol, used by the ResourceManager 
+    <description>ACL for ApplicationMasterProtocol, used by the ResourceManager
     and ApplicationMasters to communicate with each other.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
@@ -179,7 +179,7 @@
   <property>
     <name>security.containermanagement.protocol.acl</name>
     <value>*</value>
-    <description>ACL for ContainerManagementProtocol protocol, used by the NodeManager 
+    <description>ACL for ContainerManagementProtocol protocol, used by the NodeManager
     and ApplicationMasters to communicate with each other.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
@@ -189,7 +189,7 @@
   <property>
     <name>security.resourcelocalizer.protocol.acl</name>
     <value>*</value>
-    <description>ACL for ResourceLocalizer protocol, used by the NodeManager 
+    <description>ACL for ResourceLocalizer protocol, used by the NodeManager
     and ResourceLocalizer to communicate with each other.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
@@ -210,7 +210,7 @@
     <name>security.job.client.protocol.acl</name>
     <value>*</value>
     <description>ACL for MRClientProtocol, used by job clients to
-    communciate with the MR ApplicationMaster to query job status etc. 
+    communciate with the MR ApplicationMaster to query job status etc.
     The ACL is a comma-separated list of user and group names. The user and
     group list is separated by a blank. For e.g. "alice,bob users,wheel".
     A special value of "*" means all users are allowed.</description>

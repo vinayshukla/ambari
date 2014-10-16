@@ -55,7 +55,7 @@ App.MainHostSummaryView = Em.View.extend({
 
   showGangliaCharts: function () {
     var name = this.get('content.hostName');
-    var gangliaMobileUrl = App.router.get('clusterController.gangliaUrl') + "/mobile_helper.php?show_host_metrics=1&h=" + name + "&c=HDPNameNode&r=hour&cs=&ce=";
+    var gangliaMobileUrl = App.router.get('clusterController.gangliaUrl') + "/mobile_helper.php?show_host_metrics=1&h=" + name + "&c=HDPSlaves&r=hour&cs=&ce=";
     window.open(gangliaMobileUrl);
   },
 
@@ -189,11 +189,22 @@ App.MainHostSummaryView = Em.View.extend({
           clients[clients.length - 1].set('isLast', false);
         }
         component.set('isLast', true);
+        if (['INSTALL_FAILED', 'INIT'].contains(component.get('workStatus'))) {
+          component.set('isInstallFailed', true);
+        }
         clients.push(component);
       }
     }, this);
     return clients;
   }.property('content.hostComponents.length'),
+  /**
+   * Check if some clients not installed or started
+   *
+   * @type {bool}
+   **/
+  areClientsInstallFailed: function() {
+    return this.get('clients').someProperty('isInstallFailed', true);
+  }.property('clients.@each.workStatus'),
 
   /**
    * Check if some clients have stale configs
@@ -288,5 +299,38 @@ App.MainHostSummaryView = Em.View.extend({
       return $.timeago(d);
     }
     return "";
-  }.property('content.lastHeartBeatTime')
+  }.property('content.lastHeartBeatTime'),
+
+  /**
+   * Get clients with custom commands
+   */
+  clientsWithCustomCommands: function() {
+    var clients = this.get('clients');
+    var options = [];
+    var clientWithCommands;
+    clients.forEach(function(client) {
+      var componentName = client.get('componentName');
+      var customCommands = App.StackServiceComponent.find(componentName).get('customCommands');
+
+      if (customCommands.length) {
+        clientWithCommands = {
+          label: client.get('displayName'),
+          commands: []
+        };
+        customCommands.forEach(function(command) {
+          clientWithCommands.commands.push({
+            label: Em.I18n.t('services.service.actions.run.executeCustomCommand.menu').format(command),
+            service: client.get('service.serviceName'),
+            hosts: client.get('hostName'),
+            component: componentName,
+            command: command
+          });
+        });
+
+        options.push(clientWithCommands);
+      }
+    });
+
+    return options;
+  }.property('controller')
 });

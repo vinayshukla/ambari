@@ -52,6 +52,7 @@ JDBC_AUTH_SYMLINK_MSSQL = "sqljdbc_auth.dll"
 class CheckHost(Script):
   def actionexecute(self, env):
     config = Script.get_config()
+    tmp_dir = Script.get_tmp_dir()
 
     #print "CONFIG: " + str(config)
 
@@ -70,7 +71,7 @@ class CheckHost(Script):
 
     if CHECK_DB_CONNECTION in check_execute_list:
       try :
-        db_connection_check_structured_output = self.execute_db_connection_check(config)
+        db_connection_check_structured_output = self.execute_db_connection_check(config, tmp_dir)
         structured_output[CHECK_DB_CONNECTION] = db_connection_check_structured_output
       except Exception, exception:
         print "There was an unknown error while checking database connectivity: " + str(exception)
@@ -106,7 +107,7 @@ class CheckHost(Script):
     return java_home_check_structured_output
 
 
-  def execute_db_connection_check(self, config):
+  def execute_db_connection_check(self, config, tmp_dir):
     print "DB connection check started."
   
     # initialize needed data
@@ -159,10 +160,7 @@ class CheckHost(Script):
       return db_connection_check_structured_output
 
     environment = { "no_proxy": format("{ambari_server_hostname}") }
-    artifact_dir = "/tmp/HDP-artifacts/"
-
-    # download DBConnectionVerification.jar from ambari-server resources
-
+    # download and install java if it doesn't exists
     if not os.path.isfile(java_exec):
       jdk_name = config['commandParams']['jdk_name']
       jdk_url = "{}/{}".format(jdk_location, jdk_name)
@@ -198,6 +196,7 @@ class CheckHost(Script):
         db_connection_check_structured_output = {"exit_code" : 1, "message": message}
         return db_connection_check_structured_output
 
+    # download DBConnectionVerification.jar from ambari-server resources
     try:
       download_file(check_db_connection_url, check_db_connection_path)
 

@@ -28,58 +28,79 @@ module.exports = Em.Application.create({
     revision: 4,
     adapter: DS.FixtureAdapter.create({
       simulateRemoteResponse: false
-    })
+    }),
+    typeMaps: {},
+    recordCache: []
   }),
   isAdmin: false,
+  isOperator: false,
+  isManager: function() {
+    return this.get('isAdmin') || this.get('isOperator');
+  }.property('isAdmin','isOperator'),
+
+  isStackServicesLoaded: false,
   /**
    * return url prefix with number value of version of HDP stack
    */
   stackVersionURL: function () {
-    return "/stacks/" + this.get('currentStackName') + "/versions/" + this.get('currentStackVersionNumber');
-  }.property('currentStackName', 'currentStackVersionNumber'),
+    return '/stacks/{0}/versions/{1}'.format(this.get('currentStackName') || 'HDP', this.get('currentStackVersionNumber'));
+  }.property('currentStackName','currentStackVersionNumber'),
 
   /**
    * return url prefix with number value of version of HDP stack
    */
   stack2VersionURL: function () {
-    return "/stacks2/" + this.get('currentStackName') + "/versions/" + this.get('currentStackVersionNumber');
+    return '/stacks2/{0}/versions/{1}'.format(this.get('currentStackName') || 'HDP', this.get('currentStackVersionNumber'));
   }.property('currentStackName', 'currentStackVersionNumber'),
 
   falconServerURL: function () {
     var falconService = this.Service.find().findProperty('serviceName', 'FALCON');
     if (falconService) {
-      return falconService.get('hostComponents').findProperty('componentName', 'FALCON_SERVER').get('host.hostName');
+      return falconService.get('hostComponents').findProperty('componentName', 'FALCON_SERVER').get('hostName');
     }
     return '';
   }.property().volatile(),
 
+  /* Determine if Application Timeline Service supports Kerberization.
+   * Because this value is retrieved from the cardinality of the component, it is safe to keep in app.js
+   * since its value will not change during the lifetime of the application.
+   */
+  doesATSSupportKerberos: function() {
+    var YARNService = App.StackServiceComponent.find().filterProperty('serviceName', 'YARN');
+    if (YARNService.length) {
+      var ATS = App.StackServiceComponent.find().findProperty('componentName', 'APP_TIMELINE_SERVER');
+      return (!!ATS && !!ATS.get('minToInstall'));
+    }
+    return false;
+  }.property('App.router.clusterController.isLoaded'),
+
   clusterName: null,
   clockDistance: null, // server clock - client clock
   currentStackVersion: '',
-  currentStackVersionNumber: function () {
-      var stackVersion = this.get('currentStackVersion') || this.get('defaultStackVersion');
-      if(stackVersion.indexOf('-') > -1) {
-        return stackVersion.split('-')[1];
-      }
-      return stackVersion;
+  currentStackName: function() {
+    return Em.get((this.get('currentStackVersion') || this.get('defaultStackVersion')).match(/(.+)-\d.+/), '1');
   }.property('currentStackVersion'),
 
-  currentStackName: function () {
-      var stackVersion = this.get('currentStackVersion') || this.get('defaultStackVersion');
-      if(stackVersion.indexOf('-') > -1) {
-        return stackVersion.split('-')[0];
-      }
-      return "HDP";
-  }.property('currentStackVersion'),
+  allHostNames: [],
+
+  currentStackVersionNumber: function () {
+    var regExp = new RegExp(this.get('currentStackName') + '-');
+    return (this.get('currentStackVersion') || this.get('defaultStackVersion')).replace(regExp, '');
+  }.property('currentStackVersion', 'currentStackName'),
 
   isHadoop2Stack: function () {
-    return (stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.0") === 1 ||
-      stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.0") === 0);
-  }.property('currentStackVersionNumber'),
+    var result = true;
+    var hdfsService = App.StackService.find().findProperty('serviceName','HDFS');
+    if (hdfsService) {
+      result = stringUtils.compareVersions(hdfsService.get('serviceVersion'), "2.0") > -1;
+    } else {
+      result = stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.0") > -1;
+    }
+    return result;
+  }.property('router.clusterController.isLoaded', 'isStackServicesLoaded','currentStackVersionNumber'),
 
-  isHadoop21Stack: function () {
-    return (stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.1") === 1 ||
-      stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.1") === 0);
+  isHadoop22Stack: function () {
+    return (stringUtils.compareVersions(this.get('currentStackVersionNumber'), "2.2") > -1);
   }.property('currentStackVersionNumber'),
 
   isHadoopWindowsStack: function() {
@@ -87,15 +108,31 @@ module.exports = Em.Application.create({
   }.property('currentStackName'),
 
   /**
-   * If High Availability is enabled
+   * If NameNode High Availability is enabled
    * Based on <code>clusterStatus.isInstalled</code>, stack version, <code>SNameNode</code> availability
    *
    * @type {bool}
    */
   isHaEnabled: function () {
     if (!this.get('isHadoop2Stack')) return false;
-    return !this.HostComponent.find().someProperty('componentName', 'SECONDARY_NAMENODE');
+    var isHDFSInstalled = App.Service.find().findProperty('serviceName','HDFS');
+    return !!isHDFSInstalled && !this.HostComponent.find().someProperty('componentName', 'SECONDARY_NAMENODE');
   }.property('router.clusterController.isLoaded', 'isHadoop2Stack'),
+
+  /**
+   * If ResourceManager High Availability is enabled
+   * Based on number of ResourceManager components host components installed
+   *
+   * @type {bool}
+   */
+  isRMHaEnabled: function () {
+    var result = false;
+    var rmStackComponent = App.StackServiceComponent.find().findProperty('componentName','RESOURCEMANAGER');
+    if (rmStackComponent && rmStackComponent.get('isMultipleAllowed')) {
+      result = this.HostComponent.find().filterProperty('componentName', 'RESOURCEMANAGER').length > 1;
+    }
+    return result;
+  }.property('router.clusterController.isLoaded'),
 
   /**
    * Object with utility functions for list of service names with similar behavior
@@ -139,6 +176,10 @@ module.exports = Em.Application.create({
 
     alerting: function () {
       return App.StackService.find().filterProperty('isAlertingService').mapProperty('serviceName');
+    }.property('App.router.clusterController.isLoaded'),
+
+    supportsServiceCheck: function() {
+      return App.StackService.find().filterProperty('serviceCheckSupported').mapProperty('serviceName');
     }.property('App.router.clusterController.isLoaded')
   }),
 
@@ -152,51 +193,51 @@ module.exports = Em.Application.create({
     }.property('App.router.clusterController.isLoaded'),
 
     reassignable: function () {
-      return App.StackServiceComponent.find().filterProperty('isReassignable', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isReassignable').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     restartable: function () {
-      return App.StackServiceComponent.find().filterProperty('isRestartable', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isRestartable').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     deletable: function () {
-      return App.StackServiceComponent.find().filterProperty('isDeletable', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isDeletable').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     rollinRestartAllowed: function () {
-      return App.StackServiceComponent.find().filterProperty('isRollinRestartAllowed', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isRollinRestartAllowed').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     decommissionAllowed: function () {
-      return App.StackServiceComponent.find().filterProperty('isDecommissionAllowed', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isDecommissionAllowed').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     refreshConfigsAllowed: function () {
-      return App.StackServiceComponent.find().filterProperty('isRefreshConfigsAllowed', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isRefreshConfigsAllowed').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     addableToHost: function () {
-      return App.StackServiceComponent.find().filterProperty('isAddableToHost', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isAddableToHost').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     addableMasterInstallerWizard: function () {
-      return App.StackServiceComponent.find().filterProperty('isMasterAddableInstallerWizard', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isMasterAddableInstallerWizard').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
-    addableMasterHaWizard: function () {
-      return App.StackServiceComponent.find().filterProperty('isMasterWithMultipleInstancesHaWizard', true).mapProperty('componentName')
+    multipleMasters: function () {
+      return App.StackServiceComponent.find().filterProperty('isMasterWithMultipleInstances').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     slaves: function () {
-      return App.StackServiceComponent.find().filterProperty('isMaster', false).filterProperty('isClient', false).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isSlave').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     masters: function () {
-      return App.StackServiceComponent.find().filterProperty('isMaster', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isMaster').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded'),
 
     clients: function () {
-      return App.StackServiceComponent.find().filterProperty('isClient', true).mapProperty('componentName')
+      return App.StackServiceComponent.find().filterProperty('isClient').mapProperty('componentName')
     }.property('App.router.clusterController.isLoaded')
   })
 });

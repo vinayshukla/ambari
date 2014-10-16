@@ -18,6 +18,8 @@
 
 var App = require('app');
 var batchUtils = require('utils/batch_scheduled_requests');
+var componentsUtils = require('utils/components');
+var stringUtils = require('utils/string_utils');
 
 App.MainHostDetailsController = Em.Controller.extend({
 
@@ -142,8 +144,8 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @method stopComponentSuccessCallback
    */
   sendComponentCommandSuccessCallback: function (data, opt, params) {
-    var running = (params.HostRoles.state ===  App.HostComponentStatus.stopped) ? App.HostComponentStatus.stopping : App.HostComponentStatus.starting;
-    console.log('Send request for '+running+' successfully');
+    var running = (params.HostRoles.state === App.HostComponentStatus.stopped) ? App.HostComponentStatus.stopping : App.HostComponentStatus.starting;
+    console.log('Send request for ' + running + ' successfully');
     params.component.set('workStatus', running);
     if (App.get('testMode')) {
       this.mimicWorkStatusChange(params.component, running, params.HostRoles.state);
@@ -161,8 +163,7 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @method ajaxErrorCallback
    */
   ajaxErrorCallback: function (request, ajaxOptions, error, opt, params) {
-    console.log('error on change component host status');
-    App.ajax.defaultErrorHandler(request, opt.url, opt.method);
+    return componentsUtils.ajaxErrorCallback(request, ajaxOptions, error, opt, params);
   },
   /**
    * mimic status transition in test mode
@@ -170,7 +171,7 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @param transitionalState
    * @param finalState
    */
-  mimicWorkStatusChange: function(entity, transitionalState, finalState) {
+  mimicWorkStatusChange: function (entity, transitionalState, finalState) {
     if (Em.isArray(entity)) {
       entity.forEach(function (item) {
         item.set('workStatus', transitionalState);
@@ -211,7 +212,7 @@ App.MainHostDetailsController = Em.Controller.extend({
     var component = event.context;
     var componentName = component.get('componentName');
     var displayName = component.get('displayName');
-    var isLastComponent = (App.HostComponent.find().filterProperty('componentName', componentName).get('length') === 1);
+    var isLastComponent = (this.getTotalComponent(component) === 1);
     App.ModalPopup.show({
       header: Em.I18n.t('popup.confirmation.commonHeader'),
       primary: Em.I18n.t('hosts.host.deleteComponent.popup.confirm'),
@@ -249,6 +250,24 @@ App.MainHostDetailsController = Em.Controller.extend({
         });
       }
     });
+  },
+
+  /**
+   * get total count of host-components
+   * @method getTotalComponent
+   * @param component
+   * @return {Number}
+   */
+  getTotalComponent: function (component) {
+    var count;
+    if (component.get('isSlave')) {
+      count = App.SlaveComponent.find(component.get('componentName')).get('totalCount');
+    } else if (component.get('isClient')) {
+      count = App.ClientComponent.find(component.get('componentName')).get('totalCount');
+    } else {
+      count = App.HostComponent.find().filterProperty('componentName', component.get('componentName')).get('length')
+    }
+    return count || 0;
   },
 
   /**
@@ -356,7 +375,7 @@ App.MainHostDetailsController = Em.Controller.extend({
   upgradeComponentSuccessCallback: function (data, opt, params) {
     console.log('Send request for UPGRADE successfully');
 
-    if (App.testMode) {
+    if (App.get('testMode')) {
       this.mimicWorkStatusChange(params.component, App.HostComponentStatus.starting, App.HostComponentStatus.started);
     }
     this.showBackgroundOperationsPopup();
@@ -378,9 +397,10 @@ App.MainHostDetailsController = Em.Controller.extend({
    * if true security is enabled otherwise disabled
    * @return {Boolean}
    */
-  getSecurityStatus: function () {
-    return App.router.get('mainAdminSecurityController').getUpdatedSecurityStatus();
-  },
+  securityEnabled: function () {
+    return App.router.get('mainAdminSecurityController.securityEnabled');
+  }.property('App.router.mainAdminSecurityController.securityEnabled'),
+
 
   /**
    * Send command to server to install selected host component
@@ -391,16 +411,24 @@ App.MainHostDetailsController = Em.Controller.extend({
     var self = this;
     var component = event.context;
     var componentName = component.get('componentName');
-
-    var securityEnabled = this.getSecurityStatus();
-
+    var missedComponents = componentsUtils.checkComponentDependencies(componentName, {
+      scope: 'host',
+      installedComponents: this.get('content.hostComponents').mapProperty('componentName')
+    });
+    if (!!missedComponents.length) {
+      var popupMessage = Em.I18n.t('host.host.addComponent.popup.dependedComponents.body').format(component.get('displayName'),
+        stringUtils.getFormattedStringFromArray(missedComponents.map(function(cName) {
+          return App.StackServiceComponent.find(cName).get('displayName');
+        })));
+      return App.showAlertPopup(Em.I18n.t('host.host.addComponent.popup.dependedComponents.header'), popupMessage);
+    }
     if (componentName === 'ZOOKEEPER_SERVER') {
       return App.showConfirmationPopup(function () {
         self.primary(component);
       }, Em.I18n.t('hosts.host.addComponent.addZooKeeper'));
     }
     else {
-      if (securityEnabled && componentName !== 'CLIENTS') {
+      if (this.get('securityEnabled') && componentName !== 'CLIENTS') {
         return App.showConfirmationPopup(function () {
           self.primary(component);
         }, Em.I18n.t('hosts.host.addComponent.securityNote').format(componentName, self.get('content.hostName')));
@@ -477,61 +505,9 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @method primary
    */
   primary: function (component) {
-    var self = this;
-    var componentName = component.get('componentName');
-    var displayName = component.get('displayName');
-    App.ajax.send({
-      name: 'host.host_component.add_new_component',
-      sender: self,
-      data: {
-        hostName: self.get('content.hostName'),
-        component: component,
-        data: JSON.stringify({
-          RequestInfo: {
-            "context": Em.I18n.t('requestInfo.installHostComponent') + " " + displayName
-          },
-          Body: {
-            host_components: [
-              {
-                HostRoles: {
-                  component_name: componentName
-                }
-              }
-            ]
-          }
-        })
-      },
-      success: 'addNewComponentSuccessCallback',
-      error: 'ajaxErrorCallback'
-    });
-  },
 
-  /**
-   * Success callback for add host component request
-   * @param {object} data
-   * @param {object} opt
-   * @param {object} params
-   * @method addNewComponentSuccessCallback
-   */
-  addNewComponentSuccessCallback: function (data, opt, params) {
-    console.log('Send request for ADDING NEW COMPONENT successfully');
-    App.ajax.send({
-      name: 'common.host.host_component.update',
-      sender: this,
-      data: {
-        hostName: this.get('content.hostName'),
-        componentName: params.component.get('componentName'),
-        serviceName: params.component.get('serviceName'),
-        component: params.component,
-        "context": Em.I18n.t('requestInfo.installNewHostComponent') + " " + params.component.get('displayName'),
-        HostRoles: {
-          state: 'INSTALLED'
-        },
-        urlParams: "HostRoles/state=INIT"
-      } ,
-      success: 'installNewComponentSuccessCallback',
-      error: 'ajaxErrorCallback'
-    });
+    var self = this;
+    componentsUtils.installHostComponent(self.get('content.hostName'), component);
   },
 
   /**
@@ -548,7 +524,7 @@ App.MainHostDetailsController = Em.Controller.extend({
     var self = this;
     console.log('Send request for INSTALLING NEW COMPONENT successfully');
 
-    if (App.testMode) {
+    if (App.get('testMode')) {
       this.mimicWorkStatusChange(params.component, App.HostComponentStatus.installing, App.HostComponentStatus.stopped);
     }
 
@@ -617,7 +593,11 @@ App.MainHostDetailsController = Em.Controller.extend({
   checkZkConfigs: function () {
     var bg = App.router.get('backgroundOperationsController.services').findProperty('id', this.get('zkRequestId'));
     if (bg && !bg.get('isRunning')) {
-      this.loadConfigs();
+      var self = this;
+      this.removeObserver('App.router.backgroundOperationsController.serviceTimestamp', this, this.checkZkConfigs);
+      setTimeout(function () {
+        self.loadConfigs();
+      }, App.get('componentsUpdateInterval'));
     }
   },
 
@@ -626,7 +606,6 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @method loadConfigs
    */
   loadConfigs: function () {
-    this.removeObserver('App.router.backgroundOperationsController.serviceTimestamp', this, this.checkZkConfigs);
     App.ajax.send({
       name: 'config.tags',
       sender: this,
@@ -671,9 +650,16 @@ App.MainHostDetailsController = Em.Controller.extend({
     }
     if (services.someProperty('serviceName', 'HIVE')) {
       urlParams.push('(type=webhcat-site&tag=' + data.Clusters.desired_configs['webhcat-site'].tag + ')');
+      urlParams.push('(type=hive-site&tag=' + data.Clusters.desired_configs['hive-site'].tag + ')');
     }
     if (services.someProperty('serviceName', 'STORM')) {
       urlParams.push('(type=storm-site&tag=' + data.Clusters.desired_configs['storm-site'].tag + ')');
+    }
+    if (services.someProperty('serviceName', 'SLIDER')) {
+      urlParams.push('(type=slider-client&tag=' + data.Clusters.desired_configs['slider-client'].tag + ')');
+    }
+    if (App.get('isRMHaEnabled')) {
+      urlParams.push('(type=yarn-site&tag=' + data.Clusters.desired_configs['yarn-site'].tag + ')');
     }
     return urlParams;
   },
@@ -700,12 +686,14 @@ App.MainHostDetailsController = Em.Controller.extend({
         sender: this,
         data: {
           siteName: site,
-          properties: configs[site]
+          properties: configs[site],
+          service_config_version_note: Em.I18n.t('hosts.host.zooKeeper.configs.save.note')
         }
       });
     }
   },
   /**
+   *
    * Set new values for some configs (based on available ZooKeeper Servers)
    * @param configs {object}
    * @param zksWithPort {string}
@@ -713,7 +701,7 @@ App.MainHostDetailsController = Em.Controller.extend({
    * @return {Boolean}
    */
   setZKConfigs: function (configs, zksWithPort, zks) {
-    if(typeof configs !== 'object' || !Array.isArray(zks)) return false;
+    if (typeof configs !== 'object' || !Array.isArray(zks)) return false;
     if (App.get('isHaEnabled')) {
       configs['core-site']['ha.zookeeper.quorum'] = zksWithPort;
     }
@@ -723,8 +711,20 @@ App.MainHostDetailsController = Em.Controller.extend({
     if (configs['webhcat-site']) {
       configs['webhcat-site']['templeton.zookeeper.hosts'] = zksWithPort;
     }
+    if (configs['hive-site']) {
+      if (App.get('isHadoop22Stack')) {
+        configs['hive-site']['hive.zookeeper.quorum'] = zksWithPort;
+      }
+      configs['hive-site']['hive.cluster.delegation.token.store.zookeeper.connectString'] = zksWithPort;
+    }
     if (configs['storm-site']) {
       configs['storm-site']['storm.zookeeper.servers'] = JSON.stringify(zks).replace(/"/g, "'");
+    }
+    if (configs['slider-client']) {
+      configs['slider-client']['slider.zookeeper.quorum'] = zksWithPort;
+    }
+    if (App.get('isRMHaEnabled')) {
+      configs['yarn-site']['yarn.resourcemanager.zk-address'] = zks.join(',');
     }
     return true;
   },
@@ -823,7 +823,7 @@ App.MainHostDetailsController = Em.Controller.extend({
    */
   installComponentSuccessCallback: function (data, opt, params) {
     console.log('Send request for REINSTALL COMPONENT successfully');
-    if (App.testMode) {
+    if (App.get('testMode')) {
       this.mimicWorkStatusChange(params.component, App.HostComponentStatus.installing, App.HostComponentStatus.stopped);
     }
     this.showBackgroundOperationsPopup();
@@ -858,9 +858,8 @@ App.MainHostDetailsController = Em.Controller.extend({
         this.doDecommission(hostName, svcName, "JOBTRACKER", "TASKTRACKER");
         break;
       case 'HBASE':
-        this.doDecommissionRegionServer(hostName, svcName, "HBASE_MASTER", "HBASE_REGIONSERVER");
+        this.warnBeforeDecommission(hostName);
     }
-    this.showBackgroundOperationsPopup();
   },
 
   /**
@@ -925,74 +924,184 @@ App.MainHostDetailsController = Em.Controller.extend({
   },
 
   /**
+   * check is hbase regionserver in mm. If so - run decommission
+   * otherwise shows warning
+   * @method warnBeforeDecommission
+   * @param {string} hostNames - list of host when run from bulk operations or current host
+   */
+  warnBeforeDecommission: function (hostNames) {
+    if (this.get('content.hostComponents').findProperty('componentName', 'HBASE_REGIONSERVER').get('passiveState') == "OFF") {
+      this.showHbaseActiveWarning();
+    } else {
+      this.checkRegionServerState(hostNames);
+    }
+  },
+
+  /**
+   *  send call to check is this regionserver last in cluster which has desired_admin_state property "INSERVICE"
+   * @method checkRegionServerState
+   * @param hostNames
+   */
+  checkRegionServerState: function (hostNames) {
+    return App.ajax.send({
+      name: 'host.region_servers.in_inservice',
+      sender: this,
+      data: {
+        hostNames: hostNames
+      },
+      success: 'checkRegionServerStateSuccessCallback'
+    });
+  },
+
+  /**
+   * check is this regionserver last in cluster which has desired_admin_state property "INSERVICE"
+   * @method checkRegionServerStateSuccessCallback
+   * @param data
+   * @param opt
+   * @param params
+   */
+  checkRegionServerStateSuccessCallback: function (data, opt, params) {
+    var hostArray = params.hostNames.split(",");
+    var decommissionPossible = (data.items.mapProperty('HostRoles.host_name').filter(function (hostName) {
+      return !hostArray.contains(hostName);
+    }, this).length >= 1);
+    if (decommissionPossible) {
+      this.doDecommissionRegionServer(params.hostNames, "HBASE", "HBASE_MASTER", "HBASE_REGIONSERVER");
+    } else {
+      this.showRegionServerWarning();
+    }
+  },
+
+  /**
+   * show warning that regionserver is last in cluster which has desired_admin_state property "INSERVICE"
+   * @method showRegionServerWarning
+   * @param hostNames
+   */
+  showRegionServerWarning: function () {
+    return App.ModalPopup.show({
+      header: Em.I18n.t('common.warning'),
+      message: Em.I18n.t('hosts.host.hbase_regionserver.decommission.warning'),
+      bodyClass: Ember.View.extend({
+        template: Em.Handlebars.compile('<div class="alert alert-warning">{{message}}</div>')
+      }),
+      secondary: false
+    });
+  },
+
+  /**
+   * shows warning: put hbase regionserver in passive state
+   * @method showHbaseActiveWarning
+   * @return {App.ModalPopup}
+   */
+  showHbaseActiveWarning: function () {
+    return App.ModalPopup.show({
+      header: Em.I18n.t('common.warning'),
+      message: function () {
+        return Em.I18n.t('hostPopup.recommendation.beforeDecommission').format(App.format.components["HBASE_REGIONSERVER"]);
+      }.property(),
+      bodyClass: Ember.View.extend({
+        template: Em.Handlebars.compile('<div class="alert alert-warning">{{message}}</div>')
+      }),
+      secondary: false
+    });
+  },
+
+  /**
    * Performs Decommission (for RegionServer)
    * @method doDecommissionRegionServer
-   * @param {string[]} hostNames - list of host when run from bulk operations or current host
+   * @param {string} hostNames - list of host when run from bulk operations or current host
    * @param {string} serviceName - serviceName
    * @param {string} componentName - master compoent name
    * @param {string} slaveType - slave component name
    */
   doDecommissionRegionServer: function (hostNames, serviceName, componentName, slaveType) {
+    var batches = [
+      {
+        "order_id": 1,
+        "type": "POST",
+        "uri": App.get('apiPrefix') + "/clusters/" + App.get('clusterName') + "/requests",
+        "RequestBodyInfo": {
+          "RequestInfo": {
+            "context": Em.I18n.t('hosts.host.regionserver.decommission.batch1'),
+            "command": "DECOMMISSION",
+            "exclusive" :"true",
+            "parameters": {
+              "slave_type": slaveType,
+              "excluded_hosts": hostNames
+            },
+            'operation_level': {
+              level: "HOST_COMPONENT",
+              cluster_name: App.get('clusterName'),
+              host_name: hostNames,
+              service_name: serviceName
+            }
+          },
+          "Requests/resource_filters": [
+            {"service_name": serviceName, "component_name": componentName}
+          ]
+        }
+      }];
+    var id = 2;
+    var hAray = hostNames.split(",");
+    for (var i = 0; i < hAray.length; i++) {
+      batches.push({
+        "order_id": id,
+        "type": "PUT",
+        "uri": App.get('apiPrefix') + "/clusters/" + App.get('clusterName') + "/hosts/" + hAray[i] + "/host_components/" + slaveType,
+        "RequestBodyInfo": {
+          "RequestInfo": {
+            context: Em.I18n.t('hosts.host.regionserver.decommission.batch2'),
+            exclusive: true,
+            operation_level: {
+              level: "HOST_COMPONENT",
+              cluster_name: App.get('clusterName'),
+              host_name: hostNames,
+              service_name: serviceName || null
+            }
+          },
+          "Body": {
+            HostRoles: {
+              state: "INSTALLED"
+            }
+          }
+        }
+      });
+      id++
+    }
+    batches.push({
+        "order_id": id,
+        "type": "POST",
+        "uri": App.get('apiPrefix') + "/clusters/" + App.get('clusterName') + "/requests",
+        "RequestBodyInfo": {
+          "RequestInfo": {
+            "context": Em.I18n.t('hosts.host.regionserver.decommission.batch3'),
+            "command": "DECOMMISSION",
+            "service_name": serviceName,
+            "component_name": componentName,
+            "parameters": {
+              "slave_type": slaveType,
+              "excluded_hosts": hostNames,
+              "mark_draining_only": true
+            },
+            'operation_level': {
+              level: "HOST_COMPONENT",
+              cluster_name: App.get('clusterName'),
+              host_name: hostNames,
+              service_name: serviceName
+            }
+          },
+          "Requests/resource_filters": [
+            {"service_name": serviceName, "component_name": componentName}
+          ]
+        }
+      });
     App.ajax.send({
       name: 'host.host_component.recommission_and_restart',
       sender: this,
       data: {
         intervalTimeSeconds: 1,
         tolerateSize: 0,
-        batches: [
-          {
-            "order_id": 1,
-            "type": "POST",
-            "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/requests",
-            "RequestBodyInfo": {
-              "RequestInfo": {
-                "context": Em.I18n.t('hosts.host.regionserver.decommission.batch1'),
-                "command": "DECOMMISSION",
-                "parameters": {
-                  "slave_type": slaveType,
-                  "excluded_hosts": hostNames
-                }
-              },
-              "Requests/resource_filters": [
-                {"service_name": serviceName, "component_name": componentName}
-              ]
-            }
-          },
-          {
-            "order_id": 2,
-            "type": "PUT",
-            "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/host_components",
-            "RequestBodyInfo": {
-              "RequestInfo": {
-                context: Em.I18n.t('hosts.host.regionserver.decommission.batch2'),
-                query: 'HostRoles/component_name=' + slaveType + '&HostRoles/host_name.in(' + hostNames + ')&HostRoles/maintenance_state=OFF'
-              },
-              "Body": {
-                HostRoles: {
-                  state: "INSTALLED"
-                }
-              }
-            }
-          },
-          {
-            "order_id": 3,
-            "type": "POST",
-            "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/requests",
-            "RequestBodyInfo": {
-              "RequestInfo": {
-                "context": Em.I18n.t('hosts.host.regionserver.decommission.batch3'),
-                "command": "DECOMMISSION",
-                "service_name": serviceName,
-                "component_name": componentName,
-                "parameters": {
-                  "slave_type": slaveType,
-                  "excluded_hosts": hostNames,
-                  "mark_draining_only": "true"
-                }
-              }
-            }
-          }
-        ]
+        batches: batches
       },
       success: 'decommissionSuccessCallback',
       error: 'decommissionErrorCallback'
@@ -1039,48 +1148,69 @@ App.MainHostDetailsController = Em.Controller.extend({
     var context_1 = Em.I18n.t(contextNameString_1);
     var contextNameString_2 = 'requestInfo.startHostComponent.' + slaveType.toLowerCase();
     var startContext = Em.I18n.t(contextNameString_2);
+    var params = {
+      "slave_type": slaveType,
+      "included_hosts": hostNames
+    };
+    if (serviceName == "HBASE") {
+      params.mark_draining_only = true;
+    }
+    var batches = [
+      {
+        "order_id": 1,
+        "type": "POST",
+        "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/requests",
+        "RequestBodyInfo": {
+          "RequestInfo": {
+            "context": context_1,
+            "command": "DECOMMISSION",
+            "exclusive":"true",
+            "parameters": params,
+            'operation_level': {
+              level: "HOST_COMPONENT",
+              cluster_name: App.get('clusterName'),
+              host_name: hostNames,
+              service_name: serviceName
+            }
+          },
+          "Requests/resource_filters": [
+            {"service_name": serviceName, "component_name": componentName}
+          ]
+        }
+      }];
+    var id = 2;
+    var hAray = hostNames.split(",");
+    for (var i = 0; i < hAray.length; i++) {
+      batches.push(    {
+        "order_id": id,
+        "type": "PUT",
+        "uri": App.get('apiPrefix') + "/clusters/" + App.get('clusterName') + "/hosts/" + hAray[i] + "/host_components/" + slaveType,
+        "RequestBodyInfo": {
+          "RequestInfo": {
+            context: startContext,
+            operation_level: {
+              level: "HOST_COMPONENT",
+              cluster_name: App.get('clusterName'),
+              host_name: hostNames,
+              service_name: serviceName || null
+            }
+          },
+          "Body": {
+            HostRoles: {
+              state: "STARTED"
+            }
+          }
+        }
+      });
+      id++;
+    }
     App.ajax.send({
       name: 'host.host_component.recommission_and_restart',
       sender: this,
       data: {
         intervalTimeSeconds: 1,
         tolerateSize: 1,
-        batches: [
-          {
-            "order_id": 1,
-            "type": "POST",
-            "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/requests",
-            "RequestBodyInfo": {
-              "RequestInfo": {
-                "context": context_1,
-                "command": "DECOMMISSION",
-                "parameters": {
-                  "slave_type": slaveType,
-                  "included_hosts": hostNames
-                }
-              },
-              "Requests/resource_filters": [
-                {"service_name": serviceName, "component_name": componentName}
-              ]
-            }
-          },
-          {
-            "order_id": 2,
-            "type": "PUT",
-            "uri": App.apiPrefix + "/clusters/" + App.get('clusterName') + "/host_components",
-            "RequestBodyInfo": {
-              "RequestInfo": {
-                context: startContext,
-                query: 'HostRoles/component_name=' + slaveType + '&HostRoles/host_name.in(' + hostNames + ')&HostRoles/maintenance_state=OFF'
-              },
-              "Body": {
-                HostRoles: {
-                  state: "STARTED"
-                }
-              }
-            }
-          }
-        ]
+        batches: batches
       },
       success: 'decommissionSuccessCallback',
       error: 'decommissionErrorCallback'
@@ -1115,9 +1245,16 @@ App.MainHostDetailsController = Em.Controller.extend({
               "RequestInfo": {
                 "context": context_1,
                 "command": "DECOMMISSION",
+                "exclusive":"true",
                 "parameters": {
                   "slave_type": slaveType,
                   "included_hosts": hostNames
+                },
+                'operation_level': {
+                  level: "HOST_COMPONENT",
+                  cluster_name: App.get('clusterName'),
+                  host_name: hostNames,
+                  service_name: serviceName
                 }
               },
               "Requests/resource_filters": [
@@ -1135,6 +1272,7 @@ App.MainHostDetailsController = Em.Controller.extend({
                 "command": "RESTART",
                 "service_name": serviceName,
                 "component_name": slaveType,
+                "exclusive":"true",
                 "hosts": hostNames
               }
             }
@@ -1492,6 +1630,7 @@ App.MainHostDetailsController = Em.Controller.extend({
           dialogSelf.hide();
           App.router.transitionTo('hosts.index');
         });
+        App.router.get('clusterController').getAllHostNames();
       },
       deleteHostErrorCallback: function (xhr, textStatus, errorThrown, opt) {
         console.log('Error deleting host.');
@@ -1550,12 +1689,71 @@ App.MainHostDetailsController = Em.Controller.extend({
     }
   },
 
-  toggleMaintenanceMode: function(event) {
+  toggleMaintenanceMode: function (event) {
     var self = this;
     var state = event.context.get('passiveState') === "ON" ? "OFF" : "ON";
-    var message = Em.I18n.t('passiveState.turn' + state.toCapital() +'For').format(event.context.get('displayName'));
+    var message = Em.I18n.t('passiveState.turn' + state.toCapital() + 'For').format(event.context.get('displayName'));
     return App.showConfirmationPopup(function () {
       self.updateComponentPassiveState(event.context, state, message);
     });
+  },
+
+  downloadClientConfigs: function (event) {
+    componentsUtils.downloadClientConfigs.call(this, {
+      hostName: event.context.get('hostName'),
+      componentName: event.context.get('componentName'),
+      displayName: event.context.get('displayName')
+    });
+  },
+
+  reinstallClients: function(event) {
+    var clientsToInstall = event.context.filter(function(component) {
+      return ['INIT', 'INSTALL_FAILED'].contains(component.get('workStatus'));
+    });
+    if (!clientsToInstall.length) return;
+    this.sendComponentCommand(clientsToInstall, Em.I18n.t('host.host.details.installClients'), 'INSTALLED');
+  },
+
+  /**
+   * On click handler for custom command from items menu
+   * @param context
+   */
+  executeCustomCommand: function(event) {
+    var controller = this;
+    var context = event.context;
+    return App.showConfirmationPopup(function() {
+      App.ajax.send({
+        name : 'service.item.executeCustomCommand',
+        sender: controller,
+        data : {
+          command : context.command,
+          context : Em.I18n.t('services.service.actions.run.executeCustomCommand.context').format(context.command),
+          hosts : context.hosts,
+          serviceName : context.service,
+          componentName : context.component
+        },
+        success : 'executeCustomCommandSuccessCallback',
+        error : 'executeCustomCommandErrorCallback'
+      });
+    });
+  },
+
+  executeCustomCommandSuccessCallback  : function(data, ajaxOptions, params) {
+    if (data.Requests.id) {
+      App.router.get('backgroundOperationsController').showPopup();
+    } else {
+      console.warn('Error during execution of ' + params.command + ' custom command on' + params.componentName);
+    }
+  },
+  executeCustomCommandErrorCallback : function(data) {
+    var error = Em.I18n.t('services.service.actions.run.executeCustomCommand.error');
+    if(data && data.responseText){
+      try {
+        var json = $.parseJSON(data.responseText);
+        error += json.message;
+      } catch (err) {}
+    }
+    App.showAlertPopup(Em.I18n.t('services.service.actions.run.executeCustomCommand.error'), error);
+    console.warn('Error during executing custom command');
   }
 });

@@ -28,5 +28,3 @@ def sqoop():
               owner=params.sqoop_user,
               mode="f"
   )
-
-

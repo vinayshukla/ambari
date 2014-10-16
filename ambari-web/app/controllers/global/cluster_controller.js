@@ -20,10 +20,8 @@ var App = require('app');
 
 App.ClusterController = Em.Controller.extend({
   name: 'clusterController',
-  cluster: null,
   isLoaded: false,
   ambariProperties: null,
-  ambariViews: [],
   clusterDataLoadedPercent: 'width:0', // 0 to 1
 
   isGangliaUrlLoaded: false,
@@ -45,6 +43,11 @@ App.ClusterController = Em.Controller.extend({
    * If null is returned, it means NAGIOS service is not installed.
    */
   nagiosUrl: null,
+
+  clusterName: function () {
+    return App.get('clusterName');
+  }.property('App.clusterName'),
+
   updateLoadStatus: function (item) {
     var loadList = this.get('dataLoadList');
     var loaded = true;
@@ -75,7 +78,6 @@ App.ClusterController = Em.Controller.extend({
     'cluster': false,
     'clusterStatus': false,
     'racks': false,
-    'users': false,
     'componentConfigs': false,
     'componentsState': false
   }),
@@ -86,7 +88,7 @@ App.ClusterController = Em.Controller.extend({
   loadClusterName: function (reload) {
     var dfd = $.Deferred();
 
-    if (this.get('clusterName') && !reload) {
+    if (App.get('clusterName') && !reload) {
       App.set('clusterName', this.get('clusterName'));
       dfd.resolve();
     } else {
@@ -106,9 +108,10 @@ App.ClusterController = Em.Controller.extend({
   },
 
   loadClusterNameSuccessCallback: function (data) {
-    this.set('cluster', data.items[0]);
-    App.set('clusterName', data.items[0].Clusters.cluster_name);
-    App.set('currentStackVersion', data.items[0].Clusters.version);
+    if (data.items && data.items.length > 0) {
+      App.set('clusterName', data.items[0].Clusters.cluster_name);
+      App.set('currentStackVersion', data.items[0].Clusters.version);
+    }
   },
 
   loadClusterNameErrorCallback: function (request, ajaxOptions, error) {
@@ -148,17 +151,18 @@ App.ClusterController = Em.Controller.extend({
   },
 
   getUrl: function (testUrl, url) {
-    return (App.testMode) ? testUrl : App.apiPrefix + '/clusters/' + this.get('clusterName') + url;
+    return (App.get('testMode')) ? testUrl : App.get('apiPrefix') + '/clusters/' + App.get('clusterName') + url;
   },
 
   setGangliaUrl: function () {
-    if (App.testMode) {
-      return 'http://gangliaserver/ganglia/?t=yes';
+    if (App.get('testMode')) {
+      this.set('gangliaUrl', 'http://gangliaserver/ganglia/?t=yes');
+      this.set('isGangliaUrlLoaded', true);
     } else {
       // We want live data here
       var gangliaServer = App.HostComponent.find().findProperty('componentName', 'GANGLIA_SERVER');
       if (this.get('isLoaded') && gangliaServer) {
-        this.set('isGangliaUrlLoaded', true);
+        this.set('isGangliaUrlLoaded', false);
         App.ajax.send({
           name: 'hosts.for_quick_links',
           sender: this,
@@ -183,8 +187,9 @@ App.ClusterController = Em.Controller.extend({
   },
 
   setNagiosUrl: function () {
-    if (App.testMode) {
-      return 'http://nagiosserver/nagios';
+    if (App.get('testMode')) {
+      this.set('nagiosUrl', 'http://nagiosserver/nagios');
+      this.set('isNagiosUrlLoaded', true);
     } else {
       // We want live data here
       var nagiosServer = App.HostComponent.find().findProperty('componentName', 'NAGIOS_SERVER');
@@ -244,9 +249,9 @@ App.ClusterController = Em.Controller.extend({
    */
   loadClusterData: function () {
     var self = this;
+    this.getAllHostNames();
     this.loadAmbariProperties();
-    this.loadAmbariViews();
-    if (!this.get('clusterName')) {
+    if (!App.get('clusterName')) {
       return;
     }
 
@@ -255,7 +260,6 @@ App.ClusterController = Em.Controller.extend({
       return;
     }
     var clusterUrl = this.getUrl('/data/clusters/cluster.json', '?fields=Clusters');
-    var usersUrl = App.testMode ? '/data/users/users.json' : App.apiPrefix + '/users/?fields=*';
     var racksUrl = "/data/racks/racks.json";
 
 
@@ -280,21 +284,13 @@ App.ClusterController = Em.Controller.extend({
       self.updateLoadStatus('cluster');
     });
 
-    if (App.testMode) {
+    if (App.get('testMode')) {
       self.updateLoadStatus('clusterStatus');
     } else {
       App.clusterStatus.updateFromServer().complete(function () {
         self.updateLoadStatus('clusterStatus');
       });
     }
-
-    App.HttpClient.get(usersUrl, App.usersMapper, {
-      complete: function (jqXHR, textStatus) {
-        self.updateLoadStatus('users');
-      }
-    }, function (jqXHR, textStatus) {
-      self.updateLoadStatus('users');
-    });
 
     /**
      * Order of loading:
@@ -314,7 +310,7 @@ App.ClusterController = Em.Controller.extend({
         service.StackServices.is_selected = true;
         service.StackServices.is_installed = false;
       },this);
-      App.stackServiceMapper.map(data);
+      App.stackServiceMapper.mapStackServices(data);
       App.config.setPreDefinedServiceConfigs();
       var updater = App.router.get('updateController');
       self.updateLoadStatus('stackComponents');
@@ -341,6 +337,7 @@ App.ClusterController = Em.Controller.extend({
         });
       });
     });
+    App.router.get('mainAdminSecurityController').getUpdatedSecurityStatus();
   },
 
   requestHosts: function (realUrl, callback) {
@@ -349,46 +346,6 @@ App.ClusterController = Em.Controller.extend({
     App.HttpClient.get(url, App.hostsMapper, {
       complete: callback
     }, callback)
-  },
-
-  loadAmbariViews: function () {
-    App.ajax.send({
-      name: 'views.info',
-      sender: this,
-      success: 'loadAmbariViewsSuccess'
-    });
-  },
-
-  loadAmbariViewsSuccess: function (data) {
-    if (data.items.length) {
-      App.ajax.send({
-        name: 'views.instances',
-        sender: this,
-        success: 'loadViewInstancesSuccess'
-      });
-    }
-  },
-
-  loadViewInstancesSuccess: function (data) {
-    this.set('ambariViews', []);
-    var self = this;
-    data.items.forEach(function (view) {
-      view.versions.forEach(function (version) {
-        version.instances.forEach(function (instance) {
-          var current_instance = Em.Object.create({
-            iconPath: instance.ViewInstanceInfo.icon_path || "/img/ambari-view-default.png",
-            label: instance.ViewInstanceInfo.label || version.ViewVersionInfo.label || instance.ViewInstanceInfo.view_name,
-            visible: instance.ViewInstanceInfo.visible || false,
-            version: instance.ViewInstanceInfo.version,
-            description: instance.ViewInstanceInfo.description || Em.I18n.t('views.main.instance.noDescription'),
-            viewName: instance.ViewInstanceInfo.view_name,
-            instanceName: instance.ViewInstanceInfo.instance_name,
-            href: instance.ViewInstanceInfo.context_path
-          });
-          self.get('ambariViews').pushObject(current_instance);
-        }, this);
-      }, this);
-    }, this);
   },
 
   /**
@@ -428,10 +385,6 @@ App.ClusterController = Em.Controller.extend({
     console.warn('can\'t get ambari properties');
   },
 
-  clusterName: function () {
-    return (this.get('cluster')) ? this.get('cluster').Clusters.cluster_name : null;
-  }.property('cluster'),
-
   updateClusterData: function () {
     var testUrl = App.get('isHadoop2Stack') ? '/data/clusters/HDP2/cluster.json' : '/data/clusters/cluster.json';
     var clusterUrl = this.getUrl(testUrl, '?fields=Clusters');
@@ -439,5 +392,26 @@ App.ClusterController = Em.Controller.extend({
       complete: function () {
       }
     });
+  },
+
+  /**
+   *
+   * @returns {*|Transport|$.ajax|boolean|ServerResponse}
+   */
+  getAllHostNames: function () {
+    return App.ajax.send({
+      name: 'hosts.all',
+      sender: this,
+      success: 'getHostNamesSuccess',
+      error: 'getHostNamesError'
+    });
+  },
+
+  getHostNamesSuccess: function (data) {
+    App.set("allHostNames", data.items.mapProperty("Hosts.host_name"));
+  },
+
+  getHostNamesError: function () {
+    console.error('failed to load hostNames');
   }
 });

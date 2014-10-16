@@ -18,8 +18,8 @@
 
 
 var App = require('app');
+require('utils/updater');
 require('controllers/global/update_controller');
-
 
 describe('App.UpdateController', function () {
   var controller = App.UpdateController.create({
@@ -71,52 +71,6 @@ describe('App.UpdateController', function () {
       App.supports.hostOverrides = true;
       controller.set('isWorking', true);
       expect(App.updater.run.callCount).to.equal(6);
-    });
-  });
-
-  describe('#updateHostConditionally()', function () {
-    var context = {
-      callback: function(){}
-    };
-
-    beforeEach(function () {
-      sinon.stub(controller, 'updateHost', Em.K);
-      sinon.spy(context, 'callback');
-    });
-    afterEach(function () {
-      controller.updateHost.restore();
-      context.callback.restore();
-    });
-
-    it('location is empty', function () {
-      controller.set('location', '');
-      controller.updateHostConditionally(context.callback);
-      expect(controller.updateHost.called).to.equal(false);
-      expect(context.callback.called).to.equal(true);
-    });
-    it('location is "/main/dashboard"', function () {
-      controller.set('location', '/main/dashboard');
-      controller.updateHostConditionally(context.callback);
-      expect(controller.updateHost.called).to.equal(false);
-      expect(context.callback.called).to.equal(true);
-    });
-    it('location is "/main/hosts"', function () {
-      controller.set('location', '/main/hosts');
-      controller.updateHostConditionally(context.callback);
-      expect(controller.updateHost.called).to.equal(true);
-      expect(context.callback.called).to.equal(false);
-    });
-    it('location is "/main/charts/heatmap"', function () {
-      controller.set('location', '/main/charts/heatmap');
-      controller.updateHostConditionally(context.callback);
-      expect(controller.updateHost.called).to.equal(true);
-      expect(context.callback.called).to.equal(false);
-    });
-    it('location is "/main/hosts/host1"', function () {
-      controller.set('location', '/main/hosts/host1');
-      controller.updateHostConditionally(context.callback);
-      expect(controller.updateHost.called).to.equal(true);
-      expect(context.callback.called).to.equal(false);
     });
   });
 
@@ -246,14 +200,54 @@ describe('App.UpdateController', function () {
             }
           }
         ],
-        result: ["metrics/api/cluster/summary,"]
+        result: ["metrics/api/v1/cluster/summary," +
+          "metrics/api/v1/topology/summary"]
       }
     ];
 
+    var testCasesByStackVersion = [
+      {
+        title: 'STORM service stack 2.1',
+        services: [
+          {
+            ServiceInfo: {
+              service_name: 'STORM'
+            }
+          }
+        ],
+        stackVersionNumber: '2.1',
+        result: ["metrics/api/cluster/summary"]
+      },
+      {
+        title: 'STORM service stack 2.2',
+        services: [
+          {
+            ServiceInfo: {
+              service_name: 'STORM'
+            }
+          }
+        ],
+        stackVersionNumber: '2.2',
+        result: ["metrics/api/v1/cluster/summary,metrics/api/v1/topology/summary"]
+      }
+    ];
     testCases.forEach(function(test){
       it(test.title, function () {
         App.cache['services'] = test.services;
         expect(controller.getConditionalFields()).to.eql(test.result);
+      });
+    });
+
+    testCasesByStackVersion.forEach(function(test) {
+      it(test.title, function() {
+        App.cache['services'] = test.services;
+        sinon.stub(App, 'get', function(key) {
+          if (key == 'currentStackVersionNumber') {
+            return test.stackVersionNumber;
+          }
+        });
+        expect(controller.getConditionalFields()).to.eql(test.result);
+        App.get.restore();
       });
     });
   });

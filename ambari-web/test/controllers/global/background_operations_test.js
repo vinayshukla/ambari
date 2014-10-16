@@ -31,7 +31,9 @@ require('utils/host_progress_popup');
 
 describe('App.BackgroundOperationsController', function () {
 
-  var controller = App.BackgroundOperationsController.create();
+  var controller = App.BackgroundOperationsController.create({
+    isInitLoading: Em.K
+  });
 
   describe('#getQueryParams', function () {
     /**
@@ -52,7 +54,9 @@ describe('App.BackgroundOperationsController', function () {
         e: {
           name: 'background_operations.get_most_recent',
           successCallback: 'callBackForMostRecent',
-          data: {}
+          data: {
+            'operationsCount': 10
+          }
         },
         response: {items: []},
         m: '"Get Most Recent"'
@@ -61,16 +65,14 @@ describe('App.BackgroundOperationsController', function () {
         levelInfo: Em.Object.create({
           name: 'TASK_DETAILS',
           requestId: 1,
-          taskId: 1,
-          sync: false
+          taskId: 1
         }),
         e: {
           name: 'background_operations.get_by_task',
           successCallback: 'callBackFilteredByTask',
           data: {
             taskId: 1,
-            requestId: 1,
-            sync: false
+            requestId: 1
           }
         },
         response: {items: {Tasks: {request_id: 0}}},
@@ -80,15 +82,13 @@ describe('App.BackgroundOperationsController', function () {
         levelInfo: Em.Object.create({
           name: 'TASKS_LIST',
           requestId: 1,
-          taskId: 1,
-          sync: false
+          taskId: 1
         }),
         e: {
           name: 'background_operations.get_by_request',
           successCallback: 'callBackFilteredByRequest',
           data: {
-            requestId: 1,
-            sync: false
+            requestId: 1
           }
         },
         response: {items: {Requests: {id: 0}}},
@@ -98,15 +98,13 @@ describe('App.BackgroundOperationsController', function () {
         levelInfo: Em.Object.create({
           name: 'HOSTS_LIST',
           requestId: 1,
-          taskId: 1,
-          sync: false
+          taskId: 1
         }),
         e: {
           name: 'background_operations.get_by_request',
           successCallback: 'callBackFilteredByRequest',
           data: {
-            requestId: 1,
-            sync: false
+            requestId: 1
           }
         },
         response: {items: {Requests: {id: 0}}},

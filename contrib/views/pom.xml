@@ -22,10 +22,15 @@
   <packaging>pom</packaging>
   <version>0.1.0-SNAPSHOT</version>
   <name>Ambari Contrib Views</name>
+  <properties>
+    <ambari.version>1.3.0-SNAPSHOT</ambari.version>
+  </properties>
   <modules>
     <module>files</module>
+    <module>jobs</module>
     <module>pig</module>
     <module>slider</module>
+    <module>capacity-scheduler</module>
   </modules>
   <build>
     <pluginManagement>
@@ -33,7 +38,7 @@
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.8</version>
+          <version>0.11</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -83,6 +88,25 @@
           <mappings/>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.vafer</groupId>
+        <artifactId>jdeb</artifactId>
+        <version>1.0.1</version>
+        <executions>
+          <execution>
+            <phase>none</phase>
+            <goals>
+              <goal>jdeb</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <skip>true</skip>
+          <attach>false</attach>
+          <submodules>true</submodules>
+          <controlDir>${basedir}/../../ambari-project/src/main/package/deb/control</controlDir>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <dependencyManagement>
@@ -117,7 +141,7 @@
       <dependency>
         <groupId>org.apache.ambari</groupId>
         <artifactId>ambari-views</artifactId>
-        <version>[1.5.0.1,)</version>
+        <version>[${ambari.version},)</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

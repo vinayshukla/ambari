@@ -23,10 +23,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 
@@ -58,7 +55,7 @@ public class UpgradeCatalog161 extends AbstractUpgradeCatalog {
    */
   private static final Logger LOG = LoggerFactory.getLogger
       (UpgradeCatalog161.class);
-  
+
   // ----- Constructors ------------------------------------------------------
 
   @Inject
@@ -249,10 +246,10 @@ public class UpgradeCatalog161 extends AbstractUpgradeCatalog {
     // Add constraints
     dbAccessor.addFKConstraint("requestoperationlevel", "FK_req_op_level_req_id",
             "request_id", "request", "request_id", true);
-    
+
     // Clusters
-    dbAccessor.addColumn("clusters", new DBColumnInfo("provisioning_state", String.class, 255, State.INIT.name(), false));    
-    
+    dbAccessor.addColumn("clusters", new DBColumnInfo("provisioning_state", String.class, 255, State.INIT.name(), false));
+
     dbAccessor.dropConstraint("stage", "FK_stage_cluster_id", true);
     dbAccessor.dropConstraint("request", "FK_request_cluster_id", true);
   }
@@ -262,45 +259,59 @@ public class UpgradeCatalog161 extends AbstractUpgradeCatalog {
 
   @Override
   protected void executeDMLUpdates() throws AmbariException, SQLException {
-    String dbType = getDbType();
-
-    String valueColumnName = "\"value\"";
-    if (Configuration.ORACLE_DB_NAME.equals(dbType) || Configuration.MYSQL_DB_NAME.equals(dbType)) {
-      valueColumnName = "value";
-    }
-    
     //add new sequences for operation level
-    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, " + valueColumnName + ") " +
+    dbAccessor.executeQuery("INSERT INTO ambari_sequences(sequence_name, sequence_value) " +
             "VALUES('operation_level_id_seq', 1)", true);
-    
+
     // upgrade cluster provision state
-    executeInTransaction(new Runnable() { 
+    executeInTransaction(new Runnable() {
       @Override
       public void run() {
-        // it should be safe to bulk update the current cluster state since 
+        // it should be safe to bulk update the current cluster state since
         // this field is not currently used and since all clusters stored in
         // the database must (at this point) be installed
-        final EntityManager em = getEntityManagerProvider().get();        
+        final EntityManager em = getEntityManagerProvider().get();
         final TypedQuery<ClusterEntity> query = em.createQuery(
-            "UPDATE ClusterEntity SET provisioningState = :provisioningState", 
+            "UPDATE ClusterEntity SET provisioningState = :provisioningState",
             ClusterEntity.class);
 
         query.setParameter("provisioningState", State.INSTALLED);
         final int updatedClusterProvisionedStateCount = query.executeUpdate();
-        
+
         LOG.info("Updated {} cluster provisioning states to {}",
             updatedClusterProvisionedStateCount, State.INSTALLED);
       }
     });
-    
+
     addMissingConfigs();
   }
-  
+
   protected void addMissingConfigs() throws AmbariException {
-    updateConfigurationProperties("hbase-site", Collections.singletonMap("hbase.regionserver.info.port", "60030"), false);
-    updateConfigurationProperties("hbase-site", Collections.singletonMap("hbase.master.info.port", "60010"), false);
-    updateConfigurationProperties("global", Collections.singletonMap("oozie_admin_port", "11001"), false);
-    updateConfigurationProperties("hive-site", Collections.singletonMap("hive.heapsize", "1024"), false);
+    updateConfigurationProperties("hbase-site", Collections.singletonMap("hbase.regionserver.info.port", "60030"), false, false);
+    updateConfigurationProperties("hbase-site", Collections.singletonMap("hbase.master.info.port", "60010"), false, false);
+    updateConfigurationProperties("hive-site", Collections.singletonMap("hive.heapsize", "1024"), false, false);
+    updateConfigurationProperties("pig-properties", Collections.singletonMap("pig-content", "\n# Licensed to the Apache " +
+            "Software Foundation (ASF) under one\n# or more contributor license agreements.  See the NOTICE file\n# " +
+            "distributed with this work for additional information\n# regarding copyright ownership.  The ASF " +
+            "licenses this file\n# to you under the Apache License, Version 2.0 (the\n# \"License\"); you may " +
+            "not use this file except in compliance\n# with the License.  You may obtain a copy of the License " +
+            "at\n#\n#http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to " +
+            "in writing,\n# software distributed under the License is distributed on an\n# \"AS IS\" BASIS, WITHOUT " +
+            "WARRANTIES OR CONDITIONS OF ANY\n# KIND, either express or implied.  See the License for the\n# " +
+            "specific language governing permissions and limitations\n# under the License.\n\n# Pig default " +
+            "configuration file. All values can be overwritten by pig.properties and command line arguments.\n# " +
+            "see bin/pig -help\n\n# brief logging (no timestamps)\nbrief=false\n\n# debug level, INFO is default" +
+            "\ndebug=INFO\n\n# verbose print all log messages to screen (default to print only INFO and above to " +
+            "screen)\nverbose=false\n\n# exectype local|mapreduce, mapreduce is default\nexectype=mapreduce\n\n# " +
+            "Enable insertion of information about script into hadoop job conf \npig.script.info.enabled=true\n\n# " +
+            "Do not spill temp files smaller than this size (bytes)\npig.spill.size.threshold=5000000\n\n# " +
+            "EXPERIMENT: Activate garbage collection when spilling a file bigger than this size (bytes)\n# " +
+            "This should help reduce the number of files being spilled.\npig.spill.gc.activation.size=40000000\n\n# " +
+            "the following two parameters are to help estimate the reducer number\npig.exec.reducers.bytes.per." +
+            "reducer=1000000000\npig.exec.reducers.max=999\n\n# Temporary location to store the intermediate " +
+            "data.\npig.temp.dir=/tmp/\n\n# Threshold for merging FRJoin fragment files\npig.files.concatenation." +
+            "threshold=100\npig.optimistic.files.concatenation=false;\n\npig.disable.counter=false\n\n" +
+            "hcat.bin=/usr/bin/hcat"), true, false);
   }
 
   @Override

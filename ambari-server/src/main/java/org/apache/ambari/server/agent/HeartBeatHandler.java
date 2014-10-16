@@ -18,7 +18,9 @@
 package org.apache.ambari.server.agent;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,9 +34,14 @@ import org.apache.ambari.server.ServiceComponentHostNotFoundException;
 import org.apache.ambari.server.ServiceComponentNotFoundException;
 import org.apache.ambari.server.ServiceNotFoundException;
 import org.apache.ambari.server.actionmanager.ActionManager;
+import org.apache.ambari.server.actionmanager.HostRoleCommand;
+import org.apache.ambari.server.actionmanager.HostRoleStatus;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.configuration.Configuration;
 import org.apache.ambari.server.controller.MaintenanceStateHelper;
+import org.apache.ambari.server.events.AlertEvent;
+import org.apache.ambari.server.events.AlertReceivedEvent;
+import org.apache.ambari.server.events.publishers.AlertEventPublisher;
 import org.apache.ambari.server.metadata.ActionMetadata;
 import org.apache.ambari.server.state.AgentVersion;
 import org.apache.ambari.server.state.Alert;
@@ -54,6 +61,8 @@ import org.apache.ambari.server.state.ServiceInfo;
 import org.apache.ambari.server.state.StackId;
 import org.apache.ambari.server.state.StackInfo;
 import org.apache.ambari.server.state.State;
+import org.apache.ambari.server.state.alert.AlertDefinition;
+import org.apache.ambari.server.state.alert.AlertDefinitionHash;
 import org.apache.ambari.server.state.fsm.InvalidStateTransitionException;
 import org.apache.ambari.server.state.host.HostHealthyHeartbeatEvent;
 import org.apache.ambari.server.state.host.HostRegistrationRequestEvent;
@@ -86,29 +95,46 @@ public class HeartBeatHandler {
   private final Clusters clusterFsm;
   private final ActionQueue actionQueue;
   private final ActionManager actionManager;
-  @Inject
-  Injector injector;
-  @Inject
-  Configuration config;
-  @Inject
-  AmbariMetaInfo ambariMetaInfo;
-  @Inject
-  ActionMetadata actionMetadata;
   private HeartbeatMonitor heartbeatMonitor;
+
+  @Inject
+  private Injector injector;
+
+  @Inject
+  private Configuration config;
+
+  @Inject
+  private AmbariMetaInfo ambariMetaInfo;
+
+  @Inject
+  private ActionMetadata actionMetadata;
+
   @Inject
   private Gson gson;
+
   @Inject
-  ConfigHelper configHelper;
+  private ConfigHelper configHelper;
+
+  @Inject
+  private AlertDefinitionHash alertDefinitionHash;
+
+  /**
+   * Publishes {@link AlertEvent} instances.
+   */
+  @Inject
+  private AlertEventPublisher alertEventPublisher;
+
   private Map<String, Long> hostResponseIds = new ConcurrentHashMap<String, Long>();
+
   private Map<String, HeartBeatResponse> hostResponses = new ConcurrentHashMap<String, HeartBeatResponse>();
 
   @Inject
   public HeartBeatHandler(Clusters fsm, ActionQueue aq, ActionManager am,
                           Injector injector) {
-    this.clusterFsm = fsm;
-    this.actionQueue = aq;
-    this.actionManager = am;
-    this.heartbeatMonitor = new HeartbeatMonitor(fsm, aq, am, 60000, injector);
+    clusterFsm = fsm;
+    actionQueue = aq;
+    actionManager = am;
+    heartbeatMonitor = new HeartbeatMonitor(fsm, aq, am, 60000, injector);
     injector.injectMembers(this);
   }
 
@@ -126,14 +152,17 @@ public class HeartBeatHandler {
     if(heartbeat.getAgentEnv() != null && heartbeat.getAgentEnv().getHostHealth() != null) {
       heartbeat.getAgentEnv().getHostHealth().setServerTimeStampAtReporting(now);
     }
+
     String hostname = heartbeat.getHostname();
     Long currentResponseId = hostResponseIds.get(hostname);
     HeartBeatResponse response;
+
     if (currentResponseId == null) {
       //Server restarted, or unknown host.
       LOG.error("CurrentResponseId unknown for " + hostname + " - send register command");
       return createRegisterCommand();
     }
+
     LOG.debug("Received heartbeat from host"
         + ", hostname=" + hostname
         + ", currentResponseId=" + currentResponseId
@@ -191,17 +220,43 @@ public class HeartBeatHandler {
 
     // Examine heartbeart for component live status reports
     processStatusReports(heartbeat, hostname, clusterFsm);
-    
+
     // Calculate host status
     // NOTE: This step must be after processing command/status reports
     processHostStatus(heartbeat, hostname);
+
+    calculateHostAlerts(heartbeat, hostname);
 
     // Send commands if node is active
     if (hostObject.getState().equals(HostState.HEALTHY)) {
       sendCommands(hostname, response);
       annotateResponse(hostname, response);
-    }    
+    }
+
     return response;
+  }
+
+  protected void calculateHostAlerts(HeartBeat heartbeat, String hostname)
+          throws AmbariException {
+    if (null == hostname || null == heartbeat) {
+      return;
+    }
+
+    if (null != heartbeat.getAlerts()) {
+      for (Alert alert : heartbeat.getAlerts()) {
+        if (null == alert.getHost()) {
+          alert.setHost(hostname);
+        }
+
+        Cluster cluster = clusterFsm.getCluster(alert.getCluster());
+        AlertEvent event = new AlertReceivedEvent(cluster.getClusterId(), alert);
+        alertEventPublisher.publish(event);
+      }
+    }
+
+    for (Cluster cluster : clusterFsm.getClustersForHost(hostname)) {
+      cluster.addAlerts(heartbeat.getNodeStatus().getAlerts());
+    }
   }
 
   protected void processHostStatus(HeartBeat heartbeat, String hostname) throws AmbariException {
@@ -253,7 +308,7 @@ public class HeartBeatHandler {
         StackId stackId;
         Cluster cluster = clusterFsm.getCluster(clusterName);
         stackId = cluster.getDesiredStackVersion();
-        
+
         MaintenanceStateHelper psh = injector.getInstance(MaintenanceStateHelper.class);
 
         List<ServiceComponentHost> scHosts = cluster.getServiceComponentHosts(heartbeat.getHostname());
@@ -307,8 +362,23 @@ public class HeartBeatHandler {
       HeartBeat heartbeat, String hostname, Clusters clusterFsm, long now)
       throws AmbariException {
     List<CommandReport> reports = heartbeat.getReports();
+
+    // Cache HostRoleCommand entities because we will need them few times
+    List<Long> taskIds = new ArrayList<Long>();
+    for (CommandReport report : reports) {
+      taskIds.add(report.getTaskId());
+    }
+    Collection<HostRoleCommand> commands = actionManager.getTasks(taskIds);
+
+    Iterator<HostRoleCommand> hostRoleCommandIterator = commands.iterator();
     for (CommandReport report : reports) {
       LOG.debug("Received command report: " + report);
+      // Fetch HostRoleCommand that corresponds to a given task ID
+      HostRoleCommand hostRoleCommand = hostRoleCommandIterator.next();
+      // Skip sending events for command reports for ABORTed commands
+      if (hostRoleCommand.getStatus() == HostRoleStatus.ABORTED) {
+        continue;
+      }
       //pass custom STAR, STOP and RESTART
       if (RoleCommand.ACTIONEXECUTE.toString().equals(report.getRoleCommand()) ||
          (RoleCommand.CUSTOM_COMMAND.toString().equals(report.getRoleCommand()) &&
@@ -317,7 +387,7 @@ public class HeartBeatHandler {
          "STOP".equals(report.getCustomCommand())))) {
         continue;
       }
-      
+
       Cluster cl = clusterFsm.getCluster(report.getClusterName());
       String service = report.getServiceName();
       if (service == null || service.isEmpty()) {
@@ -396,7 +466,7 @@ public class HeartBeatHandler {
       }
     }
     //Update state machines from reports
-    actionManager.processTaskResponse(hostname, reports);
+    actionManager.processTaskResponse(hostname, reports, commands);
   }
 
   protected void processStatusReports(HeartBeat heartbeat,
@@ -409,7 +479,7 @@ public class HeartBeatHandler {
         if (status.getClusterName().equals(cl.getClusterName())) {
           try {
             Service svc = cl.getService(status.getServiceName());
-            
+
             String componentName = status.getComponentName();
             if (svc.getServiceComponents().containsKey(componentName)) {
               ServiceComponent svcComp = svc.getServiceComponent(
@@ -440,7 +510,7 @@ public class HeartBeatHandler {
               if (null != status.getConfigTags()) {
                 scHost.updateActualConfigs(status.getConfigTags());
               }
-              
+
               Map<String, Object> extra = status.getExtra();
               if (null != extra && !extra.isEmpty()) {
                 try {
@@ -449,7 +519,7 @@ public class HeartBeatHandler {
                     List<Map<String, String>> list = (List<Map<String, String>>) extra.get("processes");
                     scHost.setProcesses(list);
                   }
-                  
+
                 } catch (Exception e) {
                   LOG.error("Could not access extra JSON for " +
                       scHost.getServiceComponentName() + " from " +
@@ -457,7 +527,7 @@ public class HeartBeatHandler {
                       " (" + e.getMessage() + ")");
                 }
               }
-              
+
               if (null != status.getAlerts()) {
                 List<Alert> clusterAlerts = new ArrayList<Alert>();
                 for (AgentAlert aa : status.getAlerts()) {
@@ -466,14 +536,15 @@ public class HeartBeatHandler {
                       scHost.getHostName(), aa.getState());
                   alert.setLabel(aa.getLabel());
                   alert.setText(aa.getText());
-                  
+
                   clusterAlerts.add(alert);
                 }
-                
-               if (0 != clusterAlerts.size())
-                 cl.addAlerts(clusterAlerts);
+
+               if (0 != clusterAlerts.size()) {
+                cl.addAlerts(clusterAlerts);
               }
-              
+              }
+
 
             } else {
               // TODO: What should be done otherwise?
@@ -533,6 +604,7 @@ public class HeartBeatHandler {
           throw new AmbariException("Could not get jaxb string for command", e);
         }
         switch (ac.getCommandType()) {
+          case BACKGROUND_EXECUTION_COMMAND:
           case EXECUTION_COMMAND: {
             response.addExecutionCommand((ExecutionCommand) ac);
             break;
@@ -541,9 +613,21 @@ public class HeartBeatHandler {
             response.addStatusCommand((StatusCommand) ac);
             break;
           }
+          case CANCEL_COMMAND: {
+            response.addCancelCommand((CancelCommand) ac);
+            break;
+          }
+          case ALERT_DEFINITION_COMMAND: {
+            response.addAlertDefinitionCommand((AlertDefinitionCommand) ac);
+            break;
+          }
+          case ALERT_EXECUTION_COMMAND: {
+            response.addAlertExecutionCommand((AlertExecutionCommand) ac);
+            break;
+          }
           default:
-            LOG.error("There is no action for agent command =" +
-                ac.getCommandType().name());
+            LOG.error("There is no action for agent command ="
+                + ac.getCommandType().name());
         }
       }
     }
@@ -601,6 +685,7 @@ public class HeartBeatHandler {
 
     String agentOsType = getOsType(register.getHardwareProfile().getOS(),
         register.getHardwareProfile().getOSRelease());
+    LOG.info("agentOsType = "+agentOsType );
     if (!ambariMetaInfo.isOsSupported(agentOsType)) {
       LOG.warn("Received registration request from host with not supported"
           + " os type"
@@ -621,6 +706,7 @@ public class HeartBeatHandler {
       clusterFsm.addHost(hostname);
       hostObject = clusterFsm.getHost(hostname);
     }
+
     // Resetting host state
     hostObject.setState(HostState.INIT);
 
@@ -630,10 +716,14 @@ public class HeartBeatHandler {
     // Get status of service components
     List<StatusCommand> cmds = heartbeatMonitor.generateStatusCommands(hostname);
 
+    // Save the prefix of the log file paths
+    hostObject.setPrefix(register.getPrefix());
+
     hostObject.handleEvent(new HostRegistrationRequestEvent(hostname,
         null != register.getPublicHostname() ? register.getPublicHostname() : hostname,
         new AgentVersion(register.getAgentVersion()), now, register.getHardwareProfile(),
         register.getAgentEnv()));
+
     RegistrationResponse response = new RegistrationResponse();
     if (cmds.isEmpty()) {
       //No status commands needed let the fsm know that status step is done
@@ -646,6 +736,10 @@ public class HeartBeatHandler {
     response.setStatusCommands(cmds);
 
     response.setResponseStatus(RegistrationStatus.OK);
+
+    // force the registering agent host to receive its list of alert definitions
+    List<AlertDefinitionCommand> alertDefinitionCommands = getRegistrationAlertDefinitionCommands(hostname);
+    response.setAlertDefinitionCommands(alertDefinitionCommands);
 
     Long requestId = 0L;
     hostResponseIds.put(hostname, requestId);
@@ -661,7 +755,7 @@ public class HeartBeatHandler {
    * @throws org.apache.ambari.server.AmbariException
    */
   private void annotateResponse(String hostname, HeartBeatResponse response) throws AmbariException {
-    for (Cluster cl : this.clusterFsm.getClustersForHost(hostname)) {
+    for (Cluster cl : clusterFsm.getClustersForHost(hostname)) {
       List<ServiceComponentHost> scHosts = cl.getServiceComponentHosts(hostname);
       if (scHosts != null && scHosts.size() > 0) {
         response.setHasMappedComponents(true);
@@ -680,19 +774,19 @@ public class HeartBeatHandler {
       throws AmbariException {
     ComponentsResponse response = new ComponentsResponse();
 
-    Cluster cluster = this.clusterFsm.getCluster(clusterName);
+    Cluster cluster = clusterFsm.getCluster(clusterName);
     StackId stackId = cluster.getCurrentStackVersion();
     if (stackId == null) {
       throw new AmbariException("Cannot provide stack components map. " +
         "Stack hasn't been selected yet.");
     }
-    StackInfo stack = this.ambariMetaInfo.getStackInfo(stackId.getStackName(),
+    StackInfo stack = ambariMetaInfo.getStackInfo(stackId.getStackName(),
         stackId.getStackVersion());
 
     response.setClusterName(clusterName);
     response.setStackName(stackId.getStackName());
     response.setStackVersion(stackId.getStackVersion());
-    response.setComponents(this.getComponentsMap(stack));
+    response.setComponents(getComponentsMap(stack));
 
     return response;
   }
@@ -711,5 +805,42 @@ public class HeartBeatHandler {
     }
 
     return result;
+  }
+
+  /**
+   * Gets the {@link AlertDefinitionCommand} instances that need to be sent for
+   * each cluster that the registering host is a member of.
+   *
+   * @param hostname
+   * @return
+   * @throws AmbariException
+   */
+  private List<AlertDefinitionCommand> getRegistrationAlertDefinitionCommands(
+      String hostname) throws AmbariException {
+
+    Set<Cluster> hostClusters = clusterFsm.getClustersForHost(hostname);
+    if (null == hostClusters || hostClusters.size() == 0) {
+      return null;
+    }
+
+    List<AlertDefinitionCommand> commands = new ArrayList<AlertDefinitionCommand>();
+
+    // for every cluster this host is a member of, build the command
+    for (Cluster cluster : hostClusters) {
+      String clusterName = cluster.getClusterName();
+      alertDefinitionHash.invalidate(clusterName, hostname);
+
+      List<AlertDefinition> definitions = alertDefinitionHash.getAlertDefinitions(
+          clusterName, hostname);
+
+      String hash = alertDefinitionHash.getHash(clusterName, hostname);
+      AlertDefinitionCommand command = new AlertDefinitionCommand(clusterName,
+          hostname, hash, definitions);
+
+      command.addConfigs(configHelper, cluster);
+      commands.add(command);
+    }
+
+    return commands;
   }
 }

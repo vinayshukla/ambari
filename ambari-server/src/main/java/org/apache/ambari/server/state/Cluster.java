@@ -21,15 +21,16 @@ package org.apache.ambari.server.state;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import com.google.common.collect.ListMultimap;
-import com.google.inject.persist.Transactional;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.controller.ClusterResponse;
+import org.apache.ambari.server.orm.entities.PrivilegeEntity;
 import org.apache.ambari.server.state.configgroup.ConfigGroup;
-import org.apache.ambari.server.state.fsm.InvalidStateTransitionException;
 import org.apache.ambari.server.state.scheduler.RequestExecution;
+import org.apache.ambari.server.controller.ServiceConfigVersionResponse;
 
 public interface Cluster {
 
@@ -76,7 +77,7 @@ public interface Cluster {
 
   /**
    * Remove ServiceComponentHost from cluster
-   * @param ServiceComponentHost
+   * @param svcCompHost
    */  
   public void removeServiceComponentHost(ServiceComponentHost svcCompHost) throws AmbariException;
   
@@ -91,7 +92,7 @@ public interface Cluster {
    * Set desired stack version
    * @param stackVersion
    */
-  public void setDesiredStackVersion(StackId stackVersion);
+  public void setDesiredStackVersion(StackId stackVersion) throws AmbariException;
 
   /**
    * Get current stack version
@@ -157,11 +158,50 @@ public interface Cluster {
    * Adds and sets a DESIRED configuration to be applied to a cluster.  There
    * can be only one selected config per type.
    * @param user the user making the change for audit purposes
-   * @param config  the {@link Config} object to set as desired
+   * @param configs  the set of {@link org.apache.ambari.server.state.Config} objects to set as desired
    * @return <code>true</code> if the config was added, or <code>false</code>
    * if the config is already set as the current
    */
-  public boolean addDesiredConfig(String user, Config config);
+  public ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs);
+
+  /**
+   * Adds and sets a DESIRED configuration to be applied to a cluster.  There
+   * can be only one selected config per type.
+   * @param user the user making the change for audit purposes
+   * @param configs  the set of {@link org.apache.ambari.server.state.Config} objects to set as desired
+   * @param serviceConfigVersionNote note to attach to service config version if created
+   * @return <code>true</code> if the config was added, or <code>false</code>
+   * if the config is already set as the current
+   */
+  ServiceConfigVersionResponse addDesiredConfig(String user, Set<Config> configs, String serviceConfigVersionNote);
+
+  ServiceConfigVersionResponse createServiceConfigVersion(String serviceName, String user, String note,
+                                                          ConfigGroup configGroup);
+
+  String getServiceForConfigTypes(Collection<String> configTypes);
+
+  /**
+   * Apply specified service config version (rollback)
+   * @param serviceName service name
+   * @param version service config version
+   * @param user the user making the change for audit purposes
+   * @param note
+   * @return service config version created
+   * @throws AmbariException
+   */
+  ServiceConfigVersionResponse setServiceConfigVersion(String serviceName, Long version, String user, String note) throws AmbariException;
+
+  /**
+   * Get currently active service config versions for stack services
+   * @return
+   */
+  Map<String, Collection<ServiceConfigVersionResponse>> getActiveServiceConfigVersions();
+
+  /**
+   * Get service config version history
+   * @return
+   */
+  List<ServiceConfigVersionResponse> getServiceConfigVersions();
 
   /**
    * Gets the desired (and selected) config by type.
@@ -298,6 +338,13 @@ public interface Cluster {
   public void deleteRequestExecution(Long id) throws AmbariException;
 
   /**
+   * Get next version of specified config type
+   * @param type config type
+   * @return next version of config
+   */
+  Long getNextConfigVersion(String type);
+
+  /**
    * Bulk handle service component host events
    *
    * @param eventMap serviceName - event mapping
@@ -316,5 +363,14 @@ public interface Cluster {
    */
   public Collection<Alert> getAlerts();
 
-
+  /**
+   * Determine whether or not access to this cluster resource should be allowed based
+   * on the given privilege.
+   *
+   * @param privilegeEntity  the privilege
+   * @param readOnly         indicate whether or not this check is for a read only operation
+   *
+   * @return true if the access to this cluster is allowed
+   */
+  public boolean checkPermission(PrivilegeEntity privilegeEntity, boolean readOnly);
 }

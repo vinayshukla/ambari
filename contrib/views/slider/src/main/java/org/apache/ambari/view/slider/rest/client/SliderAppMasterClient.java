@@ -22,14 +22,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.ambari.view.URLStreamProvider;
 import org.apache.ambari.view.ViewContext;
+import org.apache.ambari.view.slider.GangliaMetric;
+import org.apache.ambari.view.slider.MetricsHolder;
 import org.apache.ambari.view.slider.SliderAppType;
 import org.apache.ambari.view.slider.SliderAppTypeComponent;
+import org.apache.ambari.view.slider.TemporalInfo;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.log4j.Logger;
 
@@ -48,26 +53,28 @@ public class SliderAppMasterClient extends BaseHttpClient {
   public SliderAppMasterData getAppMasterData() {
     try {
       String html = doGet("");
-      int from = html.lastIndexOf("<ul>");
-      int to = html.lastIndexOf("</ul>");
-      if (from < to && from > -1) {
-        SliderAppMasterData data = new SliderAppMasterData();
-        String content = html.substring(from, to);
-        content = content.replaceAll("<[^>]*>", "\r\n");
-        String[] splits = content.split("\r\n");
-        for (int i = 0; i < splits.length; i++) {
-          String split = splits[i].trim();
-          if ("Registry Web Service".equals(split)) {
-            data.registryUrl = splits[i + 1].trim();
-          } else if ("Application Master Web UI".equals(split)) {
-            data.uiUrl = splits[i + 1].trim();
-          } else if ("Management REST API".equals(split)) {
-            data.managementUrl = splits[i + 1].trim();
-          } else if ("Publisher Service".equals(split)) {
-            data.publisherUrl = splits[i + 1].trim();
+      if (html != null) {
+        int from = html.lastIndexOf("<ul>");
+        int to = html.lastIndexOf("</ul>");
+        if (from < to && from > -1) {
+          SliderAppMasterData data = new SliderAppMasterData();
+          String content = html.substring(from, to);
+          content = content.replaceAll("<[^>]*>", "\r\n");
+          String[] splits = content.split("\r\n");
+          for (int i = 0; i < splits.length; i++) {
+            String split = splits[i].trim();
+            if ("org.apache.slider.registry".equals(split)) {
+              data.registryUrl = splits[i + 1].trim();
+            } else if ("org.apache.http.UI".equals(split)) {
+              data.uiUrl = splits[i + 1].trim();
+            } else if ("org.apache.slider.management".equals(split)) {
+              data.managementUrl = splits[i + 1].trim();
+            } else if ("org.apache.slider.publisher".equals(split)) {
+              data.publisherUrl = splits[i + 1].trim();
+            }
           }
+          return data;
         }
-        return data;
       }
     } catch (HttpException e) {
       logger.warn("Unable to determine Ambari clusters", e);
@@ -80,9 +87,12 @@ public class SliderAppMasterClient extends BaseHttpClient {
   }
 
   public Map<String, String> getQuickLinks(String providerUrl) {
+    Map<String, String> quickLinks = new HashMap<String, String>();
     try {
+      if (providerUrl == null || providerUrl.trim().length() < 1) {
+        return quickLinks;
+      }
       JsonElement json = super.doGetJson(providerUrl, "/slider/quicklinks");
-      Map<String, String> quickLinks = new HashMap<String, String>();
       if (json != null && json.getAsJsonObject() != null
           && json.getAsJsonObject().has("entries")) {
         JsonObject jsonObject = json.getAsJsonObject().get("entries")
@@ -92,26 +102,29 @@ public class SliderAppMasterClient extends BaseHttpClient {
             quickLinks.put("JMX", entry.getValue().getAsString());
           } else if ("org.apache.slider.monitor".equals(entry.getKey())) {
             quickLinks.put("UI", entry.getValue().getAsString());
+          } else if ("org.apache.slider.metrics.ui".equals(entry.getKey())) {
+            quickLinks.put("Metrics UI", entry.getValue().getAsString());
           } else if ("org.apache.slider.metrics".equals(entry.getKey())) {
-            quickLinks.put("Metrics", entry.getValue().getAsString());
+            quickLinks.put("Metrics API", entry.getValue().getAsString());
           } else {
             quickLinks.put(entry.getKey(), entry.getValue().getAsString());
           }
         }
       }
-      return quickLinks;
     } catch (HttpException e) {
       logger.warn("Unable to determine quicklinks from " + providerUrl, e);
-      throw new RuntimeException(e.getMessage(), e);
     } catch (IOException e) {
       logger.warn("Unable to determine quicklinks from " + providerUrl, e);
-      throw new RuntimeException(e.getMessage(), e);
     }
+    return quickLinks;
   }
 
   public Map<String, Map<String, String>> getConfigs(String providerUrl) {
+    Map<String, Map<String, String>> configsMap = new HashMap<String, Map<String, String>>();
     try {
-      Map<String, Map<String, String>> configsMap = new HashMap<String, Map<String, String>>();
+      if (providerUrl == null || providerUrl.trim().length() < 1) {
+        return configsMap;
+      }
       JsonElement json = super.doGetJson(providerUrl, "/slider");
       if (json != null) {
         JsonObject configsJson = json.getAsJsonObject().get("configurations")
@@ -136,27 +149,93 @@ public class SliderAppMasterClient extends BaseHttpClient {
           }
         }
       }
-      return configsMap;
     } catch (HttpException e) {
       logger.warn("Unable to determine quicklinks from " + providerUrl, e);
-      throw new RuntimeException(e.getMessage(), e);
     } catch (IOException e) {
       logger.warn("Unable to determine quicklinks from " + providerUrl, e);
-      throw new RuntimeException(e.getMessage(), e);
     }
+    return configsMap;
+  }
+
+  public Map<String, Number[][]> getGangliaMetrics(String gangliaUrl,
+                                                   Set<String> metricsRequested,
+                                                   TemporalInfo temporalInfo,
+                                                   ViewContext context,
+                                                   SliderAppType appType,
+                                                   MetricsHolder metricsHolder) {
+    Map<String, Number[][]> retVal = new HashMap<String, Number[][]>();
+
+    if (appType == null || metricsHolder == null || metricsHolder.getGangliaMetrics() == null) {
+      logger.info("AppType must be provided and it must contain ganglia_metrics.json to extract jmx properties");
+      return retVal;
+    }
+
+    Map<String, GangliaMetric> receivedMetrics = null;
+    List<String> components = new ArrayList<String>();
+    for (SliderAppTypeComponent appTypeComponent : appType.getTypeComponents()) {
+      components.add(appTypeComponent.getName());
+    }
+
+    Map<String, Map<String, Map<String, Metric>>> metrics = metricsHolder.getGangliaMetrics();
+    Map<String, Metric> relevantMetrics = getRelevantMetrics(metrics, components);
+    Set<String> metricsToRead = new HashSet<String>();
+    Map<String, String> reverseNameLookup = new HashMap<String, String>();
+    for (String key : relevantMetrics.keySet()) {
+      if (metricsRequested.contains(key)) {
+        String metricName = relevantMetrics.get(key).getMetric();
+        metricsToRead.add(metricName);
+        reverseNameLookup.put(metricName, key);
+      }
+    }
+
+    if (metricsToRead.size() != 0) {
+      try {
+        String specWithParams = SliderAppGangliaHelper.getSpec(gangliaUrl, metricsToRead, temporalInfo);
+        logger.info("Using spec: " + specWithParams);
+        if (specWithParams != null) {
+
+          String spec = null;
+          String params = null;
+          String[] tokens = specWithParams.split("\\?", 2);
+
+          try {
+            spec = tokens[0];
+            params = tokens[1];
+          } catch (ArrayIndexOutOfBoundsException e) {
+            logger.info(e.toString());
+          }
+
+          receivedMetrics = SliderAppGangliaHelper.getGangliaMetrics(context, spec, params);
+        }
+      } catch (Exception e) {
+        logger.warn("Unable to retrieve ganglia metrics. " + e.getMessage());
+      }
+    }
+
+    if (receivedMetrics != null) {
+      for (GangliaMetric metric : receivedMetrics.values()) {
+        if (reverseNameLookup.containsKey(metric.getMetric_name())) {
+          retVal.put(reverseNameLookup.get(metric.getMetric_name()), metric.getDatapoints());
+        }
+      }
+    }
+
+    return retVal;
   }
 
   /**
    * Provides only the interesting JMX metric names and values.
-   * 
+   *
    * @param jmxUrl
-   * 
+   *
    * @return
    */
-  public Map<String, String> getJmx(String jmxUrl, ViewContext context,
-      SliderAppType appType) {
+  public Map<String, String> getJmx(String jmxUrl,
+                                    ViewContext context,
+                                    SliderAppType appType,
+                                    MetricsHolder metricsHolder) {
     Map<String, String> jmxProperties = new HashMap<String, String>();
-    if (appType == null || appType.getJmxMetrics() == null) {
+    if (appType == null || metricsHolder == null || metricsHolder.getJmxMetrics() == null) {
       logger
           .info("AppType must be provided and it must contain jmx_metrics.json to extract jmx properties");
       return jmxProperties;
@@ -167,12 +246,14 @@ public class SliderAppMasterClient extends BaseHttpClient {
       components.add(appTypeComponent.getName());
     }
 
-    Map<String, Map<String, Map<String, Metric>>> metrics = appType
-        .getJmxMetrics();
-    Map<String, Metric> relevantMetrics = getRelevantMetrics(metrics,
-        components);
-    SliderAppJmxHelper.JMXTypes jmxType = SliderAppJmxHelper
-        .jmxTypeExpected(relevantMetrics);
+    Map<String, Map<String, Map<String, Metric>>> metrics = metricsHolder.getJmxMetrics();
+    Map<String, Metric> relevantMetrics = getRelevantMetrics(metrics, components);
+    if (relevantMetrics.size() == 0) {
+      logger.info("No metrics found for components defined in the app.");
+      return jmxProperties;
+    }
+
+    SliderAppJmxHelper.JMXTypes jmxType = SliderAppJmxHelper.jmxTypeExpected(relevantMetrics);
     if (jmxType == null) {
       logger
           .info("jmx_metrics.json is malformed. It may have mixed metric key types of unsupported metric key types.");
@@ -193,20 +274,20 @@ public class SliderAppMasterClient extends BaseHttpClient {
 
       if (jmxStream != null) {
         switch (jmxType) {
-        case JMX_BEAN:
-          SliderAppJmxHelper.extractMetricsFromJmxBean(jmxStream, jmxUrl,
-              jmxProperties, relevantMetrics);
-          break;
-        case JSON:
-          SliderAppJmxHelper.extractMetricsFromJmxJson(jmxStream, jmxUrl,
-              jmxProperties, relevantMetrics);
-          break;
-        case XML:
-          SliderAppJmxHelper.extractMetricsFromJmxXML(jmxStream, jmxUrl,
-              jmxProperties, relevantMetrics);
-          break;
-        default:
-          logger.info("Unsupported jmx type.");
+          case JMX_BEAN:
+            SliderAppJmxHelper.extractMetricsFromJmxBean(jmxStream, jmxUrl,
+                                                         jmxProperties, relevantMetrics);
+            break;
+          case JSON:
+            SliderAppJmxHelper.extractMetricsFromJmxJson(jmxStream, jmxUrl,
+                                                         jmxProperties, relevantMetrics);
+            break;
+          case XML:
+            SliderAppJmxHelper.extractMetricsFromJmxXML(jmxStream, jmxUrl,
+                                                        jmxProperties, relevantMetrics);
+            break;
+          default:
+            logger.info("Unsupported jmx type.");
         }
       }
     } catch (Exception e) {

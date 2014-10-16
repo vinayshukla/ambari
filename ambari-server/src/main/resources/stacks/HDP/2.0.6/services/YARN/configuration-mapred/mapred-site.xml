@@ -171,12 +171,6 @@
   </property>
 
   <property>
-    <name>mapreduce.jobhistory.keytab.file</name>
-    <value>/etc/security/keytabs/jhs.service.keytab</value>
-    <description>The keytab for the job history server principal.</description>
-  </property>
-
-  <property>
     <name>mapreduce.shuffle.port</name>
     <value>13562</value>
     <description>
@@ -347,7 +341,7 @@
 
   <property>
     <name>mapreduce.admin.user.env</name>
-    <value>LD_LIBRARY_PATH=/usr/lib/hadoop/lib/native:/usr/lib/hadoop/lib/native/`$JAVA_HOME/bin/java -d32 -version &amp;&gt; /dev/null;if [ $? -eq 0 ]; then echo Linux-i386-32; else echo Linux-amd64-64;fi`</value>
+    <value>LD_LIBRARY_PATH=/usr/lib/hadoop/lib/native:/usr/lib/hadoop/lib/native/Linux-amd64-64</value>
     <description>
       Additional execution environment entries for map and reduce task processes.
       This is not an additive property. You must preserve the original value if

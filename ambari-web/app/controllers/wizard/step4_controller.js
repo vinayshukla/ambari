@@ -38,11 +38,21 @@ App.WizardStep4Controller = Em.ArrayController.extend({
   }.property("@each.isSelected"),
 
   /**
+   * List of validation errors. Look to #createError method for information
+   * regarding object structure.
+   *
+   * @type {Object[]}
+   */
+  errorStack: [],
+
+  /**
    * Check whether all properties are selected
    * @type {bool}
    */
   isAll: function () {
-    return this.everyProperty('isSelected', true);
+    return this.filterProperty('isInstalled', false).
+      filterProperty('isHiddenOnSelectServicePage', false).
+      everyProperty('isSelected', true);
   }.property('@each.isSelected'),
 
   /**
@@ -50,15 +60,23 @@ App.WizardStep4Controller = Em.ArrayController.extend({
    * @type {bool}
    */
   isMinimum: function () {
-    return this.everyProperty('isSelected', false);
+    return this.filterProperty('isInstalled', false).
+      filterProperty('isHiddenOnSelectServicePage', false).
+      everyProperty('isSelected', false);
   }.property('@each.isSelected'),
 
+  /**
+   * Drop errorStack content on selected state changes.
+   **/
+  clearErrors: function() {
+    this.set('errorStack', []);
+  }.observes('@each.isSelected'),
   /**
    * Onclick handler for <code>select all</code> link
    * @method selectAll
    */
   selectAll: function () {
-    this.setEach('isSelected', true);
+    this.filterProperty('isInstalled', false).setEach('isSelected', true);
   },
 
   /**
@@ -66,16 +84,7 @@ App.WizardStep4Controller = Em.ArrayController.extend({
    * @method selectMinimum
    */
   selectMinimum: function () {
-    this.setEach('isSelected', false);
-  },
-
-  /**
-   * Check whether we should turn on <code>HDFS or GLUSTERFS</code> service
-   * @return {bool}
-   * @method noDFSs
-   */
-  noDFSs: function () {
-    return  !this.filterProperty('isDFS',true).someProperty('isSelected',true);
+    this.filterProperty('isInstalled', false).setEach('isSelected', false);
   },
 
   /**
@@ -102,104 +111,204 @@ App.WizardStep4Controller = Em.ArrayController.extend({
    * Check whether user turned on monitoring service and go to next step
    * @method validateMonitoring
    */
-  validateMonitoring: function () {
-    var monitoringServices =  this.filterProperty('isMonitoringService',true);
-    var notSelectedService = monitoringServices.filterProperty('isSelected',false);
+  serviceMonitoringValidation: function () {
+    var monitoringServices =  this.filterProperty('isMonitoringService', true);
+    var notSelectedService = monitoringServices.filterProperty('isSelected', false);
     if (!!notSelectedService.length) {
       notSelectedService = stringUtils.getFormattedStringFromArray(notSelectedService.mapProperty('displayNameOnSelectServicePage'));
       monitoringServices = stringUtils.getFormattedStringFromArray(monitoringServices.mapProperty('displayNameOnSelectServicePage'));
-      this.monitoringCheckPopup(notSelectedService,monitoringServices);
-    } else {
-      App.router.send('next');
+      this.addValidationError({
+        id: 'monitoringCheck',
+        type: 'WARNING',
+        callback: this.monitoringCheckPopup,
+        callbackParams: [notSelectedService, monitoringServices]
+      });
     }
   },
 
   /**
-   * Onclick handler for <code>Next</code> button
+   * Onclick handler for <code>Next</code> button.
    * @method submit
    */
   submit: function () {
-    this.setGroupedServices();
-    if (!this.get("isSubmitDisabled") && !this.isSubmitChecksFailed()) {
-      this.validateMonitoring();
+    if (!this.get('isSubmitDisabled')) {
+      this.setGroupedServices();
+      if (this.validate()) {
+        this.set('errorStack', []);
+        App.router.send('next');
+      }
     }
   },
 
   /**
-   * @method  {isSubmitChecksFailed} Do the required checks on Next button click event
-   * @returns {boolean}
-   */
-  isSubmitChecksFailed: function() {
-    return this.isFileSystemCheckFailed() || this.isServiceDependencyCheckFailed();
+   * Check if validation passed:
+   *  - required file system services selected
+   *  - dependencies between services
+   *  - monitoring services selected (not required)
+   *
+   * @return {Boolean}
+   * @method validate
+   **/
+  validate: function() {
+    this.serviceDependencyValidation();
+    this.fileSystemServiceValidation();
+    this.serviceMonitoringValidation();
+    if (!!this.get('errorStack').filterProperty('isShown', false).length) {
+      this.showError(this.get('errorStack').findProperty('isShown', false));
+      return false;
+    }
+    return true;
   },
 
   /**
-   * @method: isFileSystemCheckFailed - Checks if a filesystem is selected and only one filesystem is selected
-   * @return: {boolean}
+   * Create error and push it to stack.
+   *
+   * @param {Object} errorObject - look to #createError
+   * @return {Boolean}
+   * @method addValidationError
+   **/
+  addValidationError: function(errorObject) {
+    if (!this.get('errorStack').mapProperty('id').contains(errorObject.id)) {
+      this.get('errorStack').push(this.createError(errorObject));
+      return true;
+    } else {
+      return false;
+    }
+  },
+
+  /**
+   * Show current error by passed error object.
+   *
+   * @param {Object} errorObject
+   * @method showError
+   **/
+  showError: function(errorObject) {
+    return errorObject.callback.apply(errorObject.callbackContext, errorObject.callbackParams);
+  },
+
+  /**
+   * Default primary button("Ok") callback for warning popups.
+   *  Change isShown state for last shown error.
+   *  Call #submit() method.
+   *
+   *  @method onPrimaryPopupCallback
+   **/
+  onPrimaryPopupCallback: function() {
+    if (this.get('errorStack').someProperty('isShown', false)) {
+      this.get('errorStack').findProperty('isShown', false).isShown = true;
+    }
+    this.submit();
+  },
+
+  /**
+   * Create error object with passed options.
+   * Available options:
+   *  id - {String}
+   *  type - {String}
+   *  isShowed - {Boolean}
+   *  callback - {Function}
+   *  callbackContext
+   *  callbackParams - {Array}
+   *
+   * @param {Object} opt
+   * @return {Object}
+   * @method createError
+   **/
+  createError: function(opt) {
+    var options = {
+      // {String} error identifier
+      id: '',
+      // {String} type of error CRITICAL|WARNING
+      type: 'CRITICAL',
+      // {Boolean} error was shown
+      isShown: false,
+      // {Function} callback to execute
+      callback: null,
+      // context which execute from
+      callbackContext: this,
+      // {Array} params applied to callback
+      callbackParams: []
+    };
+    $.extend(options, opt);
+    return options;
+  },
+
+  /**
+   * Checks if a filesystem is selected and only one filesystem is selected
+   *
+   * @method isFileSystemCheckFailed
    */
-  isFileSystemCheckFailed: function() {
-    var isCheckFailed = false;
+  fileSystemServiceValidation: function() {
     var primaryDFS = this.findProperty('isPrimaryDFS',true);
     var primaryDfsDisplayName = primaryDFS.get('displayNameOnSelectServicePage');
     var primaryDfsServiceName = primaryDFS.get('serviceName');
-     if (this.noDFSs()) {
-       isCheckFailed = true;
-       this.needToAddServicePopup.apply(this, [{serviceName: primaryDfsServiceName, selected: true},'fsCheck',primaryDfsDisplayName]);
-     } else if (this.multipleDFSs()) {
+     if (this.multipleDFSs()) {
        var dfsServices = this.filterProperty('isDFS',true).filterProperty('isSelected',true).mapProperty('serviceName');
        var services = dfsServices.map(function (item){
-         var mappedObj = {
+         return  {
            serviceName: item,
-           selected: false
+           selected: item === primaryDfsServiceName
          };
-         if (item ===  primaryDfsServiceName) {
-           mappedObj.selected = true;
-         }
-         return mappedObj;
        });
-       isCheckFailed = true;
-       this.needToAddServicePopup.apply(this, [services,'multipleDFS',primaryDfsDisplayName]);
+       this.addValidationError({
+         id: 'multipleDFS',
+         callback: this.needToAddServicePopup,
+         callbackParams: [services, 'multipleDFS', primaryDfsDisplayName]
+       });
      }
-    return isCheckFailed;
   },
 
   /**
-   * @method: isServiceDependencyCheckFailed - Checks if a dependent service is selected without selecting the main service
-   * @return {boolean}
+   * Checks if a dependent service is selected without selecting the main service.
+   *
+   * @method serviceDependencyValidation
    */
-  isServiceDependencyCheckFailed: function() {
-    var isCheckFailed = false;
-    var notSelectedServices = this.filterProperty('isSelected',false);
-    notSelectedServices.forEach(function(service){
-      var showWarningPopup;
-      var dependentServices =  service.get('dependentServices');
-      if (!!dependentServices) {
-        showWarningPopup = false;
-        dependentServices.forEach(function(_dependentService){
-          var dependentService = this.findProperty('serviceName', _dependentService);
-          if (dependentService && dependentService.get('isSelected') === true) {
-            showWarningPopup = true;
-            isCheckFailed = true;
+  serviceDependencyValidation: function() {
+    var selectedServices = this.filterProperty('isSelected',true);
+    var missingDependencies = [];
+    var missingDependenciesDisplayName = [];
+    selectedServices.forEach(function(service){
+      var requiredServices =  service.get('requiredServices');
+      if (!!requiredServices && requiredServices.length) {
+        requiredServices.forEach(function(_requiredService){
+          var requiredService = this.findProperty('serviceName', _requiredService);
+          if (requiredService && requiredService.get('isSelected') === false) {
+            if(missingDependencies.indexOf(_requiredService) == -1 ) {
+              missingDependencies.push(_requiredService);
+              missingDependenciesDisplayName.push(requiredService.get('displayNameOnSelectServicePage'));
+            }
           }
         },this);
-        if (showWarningPopup) {
-          this.needToAddServicePopup.apply(this, [{serviceName: service.get('serviceName'), selected: true},'serviceCheck',service.get('displayNameOnSelectServicePage')]);
-        }
       }
     },this);
-    return isCheckFailed;
+
+    if (missingDependencies.length > 0) {
+      for(var i = 0; i < missingDependencies.length; i++) {
+        this.addValidationError({
+          id: 'serviceCheck_' + missingDependencies[i],
+          callback: this.needToAddServicePopup,
+          callbackParams: [{serviceName: missingDependencies[i], selected: true}, 'serviceCheck', missingDependenciesDisplayName[i]]
+        });
+      }
+    }
   },
 
+  /**
+   * Select co hosted services which not showed on UI.
+   *
+   * @method setGroupedServices
+   **/
   setGroupedServices: function() {
     this.forEach(function(service){
       var coSelectedServices = service.get('coSelectedServices');
       coSelectedServices.forEach(function(groupedServiceName) {
         var groupedService = this.findProperty('serviceName', groupedServiceName);
-        groupedService.set('isSelected',service.get('isSelected'));
+        if (groupedService.get('isSelected') !== service.get('isSelected')) {
+          groupedService.set('isSelected',service.get('isSelected'));
+        }
       },this);
     },this);
   },
-
 
   /**
    * Select/deselect services
@@ -231,8 +340,8 @@ App.WizardStep4Controller = Em.ArrayController.extend({
         services.forEach(function (service) {
           self.findProperty('serviceName', service.serviceName).set('isSelected', service.selected);
         });
+        self.onPrimaryPopupCallback();
         this.hide();
-        self.submit();
       }
     });
   },
@@ -243,12 +352,13 @@ App.WizardStep4Controller = Em.ArrayController.extend({
    * @method monitoringCheckPopup
    */
   monitoringCheckPopup: function (notSelectedServiceNames,monitoringServicesNames) {
+    var self = this;
     return App.ModalPopup.show({
       header: Em.I18n.t('installer.step4.monitoringCheck.popup.header'),
       body: Em.I18n.t('installer.step4.monitoringCheck.popup.body').format(notSelectedServiceNames,monitoringServicesNames),
       onPrimary: function () {
+        self.onPrimaryPopupCallback();
         this.hide();
-        App.router.send('next');
       }
     });
   }

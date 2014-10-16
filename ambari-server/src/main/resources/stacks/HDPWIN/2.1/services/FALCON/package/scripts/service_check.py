@@ -28,6 +28,6 @@ class FalconServiceCheck(Script):
     smoke_cmd = os.path.join(params.hdp_root,"Run-SmokeTests.cmd")
     service = "FALCON"
     Execute(format("cmd /C {smoke_cmd} {service}"), logoutput=True)
-    
+
 if __name__ == "__main__":
   FalconServiceCheck().execute()

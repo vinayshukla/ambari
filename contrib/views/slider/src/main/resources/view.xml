@@ -18,9 +18,46 @@ limitations under the License. Kerberos, LDAP, Custom. Binary/Htt
   <name>SLIDER</name>
   <label>Slider Apps View</label>
   <version>1.0.0</version>
-  <instance>
-    <name>SLIDER_1</name>
-  </instance>
+	<parameter>
+		<name>ambari.server.url</name>
+		<description>Ambari Server Cluster REST API URL (for example:
+			http://ambari.server:8080/api/v1/clusters/c1)</description>
+		<required>true</required>
+	</parameter>
+	<parameter>
+		<name>ambari.server.username</name>
+		<description>Cluster Operator username (for example: admin)
+		</description>
+		<required>true</required>
+	</parameter>
+	<parameter>
+		<name>ambari.server.password</name>
+		<description>Cluster Operator password (for example: admin)
+		</description>
+		<required>true</required>
+		<masked>true</masked>
+	</parameter>
+	<parameter>
+		<name>slider.user</name>
+		<description>User this view instance should run as. Specifying an empty value runs view as YARN service user (for example 'yarn'). Specifying '{username}' runs the view as the currently logged in user. Specifying any other value runs the view as that user.
+			Administrators should check that the HDFS home folder for that user is created and accessible.
+        </description>
+		<required>false</required>
+	</parameter>
+	<parameter>
+		<name>view.kerberos.principal</name>
+		<description>Kerberos principal associated with this view. For example: ambari/_HOST@EXAMPLE.COM.
+			Administrators should make sure that HDFS service has the 'hadoop.proxyuser.[user].groups' and 'hadoop.proxyuser.[user].hosts' configs populated in 'core-site.xml'.
+		</description>
+		<required>false</required>
+	</parameter>
+	<parameter>
+		<name>view.kerberos.principal.keytab</name>
+		<description>Path to the Kerberos principal keytab used for view's user. For example: /etc/security/keytabs/ambari.headless.keytab
+			Administrators should make sure that HDFS service has the 'hadoop.proxyuser.[user].groups' and 'hadoop.proxyuser.[user].hosts' configs populated in 'core-site.xml'.
+		</description>
+		<required>false</required>
+	</parameter>
   <resource>
     <name>status</name>
     <service-class>org.apache.ambari.view.slider.rest.ViewStatusResource</service-class>

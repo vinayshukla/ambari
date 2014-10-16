@@ -19,6 +19,11 @@
 package org.apache.ambari.server.controller;
 
 
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.ambari.server.state.PropertyInfo.PropertyType;
+
 public class StackConfigurationResponse {
 
   /**
@@ -27,14 +32,15 @@ public class StackConfigurationResponse {
    * @param propertyValue Property Value
    * @param propertyDescription Property Description
    * @param type Configuration type
-   * @param isFinal Is property final
+   * @param propertyAttributes Attributes map
    */
-  public StackConfigurationResponse(String propertyName, String propertyValue, String propertyDescription, String type, Boolean isFinal) {
+  public StackConfigurationResponse(String propertyName, String propertyValue, String propertyDescription,
+                                    String type, Map<String, String> propertyAttributes) {
     setPropertyName(propertyName);
     setPropertyValue(propertyValue);
     setPropertyDescription(propertyDescription);
     setType(type);
-    setFinal(isFinal);
+    setPropertyAttributes(propertyAttributes);
   }
 
   /**
@@ -45,18 +51,18 @@ public class StackConfigurationResponse {
    * @param type Configuration type
    * @param isRequired Is required to be set
    * @param propertyType Property Type
-   * @param isFinal Is property final
+   * @param propertyAttributes Attributes map
    */
   public StackConfigurationResponse(String propertyName, String propertyValue,
                                     String propertyDescription, String type,
-                                    Boolean isRequired, String propertyType, Boolean isFinal) {
+                                    Boolean isRequired, Set<PropertyType> propertyTypes, Map<String, String> propertyAttributes) {
     setPropertyName(propertyName);
     setPropertyValue(propertyValue);
     setPropertyDescription(propertyDescription);
     setType(type);
     setRequired(isRequired);
-    setPropertyType(propertyType);
-    setFinal(isFinal);
+    setPropertyType(propertyTypes);
+    setPropertyAttributes(propertyAttributes);
   }
 
   private String stackName;
@@ -66,9 +72,9 @@ public class StackConfigurationResponse {
   private String propertyValue;
   private String propertyDescription;
   private String type;
-  private Boolean isFinal;
+  private Map<String, String> propertyAttributes;
   private Boolean isRequired;
-  private String propertyType;
+  private Set<PropertyType> propertyTypes;
 
   public String getStackName() {
     return stackName;
@@ -130,12 +136,22 @@ public class StackConfigurationResponse {
     this.type = type;
   }
 
-  public Boolean isFinal() {
-    return isFinal;
+  /**
+   * Provides attributes of this configuration.
+   *
+   * @return Map of attribute name to attribute value
+   */
+  public Map<String, String> getPropertyAttributes() {
+    return propertyAttributes;
   }
 
-  public void setFinal(Boolean isFinal) {
-    this.isFinal = isFinal;
+  /**
+   * Sets attributes for this configuration.
+   *
+   * @param propertyAttributes Map of attribute name to attribute value
+   */
+  public void setPropertyAttributes(Map<String, String> propertyAttributes) {
+    this.propertyAttributes = propertyAttributes;
   }
 
   /**
@@ -158,11 +174,11 @@ public class StackConfigurationResponse {
    * Get type of property as set in the stack definition.
    * @return Property type.
    */
-  public String getPropertyType() {
-    return propertyType;
+  public Set<PropertyType> getPropertyType() {
+    return propertyTypes;
   }
 
-  public void setPropertyType(String propertyType) {
-    this.propertyType = propertyType;
+  public void setPropertyType(Set<PropertyType> propertyTypes) {
+    this.propertyTypes = propertyTypes;
   }
 }

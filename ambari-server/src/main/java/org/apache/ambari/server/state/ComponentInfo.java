@@ -23,15 +23,13 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlElements;
-
-import org.apache.ambari.server.controller.StackServiceComponentResponse;
-
 import java.util.ArrayList;
 import java.util.List;
 
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ComponentInfo {
   private String name;
+  private String displayName;
   private String category;
   private boolean deleted;
   private String cardinality;
@@ -40,6 +38,23 @@ public class ComponentInfo {
   * Added at schema ver 2
   */
   private CommandScriptDefinition commandScript;
+
+  /**
+   * List of clients which configs are updated with master component.
+   * If clientsToUpdateConfigs is not specified all clients are considered to be updated.
+   * If clientsToUpdateConfigs is empty no clients are considered to be updated
+   */
+  @XmlElementWrapper(name = "clientsToUpdateConfigs")
+  @XmlElements(@XmlElement(name = "client"))
+  private List<String> clientsToUpdateConfigs;
+
+  /**
+   * Client configuration files
+   * List of files to download in client configuration tar
+   */
+  @XmlElementWrapper(name = "configFiles")
+  @XmlElements(@XmlElement(name = "configFile"))
+  private List<ClientConfigFileDefinition> clientConfigFiles;
 
   /**
    * Added at schema ver 2
@@ -74,10 +89,13 @@ public class ComponentInfo {
     category = prototype.category;
     deleted = prototype.deleted;
     cardinality = prototype.cardinality;
+    clientsToUpdateConfigs = prototype.clientsToUpdateConfigs;
     commandScript = prototype.commandScript;
     customCommands = prototype.customCommands;
     dependencies = prototype.dependencies;
     autoDeploy = prototype.autoDeploy;
+    configDependencies = prototype.configDependencies;
+    clientConfigFiles = prototype.clientConfigFiles;
   }
 
   public String getName() {
@@ -86,6 +104,14 @@ public class ComponentInfo {
 
   public void setName(String name) {
     this.name = name;
+  }
+
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  public void setDisplayName(String displayName) {
+    this.displayName = displayName;
   }
 
   public String getCategory() {
@@ -104,16 +130,6 @@ public class ComponentInfo {
     return "MASTER".equals(category);
   }
 
-  public StackServiceComponentResponse convertToResponse() {
-    StackServiceComponentResponse response = new StackServiceComponentResponse(
-        getName(), getCategory(), isClient(), isMaster(), cardinality);
-
-    if (autoDeploy != null) {
-      response.setAutoDeploy(autoDeploy);
-    }
-    return response;
-  }
-
   public boolean isDeleted() {
     return deleted;
   }
@@ -128,6 +144,14 @@ public class ComponentInfo {
 
   public void setCommandScript(CommandScriptDefinition commandScript) {
     this.commandScript = commandScript;
+  }
+
+  public List<ClientConfigFileDefinition> getClientConfigFiles() {
+    return clientConfigFiles;
+  }
+
+  public void setClientConfigFiles(List<ClientConfigFileDefinition> clientConfigFiles) {
+    this.clientConfigFiles = clientConfigFiles;
   }
 
   public List<CustomCommandDefinition> getCustomCommands() {
@@ -151,16 +175,55 @@ public class ComponentInfo {
     }
     return false;
   }
+  public CustomCommandDefinition getCustomCommandByName(String commandName){
+    for(CustomCommandDefinition ccd : getCustomCommands()){
+      if (ccd.getName().equals(commandName)){
+        return ccd;
+      }
+    }
+    return null;
+  }
 
   public List<DependencyInfo> getDependencies() {
     return dependencies;
+  }
+  @XmlElementWrapper(name="configuration-dependencies")
+  @XmlElements(@XmlElement(name="config-type"))
+  private List<String> configDependencies;
+
+
+  public List<String> getConfigDependencies() {
+    return configDependencies;
+  }
+
+  public void setConfigDependencies(List<String> configDependencies) {
+    this.configDependencies = configDependencies;
+  }
+  public boolean hasConfigType(String type) {
+    return configDependencies != null && configDependencies.contains(type);
+  }
+
+  public void setDependencies(List<DependencyInfo> dependencies) {
+    this.dependencies = dependencies;
   }
 
   public AutoDeployInfo getAutoDeploy() {
     return autoDeploy;
   }
 
+  public void setCardinality(String cardinality) {
+    this.cardinality = cardinality;
+  }
+
   public String getCardinality() {
-    return this.cardinality;
+    return cardinality;
+  }
+
+  public List<String> getClientsToUpdateConfigs() {
+    return clientsToUpdateConfigs;
+  }
+
+  public void setClientsToUpdateConfigs(List<String> clientsToUpdateConfigs) {
+    this.clientsToUpdateConfigs = clientsToUpdateConfigs;
   }
 }

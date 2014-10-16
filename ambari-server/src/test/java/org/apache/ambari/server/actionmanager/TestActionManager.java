@@ -17,17 +17,24 @@
  */
 package org.apache.ambari.server.actionmanager;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.persist.PersistService;
-import com.google.inject.persist.UnitOfWork;
-import junit.framework.Assert;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.Role;
 import org.apache.ambari.server.RoleCommand;
 import org.apache.ambari.server.agent.ActionQueue;
 import org.apache.ambari.server.agent.CommandReport;
-import org.apache.ambari.server.api.services.BaseRequest;
 import org.apache.ambari.server.controller.HostsMap;
 import org.apache.ambari.server.orm.GuiceJpaInitializer;
 import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
@@ -39,12 +46,12 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.persist.PersistService;
+import com.google.inject.persist.UnitOfWork;
 
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
+import junit.framework.Assert;
 
 public class TestActionManager {
 
@@ -74,7 +81,7 @@ public class TestActionManager {
   }
 
   @Test
-  public void testActionResponse() {
+  public void testActionResponse() throws AmbariException {
     ActionDBAccessor db = injector.getInstance(ActionDBAccessorImpl.class);
     ActionManager am = new ActionManager(5000, 1200000, new ActionQueue(),
         clusters, db, new HostsMap((String) null), null, unitOfWork,
@@ -95,7 +102,7 @@ public class TestActionManager {
     cr.setStructuredOut("STRUCTURED_OUTPUT");
     cr.setExitCode(215);
     reports.add(cr);
-    am.processTaskResponse(hostname, reports);
+    am.processTaskResponse(hostname, reports, stage.getOrderedHostRoleCommands());
     assertEquals(215,
         am.getAction(requestId, stageId).getExitCode(hostname, "HBASE_MASTER"));
     assertEquals(HostRoleStatus.COMPLETED, am.getAction(requestId, stageId)
@@ -117,7 +124,7 @@ public class TestActionManager {
   }
   
   @Test
-  public void testLargeLogs() {
+  public void testLargeLogs() throws AmbariException {
     ActionDBAccessor db = injector.getInstance(ActionDBAccessorImpl.class);
     ActionManager am = new ActionManager(5000, 1200000, new ActionQueue(),
         clusters, db, new HostsMap((String) null), null, unitOfWork,
@@ -140,7 +147,7 @@ public class TestActionManager {
     cr.setStructuredOut(outLog);
     cr.setExitCode(215);
     reports.add(cr);
-    am.processTaskResponse(hostname, reports);
+    am.processTaskResponse(hostname, reports, stage.getOrderedHostRoleCommands());
     assertEquals(215,
         am.getAction(requestId, stageId).getExitCode(hostname, "HBASE_MASTER"));
     assertEquals(HostRoleStatus.COMPLETED, am.getAction(requestId, stageId)
@@ -159,8 +166,8 @@ public class TestActionManager {
             .getHostRoleCommand(hostname, "HBASE_MASTER").getStructuredOut().length());
   }
 
-  private void populateActionDB(ActionDBAccessor db, String hostname) {
-    Stage s = new Stage(requestId, "/a/b", "cluster1", 1L, "action manager test", "clusterHostInfo");
+  private void populateActionDB(ActionDBAccessor db, String hostname) throws AmbariException {
+    Stage s = new Stage(requestId, "/a/b", "cluster1", 1L, "action manager test", "clusterHostInfo", "commandParamsStage", "hostParamsStage");
     s.setStageId(stageId);
     s.addHostRoleExecutionCommand(hostname, Role.HBASE_MASTER,
         RoleCommand.START,

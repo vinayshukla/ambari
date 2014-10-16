@@ -20,6 +20,7 @@ package org.apache.ambari.view.slider;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -29,6 +30,19 @@ import com.google.inject.ImplementedBy;
 
 @ImplementedBy(SliderAppsViewControllerImpl.class)
 public interface SliderAppsViewController {
+
+  public static final String PARAM_AMBARI_CLUSTER_API = "ambari.server.url";
+  public static final String PARAM_AMBARI_USERNAME = "ambari.server.username";
+  public static final String PARAM_AMBARI_PASSWORD = "ambari.server.password";
+  public static final String PARAM_SLIDER_USER = "slider.user";
+  public static final String PARAM_VIEW_PRINCIPAL = "view.kerberos.principal";
+  public static final String PARAM_VIEW_PRINCIPAL_KEYTAB= "view.kerberos.principal.keytab";
+
+  public static final String PROPERTY_SLIDER_ZK_QUORUM = "slider.zookeeper.quorum";
+  public static final String PROPERTY_GANGLIA_SERVER_HOSTNAME = "ganglia.server.hostname";
+  public static final String PROPERTY_GANGLIA_CUSTOM_CLUSTERS = "ganglia.additional.clusters";
+  public static final String PROPERTY_YARN_RM_WEBAPP_URL = "yarn.rm.webapp.url";
+  public static final String PROPERTY_SLIDER_SECURITY_ENABLED = "slider.security.enabled";
 
   public ViewStatus getViewStatus();
 
@@ -42,9 +56,10 @@ public interface SliderAppsViewController {
    * @return
    * @throws YarnException
    * @throws IOException
+   * @throws InterruptedException
    */
   public SliderApp getSliderApp(String applicationId, Set<String> properties)
-      throws YarnException, IOException;
+      throws YarnException, IOException, InterruptedException;
 
   /**
    * Provides list of Slider apps with requested properties populated.
@@ -55,9 +70,10 @@ public interface SliderAppsViewController {
    * @return
    * @throws YarnException
    * @throws IOException
+   * @throws InterruptedException
    */
   public List<SliderApp> getSliderApps(Set<String> properties)
-      throws YarnException, IOException;
+      throws YarnException, IOException, InterruptedException;
 
   /**
    * Attempts to delete a Slider app. An unsuccessful attempt will result in
@@ -66,9 +82,10 @@ public interface SliderAppsViewController {
    * @param applicationId
    * @throws YarnException
    * @throws IOException
+   * @throws InterruptedException
    */
   public void deleteSliderApp(String applicationId) throws YarnException,
-      IOException;
+      IOException, InterruptedException;
 
   public SliderAppType getSliderAppType(String appTypeId, Set<String> properties);
 
@@ -82,4 +99,7 @@ public interface SliderAppsViewController {
 
   public void thawApp(String appId) throws YarnException, IOException,
       InterruptedException;
+
+  public void flexApp(String appId, Map<String, Integer> componentsMap)
+      throws YarnException, IOException, InterruptedException;
 }

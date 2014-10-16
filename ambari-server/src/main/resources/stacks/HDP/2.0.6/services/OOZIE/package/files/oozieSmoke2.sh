@@ -35,10 +35,10 @@ function checkOozieJobStatus {
   num_of_tries=${num_of_tries:-10}
   local i=0
   local rc=1
-  local cmd="source ${oozie_conf_dir}/oozie-env.sh ; /usr/bin/oozie job -oozie ${OOZIE_SERVER} -info $job_id"
-  su - ${smoke_test_user} -c "$cmd"
+  local cmd="source ${oozie_conf_dir}/oozie-env.sh ; ${oozie_bin_dir}/oozie job -oozie ${OOZIE_SERVER} -info $job_id"
+  su -s /bin/bash - ${smoke_test_user} -c "$cmd"
   while [ $i -lt $num_of_tries ] ; do
-    cmd_output=`su - ${smoke_test_user} -c "$cmd"`
+    cmd_output=`su -s /bin/bash - ${smoke_test_user} -c "$cmd"`
     (IFS='';echo $cmd_output)
     act_status=$(IFS='';echo $cmd_output | grep ^Status | cut -d':' -f2 | sed 's| ||g')
     echo "workflow_status=$act_status"
@@ -58,18 +58,20 @@ function checkOozieJobStatus {
 }
 
 export oozie_conf_dir=$1
-export hadoop_conf_dir=$2
-export smoke_test_user=$3
-export security_enabled=$4
-export smoke_user_keytab=$5
-export kinit_path_local=$6
+export oozie_bin_dir=$2
+export hadoop_conf_dir=$3
+export hadoop_bin_dir=$4
+export smoke_test_user=$5
+export security_enabled=$6
+export smoke_user_keytab=$7
+export kinit_path_local=$8
 
 export OOZIE_EXIT_CODE=0
 export JOBTRACKER=`getValueFromField ${hadoop_conf_dir}/yarn-site.xml yarn.resourcemanager.address`
 export NAMENODE=`getValueFromField ${hadoop_conf_dir}/core-site.xml fs.defaultFS`
 export OOZIE_SERVER=`getValueFromField ${oozie_conf_dir}/oozie-site.xml oozie.base.url | tr '[:upper:]' '[:lower:]'`
 
-if [ "$os_family" == "debian" ] ; then
+if [ "$os_family" == "ubuntu" ] ; then
   LIST_PACKAGE_FILES_CMD='dpkg-query -L'
 else
   LIST_PACKAGE_FILES_CMD='rpm -ql'
@@ -77,6 +79,9 @@ fi
   
 
 export OOZIE_EXAMPLES_DIR=`$LIST_PACKAGE_FILES_CMD oozie-client | grep 'oozie-examples.tar.gz$' | xargs dirname`
+if [[ -z "$OOZIE_EXAMPLES_DIR" ]] ; then
+  export OOZIE_EXAMPLES_DIR='/usr/hdp/current/oozie-client/doc/'
+fi
 cd $OOZIE_EXAMPLES_DIR
 
 tar -zxf oozie-examples.tar.gz
@@ -93,14 +98,14 @@ else
   kinitcmd=""
 fi
 
-su - ${smoke_test_user} -c "hdfs dfs -rm -r examples"
-su - ${smoke_test_user} -c "hdfs dfs -rm -r input-data"
-su - ${smoke_test_user} -c "hdfs dfs -copyFromLocal $OOZIE_EXAMPLES_DIR/examples examples"
-su - ${smoke_test_user} -c "hdfs dfs -copyFromLocal $OOZIE_EXAMPLES_DIR/examples/input-data input-data"
+su -s /bin/bash - ${smoke_test_user} -c "${hadoop_bin_dir}/hdfs --config ${hadoop_conf_dir} dfs -rm -r examples"
+su -s /bin/bash - ${smoke_test_user} -c "${hadoop_bin_dir}/hdfs --config ${hadoop_conf_dir} dfs -rm -r input-data"
+su -s /bin/bash - ${smoke_test_user} -c "${hadoop_bin_dir}/hdfs --config ${hadoop_conf_dir} dfs -copyFromLocal $OOZIE_EXAMPLES_DIR/examples examples"
+su -s /bin/bash - ${smoke_test_user} -c "${hadoop_bin_dir}/hdfs --config ${hadoop_conf_dir} dfs -copyFromLocal $OOZIE_EXAMPLES_DIR/examples/input-data input-data"
 
-cmd="${kinitcmd}source ${oozie_conf_dir}/oozie-env.sh ; /usr/bin/oozie -Doozie.auth.token.cache=false job -oozie $OOZIE_SERVER -config $OOZIE_EXAMPLES_DIR/examples/apps/map-reduce/job.properties  -run"
+cmd="${kinitcmd}source ${oozie_conf_dir}/oozie-env.sh ; ${oozie_bin_dir}/oozie -Doozie.auth.token.cache=false job -oozie $OOZIE_SERVER -config $OOZIE_EXAMPLES_DIR/examples/apps/map-reduce/job.properties  -run"
 echo $cmd
-job_info=`su - ${smoke_test_user} -c "$cmd" | grep "job:"`
+job_info=`su -s /bin/bash - ${smoke_test_user} -c "$cmd" | grep "job:"`
 job_id="`echo $job_info | cut -d':' -f2`"
 checkOozieJobStatus "$job_id" 15
 OOZIE_EXIT_CODE="$?"

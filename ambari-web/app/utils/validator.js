@@ -132,6 +132,16 @@ module.exports = {
     return configKeyRegex.test(value);
   },
 
+  /**
+   * validate configuration group name
+   * @param value
+   * @return {Boolean}
+   */
+  isValidConfigGroupName: function(value) {
+    var configKeyRegex = /^[\s0-9a-z_\-]+$/i;
+    return configKeyRegex.test(value);
+  },
+
   empty:function (e) {
     switch (e) {
       case "":
@@ -169,5 +179,16 @@ module.exports = {
     }
     if (/^[\?\|\*\!,]/.test(value)) return false;
     return /^((\.\*?)?([\w\[\]\?\-_,\|\*\!\{\}]*)?)+(\.\*?)?$/g.test(value) && (checkPair(['[',']'])) && (checkPair(['{','}']));
+  },
+
+  /**
+  * Remove validation messages for components which are already installed
+  */
+  filterNotInstalledComponents: function(validationData) {
+    var hostComponents = App.HostComponent.find();
+    return validationData.resources[0].items.filter(function(item) {
+      // true is there is no host with this component
+      return hostComponents.filterProperty("componentName", item["component-name"]).filterProperty("hostName", item.host).length === 0;
+    });
   }
 };

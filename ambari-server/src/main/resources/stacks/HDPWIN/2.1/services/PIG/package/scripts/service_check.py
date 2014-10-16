@@ -32,4 +32,3 @@ class PigServiceCheck(Script):
 
 if __name__ == "__main__":
   PigServiceCheck().execute()
-

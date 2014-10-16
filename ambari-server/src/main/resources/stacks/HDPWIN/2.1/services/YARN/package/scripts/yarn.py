@@ -42,4 +42,3 @@ def yarn():
             owner=params.yarn_user,
             mode='f'
   )
-

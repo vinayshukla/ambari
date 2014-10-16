@@ -29,28 +29,229 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
   multiTaskCounter: 0,
 
   hostComponents: [],
-  restartYarnMRComponents: false,
 
+  /**
+   * Map with lists of unrelated services.
+   * Used to define list of services to stop/start.
+   */
+  unrelatedServicesMap: {
+    'JOBTRACKER': ['HDFS', 'ZOOKEEPER', 'HBASE', 'FLUME', 'SQOOP', 'STORM'],
+    'RESOURCEMANAGER': ['HDFS', 'ZOOKEEPER', 'HBASE', 'FLUME', 'SQOOP', 'STORM'],
+    'APP_TIMELINE_SERVER': ['HDFS', 'ZOOKEEPER', 'HBASE', 'FLUME', 'SQOOP', 'STORM'],
+    'OOZIE_SERVER': ['HDFS', 'ZOOKEEPER', 'HBASE', 'FLUME', 'SQOOP', 'STORM', 'HIVE']
+  },
+
+  /**
+   * additional configs with template values
+   * Part of value to substitute has following format: "<replace-value>"
+   */
+  additionalConfigsMap: [
+    {
+      componentName: 'RESOURCEMANAGER',
+      configs: {
+        'yarn-site': {
+          'yarn.resourcemanager.address': '<replace-value>:8050',
+          'yarn.resourcemanager.admin.address': '<replace-value>:8141',
+          'yarn.resourcemanager.resource-tracker.address': '<replace-value>:8025',
+          'yarn.resourcemanager.scheduler.address': '<replace-value>:8030',
+          'yarn.resourcemanager.webapp.address': '<replace-value>:8088',
+          'yarn.resourcemanager.hostname': '<replace-value>'
+        }
+      }
+    },
+    {
+      componentName: 'JOBTRACKER',
+      configs: {
+        'mapred-site': {
+          'mapred.job.tracker.http.address': '<replace-value>:50030',
+          'mapred.job.tracker': '<replace-value>:50300'
+        }
+      }
+    },
+    {
+      componentName: 'SECONDARY_NAMENODE',
+      configs: {
+        'hdfs-site': {
+          'dfs.secondary.http.address': '<replace-value>:50090'
+        }
+      },
+      configs_Hadoop2: {
+        'hdfs-site': {
+          'dfs.namenode.secondary.http-address': '<replace-value>:50090'
+        }
+      }
+    },
+    {
+      componentName: 'NAMENODE',
+      configs: {
+        'hdfs-site': {
+          'dfs.http.address': '<replace-value>:50070',
+          'dfs.https.address': '<replace-value>:50470'
+        },
+        'core-site': {
+          'fs.default.name': 'hdfs://<replace-value>:8020'
+        }
+      },
+      configs_Hadoop2: {
+        'hdfs-site': {
+          'dfs.namenode.http-address': '<replace-value>:50070',
+          'dfs.namenode.https-address': '<replace-value>:50470'
+        },
+        'core-site': {
+          'fs.defaultFS': 'hdfs://<replace-value>:8020'
+        }
+      }
+    },
+    {
+      componentName: 'APP_TIMELINE_SERVER',
+      configs: {
+        'yarn-site': {
+          'yarn.timeline-service.webapp.address': '<replace-value>:8188',
+          'yarn.timeline-service.webapp.https.address': '<replace-value>:8190',
+          'yarn.timeline-service.address': '<replace-value>:10200'
+        }
+      }
+    },
+    {
+      componentName: 'OOZIE_SERVER',
+        configs: {
+          'oozie-site': {
+          'oozie.base.url': '<replace-value>:11000/oozie'
+        }
+      }
+    }
+  ],
+
+  secureConfigsMap: [
+    {
+      componentName: 'NAMENODE',
+      configs: [
+        {
+          site: 'hdfs-site',
+          keytab: 'dfs.namenode.keytab.file',
+          principal: 'dfs.namenode.kerberos.principal'
+        },
+        {
+          site: 'hdfs-site',
+          keytab: 'dfs.web.authentication.kerberos.keytab',
+          principal: 'dfs.web.authentication.kerberos.principal'
+        }
+      ]
+    },
+    {
+      componentName: 'SECONDARY_NAMENODE',
+      configs: [
+        {
+          site: 'hdfs-site',
+          keytab: 'dfs.secondary.namenode.keytab.file',
+          principal: 'dfs.secondary.namenode.kerberos.principal'
+        },
+        {
+          site: 'hdfs-site',
+          keytab: 'dfs.web.authentication.kerberos.keytab',
+          principal: 'dfs.web.authentication.kerberos.principal'
+        }
+      ]
+    },
+    {
+      componentName: 'RESOURCEMANAGER',
+      configs: [
+        {
+          site: 'yarn-site',
+          keytab: 'yarn.resourcemanager.keytab',
+          principal: 'yarn.resourcemanager.principal'
+        },
+        {
+          site: 'yarn-site',
+          keytab: 'yarn.resourcemanager.webapp.spnego-keytab-file',
+          principal: 'yarn.resourcemanager.webapp.spnego-principal'
+        }
+      ]
+    },
+    {
+      componentName: 'JOBTRACKER',
+      configs: [
+        {
+          site: 'mapred-site',
+          keytab: 'mapreduce.jobtracker.keytab.file',
+          principal: 'mapreduce.jobtracker.kerberos.principal'
+        }
+      ]
+    }
+  ],
+
+  /**
+   * set additional configs
+   * configs_Hadoop2 - configs which belongs to Hadoop 2 stack only
+   * @param configs
+   * @param componentName
+   * @param replaceValue
+   * @return {Boolean}
+   */
+  setAdditionalConfigs: function (configs, componentName, replaceValue) {
+    var isHadoop2Stack = App.get('isHadoop2Stack');
+    var component = this.get('additionalConfigsMap').findProperty('componentName', componentName);
+
+    if (Em.isNone(component)) return false;
+    var additionalConfigs = (component.configs_Hadoop2 && isHadoop2Stack) ? component.configs_Hadoop2 : component.configs;
+
+    for (var site in additionalConfigs) {
+      for (var property in additionalConfigs[site]) {
+        configs[site][property] = additionalConfigs[site][property].replace('<replace-value>', replaceValue);
+      }
+    }
+    return true;
+  },
+
+  /**
+   * load step info
+   */
   loadStep: function () {
     if (this.get('content.reassign.component_name') === 'NAMENODE' && App.get('isHaEnabled')) {
       this.set('hostComponents', ['NAMENODE', 'ZKFC']);
     } else {
       this.set('hostComponents', [this.get('content.reassign.component_name')]);
     }
-    this.set('restartYarnMRComponents', ['RESOURCEMANAGER', 'JOBTRACKER'].contains(this.get('content.reassign.component_name')));
     this.set('serviceName', [this.get('content.reassign.service_id')]);
     this._super();
   },
 
-  initializeTasks: function () {
-    var commands = this.get('commands');
-    var currentStep = App.router.get('reassignMasterController.currentStep');
+  /**
+   * concat host-component names into string
+   * @return {String}
+   */
+  getHostComponentsNames: function () {
     var hostComponentsNames = '';
-
     this.get('hostComponents').forEach(function (comp, index) {
       hostComponentsNames += index ? '+' : '';
       hostComponentsNames += comp === 'ZKFC' ? comp : App.format.role(comp);
     }, this);
+    return hostComponentsNames;
+  },
+
+  /**
+   * remove unneeded tasks
+   */
+  removeUnneededTasks: function () {
+    if (this.get('content.hasManualSteps')) {
+      if (this.get('content.reassign.component_name') === 'NAMENODE' && App.get('isHaEnabled')) {
+        // Only for reassign NameNode with HA enabled
+        this.get('tasks').splice(7, 2);
+      } else {
+        this.get('tasks').splice(5, 4);
+      }
+    } else {
+      this.get('tasks').splice(5, 2);
+    }
+  },
+
+  /**
+   * initialize tasks
+   */
+  initializeTasks: function () {
+    var commands = this.get('commands');
+    var currentStep = App.router.get('reassignMasterController.currentStep');
+    var hostComponentsNames = this.getHostComponentsNames();
 
     for (var i = 0; i < commands.length; i++) {
       var TaskLabel = i === 3 ? this.get('serviceName') : hostComponentsNames; //For Reconfigure task, show serviceName
@@ -69,63 +270,57 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
         hosts: []
       }));
     }
-
-    if (this.get('content.hasManualSteps')) {
-      if (this.get('content.reassign.component_name') === 'NAMENODE' && App.get('isHaEnabled')) {
-        // Only for reassign NameNode with HA enabled
-        this.get('tasks').splice(7, 2);
-      } else {
-        this.get('tasks').splice(5, 4);
-      }
-    } else {
-      this.get('tasks').splice(5, 2);
-    }
+    this.removeUnneededTasks();
   },
 
   hideRollbackButton: function () {
     var failedTask = this.get('tasks').findProperty('showRollback');
     if (failedTask) {
-      failedTask.set('showRollback', false)
+      failedTask.set('showRollback', false);
     }
   }.observes('tasks.@each.showRollback'),
 
   onComponentsTasksSuccess: function () {
-    this.set('multiTaskCounter', this.get('multiTaskCounter') + 1);
+    this.incrementProperty('multiTaskCounter');
     if (this.get('multiTaskCounter') >= this.get('hostComponents').length) {
       this.onTaskCompleted();
     }
   },
 
-  stopServices: function () {
-    if(this.get('restartYarnMRComponents')) {
-      var list = App.Service.find().mapProperty("serviceName").without("HDFS").join(',');
-      var conf = {
-        name: 'common.services.update',
-        sender: this,
-        data: {
-          "context": "Stop without HDFS",
-          "ServiceInfo": {
-            "state": "INSTALLED"
-          },
-          urlParams: "ServiceInfo/service_name.in("+list+")"},
-        success: 'startPolling',
-        error: 'onTaskError'
-      };
-      App.ajax.send(conf);
+  /**
+   * compute data for call to stop services
+   * @return {Object}
+   */
+  getStopServicesData: function () {
+    var data = {
+      "ServiceInfo": {
+        "state": "INSTALLED"
+      }
+    };
+    var unrelatedServices = this.get('unrelatedServicesMap')[this.get('content.reassign.component_name')];
+    if (unrelatedServices) {
+      var list = App.Service.find().mapProperty("serviceName").filter(function (s) {
+        return !unrelatedServices.contains(s)
+      }).join(',');
+      data.context = "Stop required services";
+      data.urlParams = "ServiceInfo/service_name.in(" + list + ")";
     } else {
-      App.ajax.send({
-        name: 'common.services.update',
-        sender: this,
-        data: {
-          "context": "Stop all services",
-          "ServiceInfo": {
-            "state": "INSTALLED"
-          }
-        },
-        success: 'startPolling',
-        error: 'onTaskError'
-      });
+      data.context = "Stop all services";
     }
+    return data;
+  },
+
+  /**
+   * make server call to stop services
+   */
+  stopServices: function () {
+    App.ajax.send({
+      name: 'common.services.update',
+      sender: this,
+      data: this.getStopServicesData(),
+      success: 'startPolling',
+      error: 'onTaskError'
+    });
   },
 
   createHostComponents: function () {
@@ -182,8 +377,13 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
     });
   },
 
-  onLoadConfigsTags: function (data) {
-    var componentName = this.get('content.reassign.component_name');
+  /**
+   * construct URL parameters for config call
+   * @param componentName
+   * @param data
+   * @return {Array}
+   */
+  getConfigUrlParams: function (componentName, data) {
     var urlParams = [];
     switch (componentName) {
       case 'NAMENODE':
@@ -203,7 +403,22 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
       case 'RESOURCEMANAGER':
         urlParams.push('(type=yarn-site&tag=' + data.Clusters.desired_configs['yarn-site'].tag + ')');
         break;
+      case 'WEBHCAT_SERVER':
+        urlParams.push('(type=webhcat-site&tag=' + data.Clusters.desired_configs['webhcat-site'].tag + ')');
+        break;
+      case 'APP_TIMELINE_SERVER':
+        urlParams.push('(type=yarn-site&tag=' + data.Clusters.desired_configs['yarn-site'].tag + ')');
+        break;
+      case 'OOZIE_SERVER':
+        urlParams.push('(type=oozie-site&tag=' + data.Clusters.desired_configs['oozie-site'].tag + ')');
+        break;
     }
+    return urlParams;
+  },
+
+  onLoadConfigsTags: function (data) {
+    var urlParams = this.getConfigUrlParams(this.get('content.reassign.component_name'), data);
+
     App.ajax.send({
       name: 'reassign.load_configs',
       sender: this,
@@ -215,94 +430,167 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
     });
   },
 
-  configsSitesCount: null,
-
-  configsSitesNumber: null,
-
   onLoadConfigs: function (data) {
-    var isHadoop2Stack = App.get('isHadoop2Stack');
-    var securityEnabled = this.get('content.securityEnabled');
     var componentName = this.get('content.reassign.component_name');
     var targetHostName = this.get('content.reassignHosts.target');
-    var sourceHostName = this.get('content.reassignHosts.source');
     var configs = {};
-    var componentDir = '';
     var secureConfigs = [];
-    this.set('configsSitesNumber', data.items.length);
-    this.set('configsSitesCount', 0);
+
     data.items.forEach(function (item) {
       configs[item.type] = item.properties;
     }, this);
-    switch (componentName) {
-      case 'NAMENODE':
-        if (isHadoop2Stack) {
-          if (App.get('isHaEnabled')) {
-            var nameServices = configs['hdfs-site']['dfs.nameservices'];
-            if (configs['hdfs-site']['dfs.namenode.http-address.' + nameServices + '.nn1'] === sourceHostName + ':50070') {
-              configs['hdfs-site']['dfs.namenode.http-address.' + nameServices + '.nn1'] = targetHostName + ':50070';
-              configs['hdfs-site']['dfs.namenode.https-address.' + nameServices + '.nn1'] = targetHostName + ':50470';
-              configs['hdfs-site']['dfs.namenode.rpc-address.' + nameServices + '.nn1'] = targetHostName + ':8020';
-            } else {
-              configs['hdfs-site']['dfs.namenode.http-address.' + nameServices + '.nn2'] = targetHostName + ':50070';
-              configs['hdfs-site']['dfs.namenode.https-address.' + nameServices + '.nn2'] = targetHostName + ':50470';
-              configs['hdfs-site']['dfs.namenode.rpc-address.' + nameServices + '.nn2'] = targetHostName + ':8020';
-            }
-          } else {
-            configs['hdfs-site']['dfs.namenode.http-address'] = targetHostName + ':50070';
-            configs['hdfs-site']['dfs.namenode.https-address'] = targetHostName + ':50470';
-            configs['core-site']['fs.defaultFS'] = 'hdfs://' + targetHostName + ':8020';
-          }
-          componentDir = configs['hdfs-site']['dfs.namenode.name.dir'];
-        } else {
-          componentDir = configs['hdfs-site']['dfs.name.dir'];
-          configs['hdfs-site']['dfs.http.address'] = targetHostName + ':50070';
-          configs['hdfs-site']['dfs.https.address'] = targetHostName + ':50470';
-          configs['core-site']['fs.default.name'] = 'hdfs://' + targetHostName + ':8020';
-        }
-        if (!App.get('isHaEnabled')) {
-          if (App.Service.find().someProperty('serviceName', 'HBASE')) {
-            configs['hbase-site']['hbase.rootdir'] = configs['hbase-site']['hbase.rootdir'].replace(/\/\/[^\/]*/, '//' + targetHostName + ':8020');
-          }
-        }
-        if (securityEnabled) {
-          secureConfigs.push({keytab: configs['hdfs-site']['dfs.namenode.keytab.file'], principal: configs['hdfs-site']['dfs.namenode.kerberos.principal']});
-          secureConfigs.push({keytab: configs['hdfs-site']['dfs.web.authentication.kerberos.keytab'], principal: configs['hdfs-site']['dfs.web.authentication.kerberos.principal']});
-        }
-        break;
-      case 'SECONDARY_NAMENODE':
-        if (isHadoop2Stack) {
-          componentDir = configs['hdfs-site']['dfs.namenode.checkpoint.dir'];
-          configs['hdfs-site']['dfs.namenode.secondary.http-address'] = targetHostName + ':50090';
-        } else {
-          componentDir = configs['core-site']['fs.checkpoint.dir'];
-          configs['hdfs-site']['dfs.secondary.http.address'] = targetHostName + ':50090';
-        }
-        if (securityEnabled) {
-          secureConfigs.push({keytab: configs['hdfs-site']['dfs.secondary.namenode.keytab.file'], principal: configs['hdfs-site']['dfs.secondary.namenode.kerberos.principal']});
-          secureConfigs.push({keytab: configs['hdfs-site']['dfs.web.authentication.kerberos.keytab'], principal: configs['hdfs-site']['dfs.web.authentication.kerberos.principal']});
-        }
-        break;
-      case 'JOBTRACKER':
-        configs['mapred-site']['mapred.job.tracker.http.address'] = targetHostName + ':50030';
-        configs['mapred-site']['mapred.job.tracker'] = targetHostName + ':50300';
-        if (securityEnabled) {
-          secureConfigs.push({keytab: configs['mapred-site']['mapreduce.jobtracker.keytab.file'], principal: configs['mapred-site']['mapreduce.jobtracker.kerberos.principal']});
-        }
-        break;
-      case 'RESOURCEMANAGER':
-        configs['yarn-site']['yarn.resourcemanager.address'] = targetHostName + ':8050';
-        configs['yarn-site']['yarn.resourcemanager.admin.address'] = targetHostName + ':8141';
-        configs['yarn-site']['yarn.resourcemanager.resource-tracker.address'] = targetHostName + ':8025';
-        configs['yarn-site']['yarn.resourcemanager.scheduler.address'] = targetHostName + ':8030';
-        configs['yarn-site']['yarn.resourcemanager.webapp.address'] = targetHostName + ':8088';
-        configs['yarn-site']['yarn.resourcemanager.hostname'] = targetHostName;
-        if (securityEnabled) {
-          secureConfigs.push({keytab: configs['yarn-site']['yarn.resourcemanager.keytab'], principal: configs['yarn-site']['yarn.resourcemanager.principal']});
-          secureConfigs.push({keytab: configs['yarn-site']['yarn.resourcemanager.webapp.spnego-keytab-file'], principal: configs['yarn-site']['yarn.resourcemanager.webapp.spnego-principal']});
-        }
 
-        break;
+    this.setAdditionalConfigs(configs, componentName, targetHostName);
+    this.setSecureConfigs(secureConfigs, configs, componentName);
+
+    if (componentName === 'NAMENODE') {
+      this.setSpecificNamenodeConfigs(configs, targetHostName);
     }
+
+    if (componentName === 'RESOURCEMANAGER') {
+      this.setSpecificResourceMangerConfigs(configs, targetHostName);
+    }
+
+    this.saveClusterStatus(secureConfigs, this.getComponentDir(configs, componentName));
+    this.saveConfigsToServer(configs);
+  },
+
+  /**
+   * make PUT call to save configs to server
+   * @param configs
+   */
+  saveConfigsToServer: function (configs) {
+    App.ajax.send({
+      name: 'common.across.services.configurations',
+      sender: this,
+      data: {
+        data: '[' + this.getServiceConfigData(configs).toString() + ']'
+      },
+      success: 'onSaveConfigs',
+      error: 'onTaskError'
+    });
+  },
+  /**
+   * gather and format config data before sending to server
+   * @param configs
+   * @return {Array}
+   * @method getServiceConfigData
+   */
+  getServiceConfigData: function (configs) {
+    var componentName = this.get('content.reassign.component_name');
+    var tagName = 'version' + (new Date).getTime();
+    var configData = Object.keys(configs).map(function (_siteName) {
+      return {
+        type: _siteName,
+        tag: tagName,
+        properties: configs[_siteName],
+        service_config_version_note: Em.I18n.t('services.reassign.step4.save.configuration.note').format(App.format.role(componentName))
+      }
+    });
+    var allConfigData = [];
+
+    App.Service.find().forEach(function (service) {
+      var stackService = App.StackService.find().findProperty('serviceName', service.get('serviceName'));
+      if (stackService) {
+        var serviceConfigData = [];
+        Object.keys(stackService.get('configTypesRendered')).forEach(function (type) {
+          var serviceConfigTag = configData.findProperty('type', type);
+          if (serviceConfigTag) {
+            serviceConfigData.pushObject(serviceConfigTag);
+          }
+        }, this);
+        allConfigData.pushObject(JSON.stringify({
+          Clusters: {
+            desired_config: serviceConfigData
+          }
+        }));
+      }
+    }, this);
+    return allConfigData;
+  },
+
+  /**
+   * set specific configs which applies only to NameNode component
+   * @param configs
+   * @param targetHostName
+   */
+  setSpecificNamenodeConfigs: function (configs, targetHostName) {
+    var sourceHostName = this.get('content.reassignHosts.source');
+
+    if (App.get('isHadoop2Stack') && App.get('isHaEnabled')) {
+      var nameServices = configs['hdfs-site']['dfs.nameservices'];
+      var suffix = (configs['hdfs-site']['dfs.namenode.http-address.' + nameServices + '.nn1'] === sourceHostName + ':50070') ? '.nn1' : '.nn2';
+      configs['hdfs-site']['dfs.namenode.http-address.' + nameServices + suffix] = targetHostName + ':50070';
+      configs['hdfs-site']['dfs.namenode.https-address.' + nameServices + suffix] = targetHostName + ':50470';
+      configs['hdfs-site']['dfs.namenode.rpc-address.' + nameServices + suffix] = targetHostName + ':8020';
+    }
+    if (!App.get('isHaEnabled') && App.Service.find('HBASE').get('isLoaded')) {
+      configs['hbase-site']['hbase.rootdir'] = configs['hbase-site']['hbase.rootdir'].replace(/\/\/[^\/]*/, '//' + targetHostName + ':8020');
+    }
+  },
+
+  /**
+   * set specific configs which applies only to ResourceManager component
+   * @param configs
+   * @param targetHostName
+   */
+  setSpecificResourceMangerConfigs: function (configs, targetHostName) {
+    var sourceHostName = this.get('content.reassignHosts.source');
+
+    if (App.get('isHadoop2Stack') && App.get('isRMHaEnabled')) {
+      if (configs['yarn-site']['yarn.resourcemanager.hostname.rm1'] === sourceHostName) {
+        configs['yarn-site']['yarn.resourcemanager.hostname.rm1'] = targetHostName;
+      } else {
+        configs['yarn-site']['yarn.resourcemanager.hostname.rm2'] = targetHostName;
+      }
+    }
+  },
+
+  /**
+   * set secure configs for component
+   * @param secureConfigs
+   * @param configs
+   * @param componentName
+   * @return {Boolean}
+   */
+  setSecureConfigs: function (secureConfigs, configs, componentName) {
+    var securityEnabled = this.get('content.securityEnabled');
+    var component = this.get('secureConfigsMap').findProperty('componentName', componentName);
+    if (Em.isNone(component) || !securityEnabled) return false;
+
+    component.configs.forEach(function (config) {
+      secureConfigs.push({
+        keytab: configs[config.site][config.keytab],
+        principal: configs[config.site][config.principal]
+      });
+    });
+    return true;
+  },
+
+  /**
+   * derive component directory from configurations
+   * @param configs
+   * @param componentName
+   * @return {String}
+   */
+  getComponentDir: function (configs, componentName) {
+    if (componentName === 'NAMENODE') {
+      return (App.get('isHadoop2Stack')) ? configs['hdfs-site']['dfs.namenode.name.dir'] : configs['hdfs-site']['dfs.name.dir'];
+    }
+    else if (componentName === 'SECONDARY_NAMENODE') {
+      return (App.get('isHadoop2Stack')) ? configs['hdfs-site']['dfs.namenode.checkpoint.dir'] : configs['core-site']['fs.checkpoint.dir'];
+    }
+    return '';
+  },
+
+  /**
+   * save cluster status to server
+   *
+   * @param secureConfigs
+   * @param componentDir
+   * @return {Boolean}
+   */
+  saveClusterStatus: function (secureConfigs, componentDir) {
     if (componentDir || secureConfigs.length) {
       App.router.get(this.get('content.controllerName')).saveComponentDir(componentDir);
       App.router.get(this.get('content.controllerName')).saveSecureConfigs(secureConfigs);
@@ -312,27 +600,13 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
         wizardControllerName: this.get('content.controllerName'),
         localdb: App.db.data
       });
+      return true;
     }
-    for (var site in configs) {
-      if (!configs.hasOwnProperty(site)) continue;
-      App.ajax.send({
-        name: 'reassign.save_configs',
-        sender: this,
-        data: {
-          siteName: site,
-          properties: configs[site]
-        },
-        success: 'onSaveConfigs',
-        error: 'onTaskError'
-      });
-    }
+    return false;
   },
 
   onSaveConfigs: function () {
-    this.set('configsSitesCount', this.get('configsSitesCount') + 1);
-    if (this.get('configsSitesCount') === this.get('configsSitesNumber')) {
-      this.onTaskCompleted();
-    }
+    this.onTaskCompleted();
   },
 
   startZooKeeperServers: function () {
@@ -345,39 +619,53 @@ App.ReassignMasterWizardStep4Controller = App.HighAvailabilityProgressPageContro
     this.updateComponent('NAMENODE', components.mapProperty('hostName').without(this.get('content.reassignHosts.source')), "HDFS", "Start");
   },
 
+  /**
+   * make server call to start services
+   */
   startServices: function () {
-    if(this.get('restartYarnMRComponents')) {
-      var list = App.Service.find().mapProperty("serviceName").without("HDFS").join(',');
-      var conf = {
-        name: 'common.services.update',
-        sender: this,
-        data: {
-          "context": "Start without HDFS",
-          "ServiceInfo": {
-            "state": "STARTED"
-          },
-          urlParams: "ServiceInfo/service_name.in("+list+")"},
-        success: 'startPolling',
-        error: 'onTaskError'
-      };
-      App.ajax.send(conf);
-    } else {
-      App.ajax.send({
-        name: 'common.services.update',
-        sender: this,
-        data: {
-          "context": "Start all services",
-          "ServiceInfo": {
-            "state": "STARTED"
-          },
-          urlParams: "params/run_smoke_test=true"
-        },
-        success: 'startPolling',
-        error: 'onTaskError'
-      });
-    }
+    App.ajax.send({
+      name: 'common.services.update',
+      sender: this,
+      data: this.getStartServicesData(),
+      success: 'startPolling',
+      error: 'onTaskError'
+    });
   },
 
+  /**
+   * compute data for call to start services
+   * @return {Object}
+   */
+  getStartServicesData: function () {
+    var unrelatedServices = this.get('unrelatedServicesMap')[this.get('content.reassign.component_name')];
+    var data = {};
+
+    if (unrelatedServices) {
+      var list = App.Service.find().mapProperty("serviceName").filter(function (s) {
+        return !unrelatedServices.contains(s)
+      }).join(',');
+      data = {
+        "context": "Start required services",
+        "ServiceInfo": {
+          "state": "STARTED"
+        },
+        "urlParams": "ServiceInfo/service_name.in(" + list + ")"
+      };
+    } else {
+      data = {
+        "context": "Start all services",
+        "ServiceInfo": {
+          "state": "STARTED"
+        },
+        "urlParams": "params/run_smoke_test=true"
+      };
+    }
+    return data;
+  },
+
+  /**
+   * make DELETE call for each host component on host
+   */
   deleteHostComponents: function () {
     this.set('multiTaskCounter', 0);
     var hostComponents = this.get('hostComponents');

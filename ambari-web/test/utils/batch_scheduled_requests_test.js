@@ -99,11 +99,17 @@ describe('batch_scheduled_requests', function() {
     beforeEach(function() {
       sinon.spy(batchUtils, 'showRollingRestartPopup');
       sinon.spy(batchUtils, 'showWarningRollingRestartPopup');
+      sinon.stub(App, 'get', function(k) {
+        if ('components.rollinRestartAllowed' === k)
+          return ['DATANODE', 'TASKTRACKER', 'NODEMANAGER', 'HBASE_REGIONSERVER', 'SUPERVISOR'];
+        return Em.get(App, k);
+      });
     });
 
     afterEach(function() {
       batchUtils.showRollingRestartPopup.restore();
       batchUtils.showWarningRollingRestartPopup.restore();
+      App.get.restore();
     });
 
     var tests = Em.A([
@@ -129,60 +135,53 @@ describe('batch_scheduled_requests', function() {
 
     beforeEach(function() {
       sinon.spy($, 'ajax');
-      App.testMode = true;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return true;
+        return Em.get(App, k);
+      });
     });
 
     afterEach(function() {
       $.ajax.restore();
-      App.testMode = false;
+      App.get.restore();
     });
 
     var tests = Em.A([
       {
         hostComponentList: Em.A([
           Em.Object.create({
-            componentName: 'n1',
-            host: Em.Object.create({
-              hostName: 'h1'
-            })
+            componentName: 'NAMENODE',
+            hostName: 'h1'
           }),
           Em.Object.create({
-            componentName: 'n1',
-            host: Em.Object.create({
-              hostName: 'h2'
-            })
+            componentName: 'NAMENODE',
+            hostName: 'h2'
           })
         ]),
         e: {
           ajaxCalledOnce: true,
-          resource_filters: [{"component_name":"n1","hosts":"h1,h2"}]
+          resource_filters: [{"service_name": "HDFS", "component_name":"NAMENODE","hosts":"h1,h2"}]
         },
         m: '1 component on 2 hosts'
       },
       {
         hostComponentList: Em.A([
           Em.Object.create({
-            componentName: 'n1',
-            host: Em.Object.create({
-              hostName: 'h1'
-            })
+            componentName: 'NAMENODE',
+            hostName: 'h1'
           }),
           Em.Object.create({
-            componentName: 'n1',
-            host: Em.Object.create({
-              hostName: 'h2'
-            })
+            componentName: 'NAMENODE',
+            hostName: 'h2'
           }),
           Em.Object.create({
-            componentName: 'n2',
-            host: Em.Object.create({
-              hostName: 'h2'
-            })
+            componentName: 'HBASE_MASTER',
+            hostName: 'h2'
           })
         ]),
         e: {
           ajaxCalledOnce: true,
-          resource_filters: [{"component_name":"n1","hosts":"h1,h2"},{"component_name":"n2","hosts":"h2"}]
+          resource_filters: [{"service_name": "HDFS", "component_name":"NAMENODE","hosts":"h1,h2"},{"service_name": "HBASE", "component_name":"HBASE_MASTER","hosts":"h2"}]
         },
         m: '1 component on 2 hosts, 1 on 1 host'
       }

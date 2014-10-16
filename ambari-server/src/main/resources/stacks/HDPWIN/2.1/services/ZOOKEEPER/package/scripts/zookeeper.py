@@ -61,7 +61,3 @@ def configFile(name, template_name=None):
        owner=params.zk_user,
        mode="f"
   )
-
-
-
-

@@ -60,6 +60,13 @@ def yarn(name = None):
     )
     params.HdfsDirectory(None, action="create")
 
+  if name == "nodemanager":
+    Directory(params.nm_local_dirs.split(',') + params.nm_log_dirs.split(','),
+              owner=params.yarn_user,
+              recursive=True,
+              ignore_failures=True,
+              )
+
   Directory([params.yarn_pid_dir, params.yarn_log_dir],
             owner=params.yarn_user,
             group=params.user_group,
@@ -71,39 +78,43 @@ def yarn(name = None):
             group=params.user_group,
             recursive=True
   )
-  Directory(params.nm_local_dirs.split(',')+params.nm_log_dirs.split(',')+[params.yarn_log_dir_prefix],
+  Directory([params.yarn_log_dir_prefix],
             owner=params.yarn_user,
             recursive=True,
             ignore_failures=True,
   )
 
   XmlConfig("core-site.xml",
-            conf_dir=params.config_dir,
+            conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['core-site'],
+            configuration_attributes=params.config['configuration_attributes']['core-site'],
             owner=params.hdfs_user,
             group=params.user_group,
             mode=0644
   )
 
   XmlConfig("mapred-site.xml",
-            conf_dir=params.config_dir,
+            conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['mapred-site'],
+            configuration_attributes=params.config['configuration_attributes']['mapred-site'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644
   )
 
   XmlConfig("yarn-site.xml",
-            conf_dir=params.config_dir,
+            conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['yarn-site'],
+            configuration_attributes=params.config['configuration_attributes']['yarn-site'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644
   )
 
   XmlConfig("capacity-scheduler.xml",
-            conf_dir=params.config_dir,
+            conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['capacity-scheduler'],
+            configuration_attributes=params.config['configuration_attributes']['capacity-scheduler'],
             owner=params.yarn_user,
             group=params.user_group,
             mode=0644
@@ -136,7 +147,7 @@ def yarn(name = None):
        content=Template('mapreduce.conf.j2')
   )
 
-  File(format("{config_dir}/yarn-env.sh"),
+  File(format("{hadoop_conf_dir}/yarn-env.sh"),
        owner=params.yarn_user,
        group=params.user_group,
        mode=0755,
@@ -150,7 +161,7 @@ def yarn(name = None):
          mode=06050
     )
 
-    File(format("{config_dir}/container-executor.cfg"),
+    File(format("{hadoop_conf_dir}/container-executor.cfg"),
          group=params.user_group,
          mode=0644,
          content=Template('container-executor.cfg.j2')
@@ -164,7 +175,7 @@ def yarn(name = None):
     tc_mode = None
     tc_owner = params.hdfs_user
 
-  File(format("{config_dir}/mapred-env.sh"),
+  File(format("{hadoop_conf_dir}/mapred-env.sh"),
        owner=tc_owner,
        content=InlineTemplate(params.mapred_env_sh_template)
   )
@@ -191,23 +202,9 @@ def yarn(name = None):
     XmlConfig("mapred-site.xml",
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations']['mapred-site'],
+              configuration_attributes=params.config['configuration_attributes']['mapred-site'],
               owner=params.mapred_user,
               group=params.user_group
-    )
-
-  if "mapred-queue-acls" in params.config['configurations']:
-    XmlConfig("mapred-queue-acls.xml",
-              conf_dir=params.hadoop_conf_dir,
-              configurations=params.config['configurations'][
-                'mapred-queue-acls'],
-              owner=params.mapred_user,
-              group=params.user_group
-    )
-  elif os.path.exists(
-    os.path.join(params.hadoop_conf_dir, "mapred-queue-acls.xml")):
-    File(os.path.join(params.hadoop_conf_dir, "mapred-queue-acls.xml"),
-         owner=params.mapred_user,
-         group=params.user_group
     )
 
   if "capacity-scheduler" in params.config['configurations']:
@@ -215,6 +212,7 @@ def yarn(name = None):
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations'][
                 'capacity-scheduler'],
+              configuration_attributes=params.config['configuration_attributes']['capacity-scheduler'],
               owner=params.hdfs_user,
               group=params.user_group
     )

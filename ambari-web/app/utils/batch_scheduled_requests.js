@@ -68,17 +68,18 @@ module.exports = {
    * Facade-function for restarting host components of specific service
    * @param {String} serviceName for which service hostComponents should be restarted
    * @param {bool} staleConfigsOnly restart only hostComponents with <code>staleConfig</code> true
+   * @param {Object} query
+   * @param {bool} runMmOperation
    */
   restartAllServiceHostComponents: function(serviceName, staleConfigsOnly, query, runMmOperation) {
     var self = this;
     var context = staleConfigsOnly ? Em.I18n.t('rollingrestart.context.allWithStaleConfigsForSelectedService').format(serviceName) : Em.I18n.t('rollingrestart.context.allForSelectedService').format(serviceName);
-    var services = (serviceName === 'HIVE' && App.Service.find('HCATALOG').get('isLoaded')) ? ['HIVE', 'HCATALOG'] : [serviceName];
 
     if (runMmOperation) {
       this.turnOnOffPassiveRequest('ON', Em.I18n.t('passiveState.turnOnFor').format(serviceName), serviceName);
     }
     this.getComponentsFromServer({
-      services: services,
+      services: [serviceName],
       staleConfigs: staleConfigsOnly ? staleConfigsOnly : null,
       passiveState: 'OFF',
       displayParams: ['host_components/HostRoles/component_name']
@@ -267,7 +268,7 @@ module.exports = {
   },
 
   turnOnOffPassiveRequest: function(state, message, serviceName, callback) {
-    App.ajax.send({
+    return App.ajax.send({
       'name': 'common.service.passive',
       'sender': {
         'successCallback': callback || defaultSuccessCallback,
@@ -452,7 +453,7 @@ module.exports = {
         var waitTime = this.get('innerView.interBatchWaitTimeSeconds');
         var tolerateSize = this.get('innerView.tolerateSize');
         if (this.get('innerView.turnOnMm')) {
-          self.turnOnOffPassiveRequest('ON', Em.I18n.t('passiveState.turnOnFor').format(serviceName), serviceName);
+          self.turnOnOffPassiveRequest('ON', Em.I18n.t('passiveState.turnOnFor').format(serviceName), serviceName.toUpperCase());
         }
         self._doPostBatchRollingRestartRequest(restartComponents, batchSize, waitTime, tolerateSize, function(data, ajaxOptions, params) {
           dialog.hide();

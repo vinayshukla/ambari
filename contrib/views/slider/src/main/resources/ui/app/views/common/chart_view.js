@@ -166,9 +166,13 @@ App.ChartView = Ember.View.extend({
     this.set('chartClass', this.get('chartId'));
     this.set('titleId', idTemplate.replace('{element}', 'title'));
     this.set('titleClass', this.get('titleId'));
-    this.loadData();
+    this.set('interval', 6000);
+    this.run('loadData', true);
   },
 
+  willDestroyElement: function() {
+    this.stop(); // Stop periodic load
+  },
 
   loadData: function() {
     App.ajax.send({
@@ -184,12 +188,8 @@ App.ChartView = Ember.View.extend({
     return {};
   },
 
-  loadDataErrorCallback: function(xhr, textStatus, errorThrown) {
+  loadDataErrorCallback: function() {
     this.set('isReady', true);
-    if (xhr.readyState == 4 && xhr.status) {
-      textStatus = xhr.status + " " + textStatus;
-    }
-    this._showMessage('warn', 'graphs.error.title', textStatus + ' ' + errorThrown);
     this.set('isPopup', false);
     this.set('hasData', false);
   },
@@ -203,7 +203,7 @@ App.ChartView = Ember.View.extend({
    * @type: Function
    */
   _showMessage: function(type, title, message) {
-    var chartOverlay = '#' + this.id;
+    var chartOverlay = '#' + this.get('id');
     var chartOverlayId = chartOverlay + '-chart';
     var chartOverlayY = chartOverlay + '-yaxis';
     var chartOverlayX = chartOverlay + '-xaxis';
@@ -360,18 +360,14 @@ App.ChartView = Ember.View.extend({
         this.draw(seriesData);
         this.set('hasData', true);
         //move yAxis value lower to make them fully visible
-        $("#" + this.id + "-container").find('.y_axis text').attr('y',8);
+        $("#" + this.get('id') + "-container").find('.y_axis text').attr('y',8);
       }
     }
     else {
       this.set('isReady', true);
       //if Axis X time interval is default(60 minutes)
       if(this.get('timeUnitSeconds') === 3600){
-        this._showMessage('info', this.t('graphs.noData.title'), this.t('graphs.noData.message'));
         this.set('hasData', false);
-      }
-      else {
-        this._showMessage('info', this.t('graphs.noData.title'), this.t('graphs.noDataAtTime.message'));
       }
       this.set('isPopup', false);
     }

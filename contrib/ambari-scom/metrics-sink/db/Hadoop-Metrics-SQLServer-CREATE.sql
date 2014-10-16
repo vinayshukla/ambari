@@ -306,7 +306,7 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT name FROM sys.foreign_keys WHERE name = N'FK_CompletedJob_TagSet_TagSetID') 
+IF NOT EXISTS (SELECT name FROM sys.foreign_keys WHERE name = N'FK_CompletedJob_TagSet_TagSetID')
 BEGIN
 	PRINT N'Creating FK_CompletedJob_TagSet_TagSetID...';
 	ALTER TABLE [dbo].[CompletedJob] WITH NOCHECK
@@ -358,7 +358,7 @@ IF NOT EXISTS(SELECT name FROM sys.objects WHERE name = N'uspInsertMetricValue' 
 BEGIN
 	PRINT N'Creating [dbo].[uspInsertMetricValue]...';
 	exec('CREATE PROCEDURE [dbo].[uspInsertMetricValue]
-		@recordID bigint, 
+		@recordID bigint,
 		@metricName nvarchar(256),
 		@metricValue nvarchar(512)
 	AS
@@ -395,7 +395,7 @@ BEGIN
 	PRINT N'Creating [dbo].[uspUpdateHeartBeats]...';
 	exec('CREATE PROCEDURE [dbo].[uspUpdateHeartBeats]
 		@NodeID int,
-		@SourceIP nvarchar(256), 
+		@SourceIP nvarchar(256),
 		@NameNodeLast datetime,
 		@JobTrackerLast datetime,
 		@DataNodeLast datetime,
@@ -435,7 +435,7 @@ BEGIN
 	PRINT N'Creating [dbo].[uspGetMetricRecord]...';
 	exec('CREATE PROCEDURE [dbo].[uspGetMetricRecord]
 		@recordTypeContext nvarchar(256),
-		@recordTypeName nvarchar(256), 
+		@recordTypeName nvarchar(256),
 		@nodeName nvarchar(256),
 		@sourceIP nvarchar(256),
 		@clusterNodeName nvarchar(256),
@@ -454,7 +454,7 @@ BEGIN
 		DECLARE @serviceID int
 		DECLARE @err int
 		DECLARE @recordIDCutoff bigint
-	
+
 		BEGIN TRANSACTION;
 		SELECT @recordTypeID = RecordTypeID FROM RecordType WHERE Context = @recordTypeContext AND Name = @recordTypeName;
 		IF @recordTypeID IS NULL
@@ -464,12 +464,12 @@ BEGIN
 				IF @err <> 0 GOTO Abort;
 			END
 		COMMIT TRANSACTION;
-		
+
 		BEGIN TRANSACTION;
 		SELECT @serviceID = serviceID FROM Service WHERE Name = @serviceName;
 		IF @serviceID IS NULL
 			BEGIN
-				INSERT INTO Service (Name) VALUES (@serviceName);	
+				INSERT INTO Service (Name) VALUES (@serviceName);
 				SELECT @err = @@ERROR, @serviceID = SCOPE_IDENTITY();
 				IF @err <> 0 GOTO Abort;
 			END
@@ -477,16 +477,16 @@ BEGIN
 
 		BEGIN TRANSACTION;
 		SELECT @nodeID = NodeID FROM Node WHERE Name = @nodeName;
-	
+
 		IF @nodeID IS NULL
 			BEGIN
-		    
+
 			/* Start with a node type of uninitialized.  HealthNode will determine node type based on metrics delivered over time. */
-				INSERT INTO Node (Name, LastKnownIP) VALUES (@nodeName, @sourceIP);  
+				INSERT INTO Node (Name, LastKnownIP) VALUES (@nodeName, @sourceIP);
 				SELECT @err = @@ERROR, @nodeID = SCOPE_IDENTITY();
 				IF @err <> 0 GOTO Abort;
 			END
-		
+
 		COMMIT TRANSACTION;
 
 		-- Do our best to determine the cluster node ID based on completely flakey input from user which might be an IP address, a non-FQDN,
@@ -499,7 +499,7 @@ BEGIN
 			SELECT TOP 1 @clusterNodeID = NodeID from Node WHERE LastKnownIP = @clusterNodeName ORDER BY LastNameNodeHeartBeat DESC;
 			IF @clusterNodeID IS NULL
 			BEGIN
-				INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);  
+				INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);
 				SELECT @err = @@ERROR, @clusterNodeID = SCOPE_IDENTITY();
 				IF @err <> 0 GOTO Abort;
 			END
@@ -511,14 +511,14 @@ BEGIN
 		SELECT @clusterNodeID = NodeID FROM Node WHERE Name = @clusterNodeName;
 		IF @clusterNodeID IS NULL
 			BEGIN
-				INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);  
+				INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);
 				SELECT @err = @@ERROR, @clusterNodeID = SCOPE_IDENTITY();
 				IF @err <> 0 GOTO Abort;
 			END
 		END
 		ELSE
 		BEGIN
-			-- We have got a non-FQDN, but the NameNode might know its FQDN, so be careful! We must prefer the FQDN if we can find one. 
+			-- We have got a non-FQDN, but the NameNode might know its FQDN, so be careful! We must prefer the FQDN if we can find one.
 			-- Sadly, yes, this could break things if we are monitoring clusters from different domains.  This is now by design!
 			SELECT TOP 1 @clusterNodeID = NodeID FROM Node WHERE Name LIKE @clusterNodeName + ''.%'' ORDER BY LastNameNodeHeartBeat DESC;
 			IF @clusterNodeID IS NULL
@@ -526,7 +526,7 @@ BEGIN
 					SELECT @clusterNodeID = NodeID FROM Node WHERE Name = @clusterNodeName;
 					if @clusterNodeID IS NULL
 					BEGIN
-						INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);  
+						INSERT INTO Node (Name, LastKnownIP) VALUES (@clusterNodeName, @sourceIP);
 						SELECT @err = @@ERROR, @clusterNodeID = SCOPE_IDENTITY();
 						IF @err <> 0 GOTO Abort;
 					END
@@ -591,7 +591,7 @@ BEGIN
 	PRINT N'Creating [dbo].[ufnIsIPAddress]...';
 	exec('CREATE FUNCTION [dbo].[ufnIsIPAddress]
 	(
-		@inputString nvarchar(max) 
+		@inputString nvarchar(max)
 	)
 	RETURNS BIT
 	AS
@@ -601,7 +601,7 @@ BEGIN
 		DECLARE @count int = 0;
 
 		if (LEN(@inputString) = 0) RETURN 0;
-	
+
 		SELECT @nextPos = CHARINDEX(''.'', @inputString, @currentPos);
 
 		WHILE (@nextPos < LEN(@inputString) AND @count < 4)
@@ -648,7 +648,7 @@ BEGIN
 		DECLARE @ErrorSeverity INT;
 		DECLARE @ErrorState INT;
 
-		SELECT 
+		SELECT
 			@ErrorMessage = ERROR_MESSAGE(),
 			@ErrorSeverity = ERROR_SEVERITY(),
 			@ErrorState = ERROR_STATE();
@@ -669,30 +669,30 @@ BEGIN
 			@noOfDays bigint
 	AS
 	BEGIN
-	
-		IF @noOfDays IS NULL OR @noOfDays < 1 
+
+		IF @noOfDays IS NULL OR @noOfDays < 1
 		BEGIN
 			RAISERROR(''INVALID_ARGUMENT'', 15, 1)
 			RETURN
 		END;
-	
+
 		DECLARE @recordIDCutOff BIGINT
 		SELECT @recordIDCutoff = MAX(RecordID) FROM MetricRecord WHERE DateDiff(day, RecordDate, CURRENT_TIMESTAMP) >= @noOfDays
-	
+
 		IF @recordIDCutoff IS NOT NULL
 		BEGIN
 			BEGIN TRY
 				BEGIN TRANSACTION
-		
+
 				DELETE FROM MetricPair WHERE RecordID <= @recordIDCutoff
 
-				DELETE FROM MetricRecord WHERE RecordID <= @recordIDCutoff			
-		
+				DELETE FROM MetricRecord WHERE RecordID <= @recordIDCutoff
+
 				IF @@TRANCOUNT > 0
 				BEGIN
 					COMMIT TRANSACTION
 				END
-			
+
 			END TRY
 			BEGIN CATCH
 				IF @@TRANCOUNT > 0
@@ -713,35 +713,35 @@ IF NOT EXISTS(SELECT name FROM sys.objects WHERE name = N'ufGetMetrics' and type
 BEGIN
 	PRINT N'Creating [dbo].[ufGetMetrics]...';
     exec('CREATE FUNCTION dbo.ufGetMetrics
-		(@startTimeStamp bigint, 
-		 @endTimeStamp bigint, 
+		(@startTimeStamp bigint,
+		 @endTimeStamp bigint,
 		 @recordTypeContext NVARCHAR(256),
-		 @recordTypeName NVARCHAR(256), 
-		 @metricName NVARCHAR(256), 
+		 @recordTypeName NVARCHAR(256),
+		 @metricName NVARCHAR(256),
 		 @serviceComponentName NVARCHAR(256),
 		 @nodeName NVARCHAR(256)
-		) 
+		)
 		RETURNS TABLE --(MetricTimeStamp bigint, MetricValue NVARCHAR(512))
 		AS
 		RETURN
 		(
 			SELECT  s.RecordTimeStamp AS RecordTimeStamp,
-					mp.MetricValue AS MetricValue 
+					mp.MetricValue AS MetricValue
 			FROM MetricPair mp
-			INNER JOIN (SELECT	mr.RecordID AS RecordID, 
+			INNER JOIN (SELECT	mr.RecordID AS RecordID,
 								mr.RecordTimeStamp AS RecordTimeStamp
-						FROM MetricRecord mr 
-						INNER JOIN RecordType rt ON (mr.RecordTypeId = rt.RecordTypeId) 
+						FROM MetricRecord mr
+						INNER JOIN RecordType rt ON (mr.RecordTypeId = rt.RecordTypeId)
 						INNER JOIN Node nd ON (mr.NodeID = nd.NodeID)
 						INNER JOIN Service sr ON (mr.ServiceID = sr.ServiceID)
-						WHERE rt.Context = @recordTypeContext 
+						WHERE rt.Context = @recordTypeContext
 						AND rt.Name = @recordTypeName
 						AND (nd.Name = @nodeName)
-						AND (sr.Name = @serviceComponentName)    
-						AND mr.RecordTimestamp >= @startTimeStamp 
+						AND (sr.Name = @serviceComponentName)
+						AND mr.RecordTimestamp >= @startTimeStamp
 						AND mr.RecordTimestamp <= @endTimeStamp
 						) s ON (mp.RecordID = s.RecordID)
-			INNER JOIN MetricName mn ON (mp.MetricID = mn.MetricID)  
+			INNER JOIN MetricName mn ON (mp.MetricID = mn.MetricID)
 			WHERE (mn.Name = @metricName)
 		)'
 )
@@ -753,11 +753,11 @@ IF NOT EXISTS(SELECT name FROM sys.objects WHERE name = N'ufGetAggregatedService
 BEGIN
 	PRINT N'Creating [dbo].[ufGetAggregatedServiceMetrics]...';
     exec( 'CREATE FUNCTION [dbo].[ufGetAggregatedServiceMetrics]
-		(@startTimeStamp bigint, 
-		 @endTimeStamp bigint, 
+		(@startTimeStamp bigint,
+		 @endTimeStamp bigint,
 		 @recordTypeContext NVARCHAR(256),
-		 @recordTypeName NVARCHAR(256), 
-		 @metricName NVARCHAR(256), 
+		 @recordTypeName NVARCHAR(256),
+		 @metricName NVARCHAR(256),
 		 @serviceComponentName NVARCHAR(256),
 		 @period integer
 		)
@@ -771,8 +771,8 @@ BEGIN
 			INNER JOIN RecordType rt ON (rt.RecordTypeID = mr.RecordTypeID)
 			INNER JOIN MetricName mn ON (mn.MetricID = mp.MetricID)
 			INNER JOIN Service sr ON (sr.ServiceID = mr.ServiceID)
-			WHERE mr.RecordTimestamp >= @startTimeStamp 
-			AND mr.RecordTimestamp <= @endTimeStamp 
+			WHERE mr.RecordTimestamp >= @startTimeStamp
+			AND mr.RecordTimestamp <= @endTimeStamp
 			AND mn.Name = @metricName
 			AND rt.Context = @recordTypeContext
 			AND rt.Name = @recordTypeName

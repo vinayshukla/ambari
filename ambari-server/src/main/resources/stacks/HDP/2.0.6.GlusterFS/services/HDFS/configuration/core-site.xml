@@ -163,5 +163,4 @@ RULE[2:$1%$2@$0](.%admin@APACHE.ORG)s/./admin/
 DEFAULT
     </description>
   </property>
-
 </configuration>

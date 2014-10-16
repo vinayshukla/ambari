@@ -18,34 +18,55 @@
 
 package org.apache.ambari.view.slider;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ViewStatus {
-	private String version;
-	private boolean viewEnabled;
-	private List<String> viewErrors;
+  public static class Validation {
+    public static enum TYPE {
+      ERROR, WARN
+    }
 
-	public String getVersion() {
-		return version;
-	}
+    public String message;
+    public String type;
 
-	public void setVersion(String version) {
-		this.version = version;
-	}
+    public Validation(String message, String type) {
+      this.message = message;
+      this.type = type;
+    }
+    public Validation(String message) {
+      this.message = message;
+      this.type = TYPE.ERROR.name();
+    }
+  }
 
-	public boolean isViewEnabled() {
-		return viewEnabled;
-	}
+  private String version;
+  private Map<String, String> parameters = new HashMap<String, String>();
+  private List<Validation> validations = new ArrayList<ViewStatus.Validation>();
 
-	public void setViewEnabled(boolean viewEnabled) {
-		this.viewEnabled = viewEnabled;
-	}
+  public String getVersion() {
+    return version;
+  }
 
-	public List<String> getViewErrors() {
-		return viewErrors;
-	}
+  public void setVersion(String version) {
+    this.version = version;
+  }
 
-	public void setViewErrors(List<String> viewErrors) {
-		this.viewErrors = viewErrors;
-	}
+  public Map<String, String> getParameters() {
+    return parameters;
+  }
+
+  public void setParameters(Map<String, String> parameters) {
+    this.parameters = parameters;
+  }
+
+  public List<Validation> getValidations() {
+    return validations;
+  }
+
+  public void setValidations(List<Validation> validations) {
+    this.validations = validations;
+  }
 }

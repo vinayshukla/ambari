@@ -24,15 +24,26 @@ import status_params
 
 # server configurations
 config = Script.get_config()
+tmp_dir = Script.get_tmp_dir()
+
+#RPM versioning support
+rpm_version = default("/configurations/cluster-env/rpm_version", None)
+
+#hadoop params
+if rpm_version:
+  zk_home = '/usr/hdp/current/zookeeper-client'
+  zk_bin = '/usr/hdp/current/zookeeper-client/bin'
+  smoke_script = '/usr/hdp/current/zookeeper-client/bin/zkCli.sh'
+else:
+  zk_home = '/usr'
+  zk_bin = '/usr/lib/zookeeper/bin'
+  smoke_script = "/usr/lib/zookeeper/bin/zkCli.sh"
 
 config_dir = "/etc/zookeeper/conf"
 zk_user =  config['configurations']['zookeeper-env']['zk_user']
 hostname = config['hostname']
-zk_bin = '/usr/lib/zookeeper/bin'
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 zk_env_sh_template = config['configurations']['zookeeper-env']['content']
-
-smoke_script = "/usr/lib/zookeeper/bin/zkCli.sh"
 
 zk_log_dir = config['configurations']['zookeeper-env']['zk_log_dir']
 zk_data_dir = config['configurations']['zookeeper-env']['zk_data_dir']
@@ -62,11 +73,10 @@ zookeeper_hosts.sort()
 zk_keytab_path = config['configurations']['zookeeper-env']['zookeeper_keytab_path']
 zk_server_jaas_file = format("{config_dir}/zookeeper_jaas.conf")
 zk_client_jaas_file = format("{config_dir}/zookeeper_client_jaas.conf")
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 
-smoke_user_keytab = config['configurations']['hadoop-env']['smokeuser_keytab']
-smokeuser = config['configurations']['hadoop-env']['smokeuser']
+smoke_user_keytab = config['configurations']['cluster-env']['smokeuser_keytab']
+smokeuser = config['configurations']['cluster-env']['smokeuser']
 kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/usr/sbin"])
 
 #log4j.properties

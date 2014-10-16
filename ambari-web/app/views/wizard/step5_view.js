@@ -42,14 +42,16 @@ App.WizardStep5View = Em.View.extend({
   setCoHostedComponentText: function () {
     var coHostedComponents = App.StackServiceComponent.find().filterProperty('isOtherComponentCoHosted').filterProperty('stackService.isSelected');
     var coHostedComponentsText = '';
-    coHostedComponents.forEach(function (serviceComponent, index) {
-      var coHostedComponentsDisplayNames = serviceComponent.get('coHostedComponents').map(function (item) {
-        return App.StackServiceComponent.find().findProperty('componentName', item).get('displayName');
-      });
-      var componentTextArr = [serviceComponent.get('displayName')].concat(coHostedComponentsDisplayNames);
-      coHostedComponents[index] = stringUtils.getFormattedStringFromArray(componentTextArr);
-      coHostedComponentsText += '<br/>' + Em.I18n.t('installer.step5.body.coHostedComponents').format(coHostedComponents[index]);
-    }, this);
+    if (!this.get('controller').get('isReassignWizard')) {
+      coHostedComponents.forEach(function (serviceComponent, index) {
+        var coHostedComponentsDisplayNames = serviceComponent.get('coHostedComponents').map(function (item) {
+          return App.StackServiceComponent.find().findProperty('componentName', item).get('displayName');
+        });
+        var componentTextArr = [serviceComponent.get('displayName')].concat(coHostedComponentsDisplayNames);
+        coHostedComponents[index] = stringUtils.getFormattedStringFromArray(componentTextArr);
+        coHostedComponentsText += '<br/>' + Em.I18n.t('installer.step5.body.coHostedComponents').format(coHostedComponents[index]);
+      }, this);
+    }
 
     this.set('coHostedComponentText', coHostedComponentsText);
   }
@@ -127,6 +129,7 @@ App.SelectHostView = Em.Select.extend(App.SelectHost, {
   didInsertElement: function () {
     this.initContent();
     this.set("value", this.get("component.selectedHost"));
+    App.popover($("[rel=popover]"), {'placement': 'right', 'trigger': 'hover'});
   },
 
   /**

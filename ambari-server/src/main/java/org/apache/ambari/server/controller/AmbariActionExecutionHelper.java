@@ -20,7 +20,6 @@ package org.apache.ambari.server.controller;
 
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.COMMAND_TIMEOUT;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.COMPONENT_CATEGORY;
-import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.JDK_LOCATION;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT;
 import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.SCRIPT_TYPE;
 
@@ -206,12 +205,10 @@ public class AmbariActionExecutionHelper {
    * Add tasks to the stage based on the requested action execution
    * @param actionContext the context associated with the action
    * @param stage stage into which tasks must be inserted
-   * @param hostLevelParams host level params to send with the command
    * @throws AmbariException
    */
   public void addExecutionCommandsToStage(
-          final ActionExecutionContext actionContext,
-          Stage stage, Map<String, String> hostLevelParams)
+          final ActionExecutionContext actionContext, Stage stage)
       throws AmbariException {
 
     String actionName = actionContext.getActionName();
@@ -272,11 +269,13 @@ public class AmbariActionExecutionHelper {
                 }
               }
       );
-      LOG.debug("Ignoring action for hosts due to maintenance state." +
+      if (! ignoredHosts.isEmpty()) {
+        LOG.debug("Ignoring action for hosts due to maintenance state." +
             "Ignored hosts =" + ignoredHosts + ", component="
             + componentName + ", service=" + serviceName
             + ", cluster=" + cluster.getClusterName() + ", " +
             "actionName=" + actionContext.getActionName());
+      }
     }
 
     // If request did not specify hosts and there exists no host
@@ -331,14 +330,14 @@ public class AmbariActionExecutionHelper {
               serviceName);
 
       Map<String, Map<String, String>> configurations = new TreeMap<String, Map<String, String>>();
+      Map<String, Map<String, Map<String, String>>> configurationAttributes = new TreeMap<String, Map<String, Map<String, String>>>();
       Map<String, Map<String, String>> configTags = null;
       if (!serviceName.isEmpty() && null != cluster) {
         configTags = managementController.findConfigurationTagsWithOverrides(cluster, hostName);
       }
 
-      Map<String, String> commandParams = actionContext.getParameters();
+      Map<String, String> commandParams = new TreeMap<String, String>();
       commandParams.put(COMMAND_TIMEOUT, actionContext.getTimeout().toString());
-      commandParams.put(JDK_LOCATION, managementController.getJdkResourceUrl());
       commandParams.put(SCRIPT, actionName + ".py");
       commandParams.put(SCRIPT_TYPE, TYPE_PYTHON);
 
@@ -350,8 +349,8 @@ public class AmbariActionExecutionHelper {
         * combined with the same code at createHostAction()
         */
       execCmd.setConfigurations(configurations);
+      execCmd.setConfigurationAttributes(configurationAttributes);
       execCmd.setConfigurationTags(configTags);
-      execCmd.setHostLevelParams(hostLevelParams);
       execCmd.setCommandParams(commandParams);
       execCmd.setServiceName(serviceName == null || serviceName.isEmpty() ?
         resourceFilter.getServiceName() : serviceName);

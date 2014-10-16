@@ -82,6 +82,7 @@ msg_ids = {'Host::Ping':'host_down',
            'REGIONSERVER::RegionServer process down':'regionserver_process_down',
            'HBASE::Percent RegionServers down':'regionservers_down',
            'HIVE-METASTORE::Hive Metastore status check':'hive_metastore_process_down',
+           'HIVE-METASTORE::Hive Metastore process':'hive_metastore_process_down',
            'ZOOKEEPER::Percent ZooKeeper Servers down':'zookeepers_down',
            'ZOOKEEPER::ZooKeeper Server process down':'zookeeper_process_down',
            'OOZIE::Oozie Server status check':'oozie_down',
@@ -103,7 +104,7 @@ msg_ids = {'Host::Ping':'host_down',
            'NAMENODE::NameNode process':'namenode_process',
            'NAMENODE::Secondary NameNode process':'secondary_namenode_process',
            'JOURNALNODE::JournalNode process':'journalnode_process',
-           'ZOOKEEPER::ZooKeeper Server process':'zookeeper_server_process',
+           'ZOOKEEPER::ZooKeeper Server process':'zookeeper_process_down',
            'JOBTRACKER::JobTracker process':'jobtracker_process',
            'TASKTRACKER::TaskTracker process':'tasktracker_process',
            'GANGLIA::Ganglia Server process':'ganglia_server_process',
@@ -114,14 +115,24 @@ msg_ids = {'Host::Ping':'host_down',
            'GANGLIA::Ganglia Monitor process for ResourceManager':'ganglia_monitor_process',
            'GANGLIA::Ganglia Monitor process for HistoryServer':'ganglia_monitor_process',
            'HBASEMASTER::HBase Master process':'hbase_master_process',
+           'HBASE::Percent RegionServers live':'regionservers_down',
            'REGIONSERVER::RegionServer process':'regionserver_process',
            'NAGIOS::Nagios status log freshness':'nagios_process',
            'FLUME::Flume Agent process':'flume_agent_process',
-           'OOZIE::Oozie Server status':'oozie_server_process',
+           'OOZIE::Oozie Server status':'oozie_down',
            'HIVE-METASTORE::Hive Metastore status':'hive_metastore_process',
-           'WEBHCAT::WebHCat Server status':'webhcat_server_process',
-           'RESOURCEMANAGER::ResourceManager process':'resourcemanager_process',
-           'NODEMANAGER::NodeManager process':'nodemanager_process',
+           'WEBHCAT::WebHCat Server status':'webhcat_down',
+           'RESOURCEMANAGER::ResourceManager process':'resourcemanager_process_down',
+           'RESOURCEMANAGER::ResourceManager RPC latency':'resourcemanager_rpc_latency',
+           'RESOURCEMANAGER::ResourceManager CPU utilization':'resourcemanager_cpu_utilization',
+           'RESOURCEMANAGER::ResourceManager Web UI':'recourcemanager_ui',
+           'NODEMANAGER::NodeManager process':'nodemanager_process_down',
+           'NODEMANAGER::NodeManager health':'nodemanager_health',
+           'NODEMANAGER::Percent NodeManagers live':'nodemanagers_down',
+           'APP_TIMELINE_SERVER::App Timeline Server process':'timelineserver_process',
+           'JOBHISTORY::HistoryServer RPC latency':'historyserver_rpc_latency',
+           'JOBHISTORY::HistoryServer CPU utilization':'historyserver_cpu_utilization',
+           'JOBHISTORY::HistoryServer Web UI':'historyserver_ui',
            'JOBHISTORY::HistoryServer process':'historyserver_process'}
 
 # Determine the severity of the TVI alert based on the Nagios alert state.
@@ -142,13 +153,13 @@ def determine_severity(state, service):
 # Determine the msg id for the TVI alert from based on the service which generates the Nagios alert.
 # The msg id is used to correlate a log msg to a TVI rule.
 def determine_msg_id(service, severity):
-    if msg_ids.has_key(service):
-        msg_id = msg_ids[service]
-        if severity == 'OK':
-            msg_id = '{0}_ok'.format(msg_id)
-
-        return msg_id
-    else: return 'HADOOP_UNKNOWN_MSG'
+  for k, v in msg_ids.iteritems():
+    if(k in service):
+      msg_id = v
+      if severity == 'OK':
+        msg_id = '{0}_ok'.format(msg_id)
+      return msg_id
+  return 'HADOOP_UNKNOWN_MSG'
 
 
 # Determine the domain.  Currently the domain is always 'Hadoop'.

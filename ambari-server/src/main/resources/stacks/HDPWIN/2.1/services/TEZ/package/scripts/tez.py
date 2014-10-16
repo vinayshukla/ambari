@@ -28,5 +28,3 @@ def tez():
               owner=params.tez_user,
               mode="f"
     )
-
-

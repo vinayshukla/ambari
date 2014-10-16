@@ -37,16 +37,18 @@ from DataCleaner import DataCleaner
 import socket
 logger = logging.getLogger()
 
+formatstr = "%(levelname)s %(asctime)s %(filename)s:%(lineno)d - %(message)s"
+agentPid = os.getpid()
+config = AmbariConfig.AmbariConfig()
+configFile = config.CONFIG_FILE
+two_way_ssl_property = config.TWO_WAY_SSL_PROPERTY
+
 IS_WINDOWS = platform.system() == "Windows"
 
 if IS_WINDOWS:
   from HeartbeatHandlers_windows import bind_signal_handlers
 else:
   from HeartbeatStopHandler_linux import bind_signal_handlers
-
-formatstr = "%(levelname)s %(asctime)s %(filename)s:%(lineno)d - %(message)s"
-agentPid = os.getpid()
-
 
 def setup_logging(verbose):
   formatter = logging.Formatter(formatstr)
@@ -99,8 +101,10 @@ def resolve_ambari_config():
 def perform_prestart_checks(expected_hostname):
   # Check if current hostname is equal to expected one (got from the server
   # during bootstrap.
+  global config
+
   if expected_hostname is not None:
-    current_hostname = hostname.hostname()
+    current_hostname = hostname.hostname(config)
     if current_hostname != expected_hostname:
       print("Determined hostname does not match expected. Please check agent "
             "log for details")
@@ -174,10 +178,12 @@ def main(heartbeat_stop_callback):
 
   setup_logging(options.verbose)
 
-  default_cfg = { 'agent' : { 'prefix' : '/home/ambari' } }
-  config = ConfigParser.RawConfigParser(default_cfg)
+  default_cfg = {'agent': {'prefix': '/home/ambari'}}
+  config.load(default_cfg)
 
-  if (len(sys.argv) >1) and sys.argv[1]=='stop':
+  bind_signal_handlers(agentPid)
+
+  if (len(sys.argv) > 1) and sys.argv[1] == 'stop':
     stop_agent()
 
   # Check for ambari configuration file.
@@ -199,7 +205,7 @@ def main(heartbeat_stop_callback):
     ping_port_listener = PingPortListener(config)
   except Exception as ex:
     err_message = "Failed to start ping port listener of: " + str(ex)
-    logger.error(err_message);
+    logger.error(err_message)
     sys.stderr.write(err_message)
     sys.exit(1)
   ping_port_listener.start()
@@ -207,7 +213,7 @@ def main(heartbeat_stop_callback):
   update_log_level(config)
 
   server_hostname = config.get('server', 'hostname')
-  server_url = 'https://' + server_hostname + ':' + config.get('server', 'url_port')
+  server_url = config.get_api_url()
 
   try:
     server_ip = socket.gethostbyname(server_hostname)

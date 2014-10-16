@@ -18,7 +18,6 @@
 
 package org.apache.ambari.server.state;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -28,6 +27,9 @@ import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ServiceComponentNotFoundException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.controller.ServiceResponse;
+import org.apache.ambari.server.events.MaintenanceModeEvent;
+import org.apache.ambari.server.events.ServiceInstalledEvent;
+import org.apache.ambari.server.events.publishers.AmbariEventPublisher;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
 import org.apache.ambari.server.orm.dao.ClusterServiceDAO;
 import org.apache.ambari.server.orm.dao.ServiceDesiredStateDAO;
@@ -42,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 import com.google.inject.assistedinject.Assisted;
 import com.google.inject.assistedinject.AssistedInject;
 import com.google.inject.persist.Transactional;
@@ -75,6 +78,12 @@ public class ServiceImpl implements Service {
   @Inject
   private AmbariMetaInfo ambariMetaInfo;
 
+  /**
+   * Used to publish events relating to service CRUD operations.
+   */
+  @Inject
+  private AmbariEventPublisher eventPublisher;
+
   private void init() {
     // TODO load from DB during restart?
   }
@@ -93,14 +102,14 @@ public class ServiceImpl implements Service {
 
     this.cluster = cluster;
 
-    this.components = new HashMap<String, ServiceComponent>();
+    components = new HashMap<String, ServiceComponent>();
 
     StackId stackId = cluster.getDesiredStackVersion();
     setDesiredStackVersion(stackId);
 
     ServiceInfo sInfo = ambariMetaInfo.getServiceInfo(stackId.getStackName(),
         stackId.getStackVersion(), serviceName);
-    this.isClientOnlyService = sInfo.isClientOnlyService();
+    isClientOnlyService = sInfo.isClientOnlyService();
 
     init();
   }
@@ -114,23 +123,31 @@ public class ServiceImpl implements Service {
     this.cluster = cluster;
 
     //TODO check for null states?
-    this.serviceDesiredStateEntity = serviceEntity.getServiceDesiredStateEntity();
+    serviceDesiredStateEntity = serviceEntity.getServiceDesiredStateEntity();
 
-    this.components = new HashMap<String, ServiceComponent>();
+    components = new HashMap<String, ServiceComponent>();
 
     if (!serviceEntity.getServiceComponentDesiredStateEntities().isEmpty()) {
       for (ServiceComponentDesiredStateEntity serviceComponentDesiredStateEntity
           : serviceEntity.getServiceComponentDesiredStateEntities()) {
-        components.put(serviceComponentDesiredStateEntity.getComponentName(),
-            serviceComponentFactory.createExisting(this,
-                serviceComponentDesiredStateEntity));
+        try {
+            components.put(serviceComponentDesiredStateEntity.getComponentName(),
+                serviceComponentFactory.createExisting(this,
+                    serviceComponentDesiredStateEntity));
+          } catch(ProvisionException ex) {
+            StackId stackId = cluster.getCurrentStackVersion();
+            LOG.error(String.format("Can not get component info: stackName=%s, stackVersion=%s, serviceName=%s, componentName=%s",
+                stackId.getStackName(), stackId.getStackVersion(),
+                serviceEntity.getServiceName(),serviceComponentDesiredStateEntity.getComponentName()));
+            ex.printStackTrace();
+          }
       }
     }
 
     StackId stackId = getDesiredStackVersion();
     ServiceInfo sInfo = ambariMetaInfo.getServiceInfo(stackId.getStackName(),
         stackId.getStackVersion(), getName());
-    this.isClientOnlyService = sInfo.isClientOnlyService();
+    isClientOnlyService = sInfo.isClientOnlyService();
 
     persisted = true;
   }
@@ -225,7 +242,7 @@ public class ServiceImpl implements Service {
               + ", serviceName=" + getName()
               + ", serviceComponentName=" + component.getName());
         }
-        this.components.put(component.getName(), component);
+        components.put(component.getName(), component);
       } finally {
         readWriteLock.writeLock().unlock();
       }
@@ -256,7 +273,7 @@ public class ServiceImpl implements Service {
               + ", serviceComponentName=" + serviceComponentName);
         }
         ServiceComponent component = serviceComponentFactory.createNew(this, serviceComponentName);
-        this.components.put(component.getName(), component);
+        components.put(component.getName(), component);
         return component;
       } finally {
         readWriteLock.writeLock().unlock();
@@ -280,7 +297,7 @@ public class ServiceImpl implements Service {
               getName(),
               componentName);
         }
-        return this.components.get(componentName);
+        return components.get(componentName);
       } finally {
         readWriteLock.readLock().unlock();
       }
@@ -297,7 +314,7 @@ public class ServiceImpl implements Service {
     try {
       readWriteLock.readLock().lock();
       try {
-        return this.serviceDesiredStateEntity.getDesiredState();
+        return serviceDesiredStateEntity.getDesiredState();
       } finally {
         readWriteLock.readLock().unlock();
       }
@@ -319,10 +336,10 @@ public class ServiceImpl implements Service {
               + ", clusterName=" + cluster.getClusterName()
               + ", clusterId=" + cluster.getClusterId()
               + ", serviceName=" + getName()
-              + ", oldDesiredState=" + this.getDesiredState()
+              + ", oldDesiredState=" + getDesiredState()
               + ", newDesiredState=" + state);
         }
-        this.serviceDesiredStateEntity.setDesiredState(state);
+        serviceDesiredStateEntity.setDesiredState(state);
         saveIfPersisted();
       } finally {
         readWriteLock.writeLock().unlock();
@@ -384,7 +401,7 @@ public class ServiceImpl implements Service {
             getName(),
             getDesiredStackVersion().getStackId(),
             getDesiredState().toString());
-        
+
         r.setMaintenanceState(getMaintenanceState().name());
         return r;
       } finally {
@@ -458,6 +475,15 @@ public class ServiceImpl implements Service {
           refresh();
           cluster.refresh();
           persisted = true;
+
+          // publish the service installed event
+          StackId stackId = cluster.getDesiredStackVersion();
+
+          ServiceInstalledEvent event = new ServiceInstalledEvent(
+              getClusterId(), stackId.getStackName(),
+              stackId.getStackVersion(), getName());
+
+          eventPublisher.publish(event);
         } else {
           saveIfPersisted();
         }
@@ -472,16 +498,16 @@ public class ServiceImpl implements Service {
 
   @Transactional
   protected void persistEntities() {
-    ClusterEntity clusterEntity = clusterDAO.findById(cluster.getClusterId());
+    long clusterId = cluster.getClusterId();
+
+    ClusterEntity clusterEntity = clusterDAO.findById(clusterId);
     serviceEntity.setClusterEntity(clusterEntity);
     clusterServiceDAO.create(serviceEntity);
     serviceDesiredStateDAO.create(serviceDesiredStateEntity);
     clusterEntity.getClusterServiceEntities().add(serviceEntity);
     clusterDAO.merge(clusterEntity);
-//    serviceEntity =
-        clusterServiceDAO.merge(serviceEntity);
-//    serviceDesiredStateEntity =
-        serviceDesiredStateDAO.merge(serviceDesiredStateEntity);
+    clusterServiceDAO.merge(serviceEntity);
+    serviceDesiredStateDAO.merge(serviceDesiredStateEntity);
   }
 
   @Transactional
@@ -650,7 +676,7 @@ public class ServiceImpl implements Service {
 
     clusterServiceDAO.removeByPK(pk);
   }
-  
+
   @Override
   public void setMaintenanceState(MaintenanceState state) {
     clusterGlobalLock.readLock().lock();
@@ -659,6 +685,10 @@ public class ServiceImpl implements Service {
         readWriteLock.writeLock().lock();
         serviceDesiredStateEntity.setMaintenanceState(state);
         saveIfPersisted();
+
+        // broadcast the maintenance mode change
+        MaintenanceModeEvent event = new MaintenanceModeEvent(state, this);
+        eventPublisher.publish(event);
       } finally {
         readWriteLock.writeLock().unlock();
       }
@@ -666,7 +696,7 @@ public class ServiceImpl implements Service {
       clusterGlobalLock.readLock().unlock();
     }
   }
-  
+
   @Override
   public MaintenanceState getMaintenanceState() {
     return serviceDesiredStateEntity.getMaintenanceState();

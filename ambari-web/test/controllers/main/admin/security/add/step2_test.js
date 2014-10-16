@@ -133,8 +133,6 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       sinon.stub(controller, 'clearStep', Em.K);
       sinon.stub(controller, 'loadUsers', Em.K);
       sinon.stub(controller, 'addUserPrincipals', Em.K);
-      sinon.stub(controller, 'addMasterHostToGlobals', Em.K);
-      sinon.stub(controller, 'addSlaveHostToGlobals', Em.K);
       sinon.stub(controller, 'renderServiceConfigs', Em.K);
       sinon.stub(controller, 'changeCategoryOnHa', Em.K);
       sinon.stub(controller, 'setStoredConfigsValue', Em.K);
@@ -150,8 +148,6 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       expect(controller.clearStep.calledOnce).to.be.true;
       expect(controller.loadUsers.calledOnce).to.be.true;
       expect(controller.addUserPrincipals.calledWith(['service1'], ['user1'])).to.be.true;
-      expect(controller.addMasterHostToGlobals.calledOnce).to.be.true;
-      expect(controller.addSlaveHostToGlobals.calledOnce).to.be.true;
       expect(controller.addHostPrincipals.calledOnce).to.be.true;
       expect(controller.renderServiceConfigs.calledWith(['service1'])).to.be.true;
       expect(controller.changeCategoryOnHa.calledWith(['service1'], [{}])).to.be.true;
@@ -160,8 +156,6 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       controller.clearStep.restore();
       controller.loadUsers.restore();
       controller.addUserPrincipals.restore();
-      controller.addMasterHostToGlobals.restore();
-      controller.addSlaveHostToGlobals.restore();
       controller.renderServiceConfigs.restore();
       controller.changeCategoryOnHa.restore();
       controller.setStoredConfigsValue.restore();
@@ -313,7 +307,7 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
           hostComponents: [
             Em.Object.create({
               componentName: 'comp1',
-              host: {hostName: 'host1'}
+              hostName: 'host1'
             })
           ]
         });
@@ -388,8 +382,8 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
         }
       ]);
       expect(controller.setHostToPrincipal('HDFS', 'config1', 'principal1', 'name1')).to.be.true;
-      expect(controller.get('content.services')[0].configs[0].defaultValue).to.equal('Value1');
-      expect(controller.get('content.services')[0].configs[1].defaultValue).to.equal('name1value1');
+     // expect(controller.get('content.services')[0].configs[0].defaultValue).to.equal('Value1');
+      expect(controller.get('content.services')[0].configs[1].defaultValue).to.equal('name1Value1');
     });
   });
 
@@ -414,7 +408,10 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       sinon.stub(App.router, 'get', function () {
         return Em.Object.create({serviceUsers: null})
       });
-      App.testMode = true;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return true;
+        return Em.get(App, k);
+      });
       controller.loadUsers();
       expect(controller.get('securityUsers').mapProperty('name')).to.eql(["hdfs_user",
         "mapred_user",
@@ -422,12 +419,16 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
         "hive_user",
         "smokeuser"
       ]);
+      App.get.restore();
     });
     it('serviceUsers is empty, testMode = true', function () {
       sinon.stub(App.router, 'get', function () {
         return Em.Object.create({serviceUsers: []})
       });
-      App.testMode = true;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return true;
+        return Em.get(App, k);
+      });
       controller.loadUsers();
       expect(controller.get('securityUsers').mapProperty('name')).to.eql(["hdfs_user",
         "mapred_user",
@@ -435,6 +436,7 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
         "hive_user",
         "smokeuser"
       ]);
+      App.get.restore();
     });
     it('serviceUsers is null, testMode = false', function () {
       sinon.stub(App.router, 'get', function () {
@@ -445,13 +447,17 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
           {}
         ];
       });
-      App.testMode = false;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return false;
+        return Em.get(App, k);
+      });
       controller.loadUsers();
       expect(controller.get('securityUsers')).to.eql([
         {}
       ]);
       expect(App.db.getSecureUserInfo.calledOnce).to.be.true;
       App.db.getSecureUserInfo.restore();
+      App.get.restore();
     });
     it('serviceUsers is empty, testMode = false', function () {
       sinon.stub(App.router, 'get', function () {
@@ -462,52 +468,82 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
           {}
         ];
       });
-      App.testMode = false;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return false;
+        return Em.get(App, k);
+      });
       controller.loadUsers();
       expect(controller.get('securityUsers')).to.eql([
         {}
       ]);
       expect(App.db.getSecureUserInfo.calledOnce).to.be.true;
       App.db.getSecureUserInfo.restore();
+      App.get.restore();
     });
   });
 
   describe('#addUserPrincipals()', function () {
-
+    beforeEach(function () {
+      sinon.stub(controller, 'setUserPrincipalValue', function () {
+        return true;
+      });
+    });
     afterEach(function () {
       controller.setUserPrincipalValue.restore();
     });
 
-    var serviceConfigs = [
+    var generalConfigs = [
       {
         serviceName: 'GENERAL',
         configs: [
-          {name: 'hbase_principal_name'},
-          {name: 'hbase_user_keytab'}
+          {
+            name: 'hbase_principal_name',
+            isVisible: false
+          },
+          {
+            name: 'hbase_user_keytab',
+            isVisible: false
+          },
+          {
+            name: 'hdfs_principal_name',
+            isVisible: false
+          },
+          {
+            name: 'hdfs_user_keytab',
+            isVisible: false
+          }
         ]
       }
     ];
     var securityUsers = [];
 
-    it('HBASE service is not installed', function () {
-      sinon.stub(controller, 'setUserPrincipalValue', Em.K);
+    it('HBASE or HDFS services are not installed neither', function () {
+      var serviceConfigs = generalConfigs.slice(0);
       controller.addUserPrincipals(serviceConfigs, securityUsers);
-      expect(controller.setUserPrincipalValue.calledTwice).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hbase_principal_name').isVisible).to.be.false;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hbase_user_keytab').isVisible).to.be.false;
     });
-    it('HBASE service is installed, setUserPrincipalValue return false', function () {
-      sinon.stub(controller, 'setUserPrincipalValue', function () {
-        return false;
-      });
+    it('HBASE service is installed', function () {
+      var serviceConfigs = generalConfigs.slice(0);
       serviceConfigs.push({serviceName: 'HBASE'});
       controller.addUserPrincipals(serviceConfigs, securityUsers);
-      expect(controller.setUserPrincipalValue.calledThrice).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hbase_principal_name').isVisible).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hbase_user_keytab').isVisible).to.be.true;
     });
-    it('HBASE service is installed, setUserPrincipalValue return true', function () {
-      sinon.stub(controller, 'setUserPrincipalValue', function () {
-        return true;
-      });
+    it('HDFS service is installed', function () {
+      var serviceConfigs = generalConfigs.slice(0);
+      serviceConfigs.push({serviceName: 'HDFS'});
       controller.addUserPrincipals(serviceConfigs, securityUsers);
-      expect(controller.setUserPrincipalValue.calledThrice).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hdfs_principal_name').isVisible).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hdfs_user_keytab').isVisible).to.be.true;
+    });
+    it('HDFS and HBASE services are installed', function () {
+      var serviceConfigs = generalConfigs.slice(0);
+      serviceConfigs.push({serviceName: 'HDFS'});
+      serviceConfigs.push({serviceName: 'HBASE'});
+      controller.addUserPrincipals(serviceConfigs, securityUsers);
+      expect(serviceConfigs[0].configs.findProperty('name', 'hdfs_principal_name').isVisible).to.be.true;
+      expect(serviceConfigs[0].configs.findProperty('name', 'hdfs_user_keytab').isVisible).to.be.true;
       expect(serviceConfigs[0].configs.findProperty('name', 'hbase_principal_name').isVisible).to.be.true;
       expect(serviceConfigs[0].configs.findProperty('name', 'hbase_user_keytab').isVisible).to.be.true;
     });
@@ -528,52 +564,6 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       var userPrincipal = {};
       expect(controller.setUserPrincipalValue(user, userPrincipal)).to.be.true;
       expect(userPrincipal.defaultValue).to.equal('value1');
-    });
-  });
-
-  describe('#addSlaveHostToGlobals()', function () {
-    it('slaveComponentMap is empty', function () {
-      sinon.stub(controller, 'setHostsToConfig', Em.K);
-      controller.set('slaveComponentMap', []);
-      controller.addSlaveHostToGlobals();
-      expect(controller.setHostsToConfig.called).to.be.false;
-      controller.setHostsToConfig.restore();
-    });
-    it('Correct data', function () {
-      sinon.stub(controller, 'setHostsToConfig', Em.K);
-      controller.set('slaveComponentMap', [
-        {
-          serviceName: 'HDFS',
-          configName: 'datanode_hosts',
-          component: 'DATANODE'
-        }
-      ]);
-      controller.addSlaveHostToGlobals();
-      expect(controller.setHostsToConfig.calledWith('HDFS', 'datanode_hosts', ['DATANODE'])).to.be.true;
-      controller.setHostsToConfig.restore();
-    });
-  });
-
-  describe('#addMasterHostToGlobals()', function () {
-    it('masterComponentMap is empty', function () {
-      sinon.stub(controller, 'setHostsToConfig', Em.K);
-      controller.set('masterComponentMap', []);
-      controller.addMasterHostToGlobals();
-      expect(controller.setHostsToConfig.called).to.be.false;
-      controller.setHostsToConfig.restore();
-    });
-    it('Correct data', function () {
-      sinon.stub(controller, 'setHostsToConfig', Em.K);
-      controller.set('masterComponentMap', [
-        {
-          serviceName: 'HDFS',
-          configName: 'datanode_hosts',
-          components: ['DATANODE']
-        }
-      ]);
-      controller.addMasterHostToGlobals();
-      expect(controller.setHostsToConfig.calledWith('HDFS', 'datanode_hosts', ['DATANODE'])).to.be.true;
-      controller.setHostsToConfig.restore();
     });
   });
 
@@ -623,12 +613,14 @@ describe('App.MainAdminSecurityAddStep2Controller', function () {
       expect(controller.changeCategoryOnHa([], [])).to.be.false;
     });
     it('HDFS service installed, App.testMode and App.testNameNodeHA - true', function () {
-      App.testMode = true;
-      App.testNameNodeHA = true;
+      sinon.stub(App, 'get', function(k) {
+        if ('testMode' === k) return true;
+        if ('testNameNodeHA' === k) return true;
+        return Em.get(App, k);
+      });
       expect(controller.changeCategoryOnHa(serviceConfigs, stepConfigs)).to.be.true;
       expect(controller.removeConfigCategory.calledWith([], [], 'SNameNode')).to.be.true;
-      App.testMode = false;
-      App.testNameNodeHA = false;
+      App.get.restore();
     });
     it('HDFS service installed, content.isNnHa = true', function () {
       controller.set('content.isNnHa', 'true');

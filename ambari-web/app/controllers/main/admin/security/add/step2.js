@@ -17,14 +17,18 @@
  */
 
 var App = require('app');
+var stringUtils = require('utils/string_utils');
 
 App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
 
   name: 'mainAdminSecurityAddStep2Controller',
+  isRecommendedLoaded: true,
   stepConfigs: [],
   installedServices: [],
   selectedService: null,
   securityUsers: [],
+  filter: '',
+  filterColumns: [],
 
   /**
    * map which depict connection between config and slave component
@@ -73,7 +77,7 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
       components: ['HIVE_SERVER']
     },
     {
-      serviceName: 'WEBHCAT',
+      serviceName: 'HIVE',
       configName: 'webhcatserver_host',
       components: ['WEBHCAT_SERVER']
     },
@@ -136,6 +140,11 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
       serviceName: 'STORM',
       configName: 'storm_host',
       components: ['STORM_UI_SERVER', 'NIMBUS', 'SUPERVISOR']
+    },
+    {
+      serviceName: 'STORM',
+      configName: 'nimbus_host',
+      components: ['NIMBUS']
     }
   ],
 
@@ -165,7 +174,7 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
       primaryName: 'HTTP/'
     },
     {
-      serviceName: 'WEBHCAT',
+      serviceName: 'HIVE',
       configName: 'webhcatserver_host',
       principalName: 'webHCat_http_principal_name',
       primaryName: 'HTTP/'
@@ -195,12 +204,29 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
    */
   loadStep: function () {
     console.log("TRACE: Loading addSecurity step2: Configure Services");
+    var versionNumber = App.get('currentStackVersionNumber');
+    if( stringUtils.compareVersions(versionNumber, "2.2") >= 0){
+      // Add Nimbus config options
+      var masterComponentMap = this.get('masterComponentMap');
+      masterComponentMap.filterProperty('configName', 'storm_host').components = ["SUPERVISOR", "STORM_UI_SERVER", "DRPC_SERVER", "STORM_REST_API"];
+      masterComponentMap.pushObject({
+        serviceName: 'STORM',
+        configName: 'nimbus_host',
+        components: ['NIMBUS']
+      });
+      this.get('hostToPrincipalMap').pushObject({
+        serviceName: 'STORM',
+        configName: 'nimbus_host',
+        principalName: 'storm_principal_name',
+        primaryName: 'storm'
+      });
+    }
     this.clearStep();
     this.loadUsers();
     this.addUserPrincipals(this.get('content.services'), this.get('securityUsers'));
-    this.addMasterHostToGlobals();
+    this.addMasterHostToConfigs();
     this.addHostPrincipals();
-    this.addSlaveHostToGlobals();
+    this.addSlaveHostToConfigs();
     this.renderServiceConfigs(this.get('content.services'));
     this.changeCategoryOnHa(this.get('content.services'), this.get('stepConfigs'));
     this.setStoredConfigsValue(this.get('content.serviceConfigProperties'));
@@ -302,13 +328,15 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
     if (service) {
       var host = service.configs.findProperty('name', hostConfigName);
       var principal = service.configs.findProperty('name', principalConfigName);
-      if (host && principal) {
-        if (Array.isArray(host.defaultValue)) {
-          host.defaultValue = host.defaultValue[0];
-        }
-        principal.defaultValue = defaultPrimaryName + host.defaultValue.toLowerCase();
+      var versionNumber = App.get('currentStackVersionNumber');
+      if(principalConfigName == 'storm_principal_name' && stringUtils.compareVersions(versionNumber, "2.2") >= 0){
+        principal.defaultValue = defaultPrimaryName;
         return true;
-      }
+      } else if (host && principal) {
+        var host_defaultValue = Array.isArray(host.defaultValue) ? host.defaultValue[0] : host.defaultValue;
+        principal.defaultValue = defaultPrimaryName + host_defaultValue;
+        return true;
+       }
       return false;
     }
     return false;
@@ -320,7 +348,7 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
   loadUsers: function () {
     var securityUsers = App.router.get('mainAdminSecurityController').get('serviceUsers');
     if (Em.isNone(securityUsers) || securityUsers.length === 0) {
-      if (App.testMode) {
+      if (App.get('testMode')) {
         securityUsers = securityUsers || [];
         securityUsers.pushObject({id: 'puppet var', name: 'hdfs_user', value: 'hdfs'});
         securityUsers.pushObject({id: 'puppet var', name: 'mapred_user', value: 'mapred'});
@@ -341,18 +369,19 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
    */
   addUserPrincipals: function (serviceConfigs, securityUsers) {
     var generalService = serviceConfigs.findProperty('serviceName', 'GENERAL').configs;
-    var isHbaseService = serviceConfigs.someProperty('serviceName', 'HBASE');
-    var hbaseUserPrincipal = generalService.findProperty('name', 'hbase_principal_name');
-    var hbaseUserKeytab = generalService.findProperty('name', 'hbase_user_keytab');
-    var hbaseUser = securityUsers.findProperty('name', 'hbase_user');
-
     this.setUserPrincipalValue(securityUsers.findProperty('name', 'smokeuser'), generalService.findProperty('name', 'smokeuser_principal_name'));
-    this.setUserPrincipalValue(securityUsers.findProperty('name', 'hdfs_user'), generalService.findProperty('name', 'hdfs_principal_name'));
+    var servicesWithUserPrincipals = ['HDFS', 'HBASE'];
 
-    if (isHbaseService && this.setUserPrincipalValue(hbaseUser, hbaseUserPrincipal)) {
-      hbaseUserPrincipal.isVisible = true;
-      hbaseUserKeytab.isVisible = true;
-    }
+    servicesWithUserPrincipals.forEach(function (serviceName) {
+      var isServiceInstalled = serviceConfigs.someProperty('serviceName', serviceName);
+      var userPrincipal = generalService.findProperty('name', serviceName.toLowerCase() + '_principal_name');
+      var userKeytab = generalService.findProperty('name', serviceName.toLowerCase() + '_user_keytab');
+      var userName = securityUsers.findProperty('name', serviceName.toLowerCase() + '_user');
+      if (isServiceInstalled && this.setUserPrincipalValue(userName, userPrincipal)) {
+        userPrincipal.isVisible = true;
+        userKeytab.isVisible = true;
+      }
+    }, this);
   },
   /**
    * set default value of user principal
@@ -368,18 +397,18 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
   },
 
   /**
-   * put hosts of slave component into defaultValue of global configs
+   * put hosts of slave component into defaultValue of configs
    */
-  addSlaveHostToGlobals: function () {
+  addSlaveHostToConfigs: function () {
     this.get('slaveComponentMap').forEach(function (service) {
       this.setHostsToConfig(service.serviceName, service.configName, [service.component]);
     }, this);
   },
 
   /**
-   * put hosts of master component into defaultValue of global configs
+   * put hosts of master component into defaultValue of configs
    */
-  addMasterHostToGlobals: function () {
+  addMasterHostToConfigs: function () {
     this.get('masterComponentMap').forEach(function (item) {
       this.setHostsToConfig(item.serviceName, item.configName, item.components);
     }, this);
@@ -404,7 +433,7 @@ App.MainAdminSecurityAddStep2Controller = Em.Controller.extend({
     if (hdfsService) {
       var properties = stepConfigs.findProperty('serviceName', 'HDFS').get('configs');
       var configCategories = hdfsService.configCategories;
-      if ((App.testMode && App.testNameNodeHA) || (this.get('content.isNnHa') === 'true')) {
+      if ((App.get('testMode') && App.get('testNameNodeHA')) || (this.get('content.isNnHa') === 'true')) {
         this.removeConfigCategory(properties, configCategories, 'SNameNode');
       } else {
         this.removeConfigCategory(properties, configCategories, 'JournalNode');

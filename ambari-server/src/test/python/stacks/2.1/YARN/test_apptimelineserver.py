@@ -20,53 +20,59 @@ limitations under the License.
 from mock.mock import MagicMock, call, patch
 from stacks.utils.RMFTestCase import *
 import os
+import  resource_management.libraries.functions
 
 origin_exists = os.path.exists
+@patch.object(resource_management.libraries.functions, "check_process_status", new = MagicMock())
 @patch.object(os.path, "exists", new=MagicMock(
     side_effect=lambda *args: origin_exists(args[0])
     if args[0][-2:] == "j2" else True))
 class TestAppTimelineServer(RMFTestCase):
 
+
   def test_configure_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/application_timeline_server.py",
-                       classname = "ApplicationTimelineServer",
-                       command = "configure",
-                       config_file="default.json"
-    )
+                       classname="ApplicationTimelineServer",
+                       command="configure",
+                       config_file="default.json")
+
     self.assert_configure_default()
     self.assertNoMoreResources()
 
   def test_start_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/application_timeline_server.py",
-                       classname = "ApplicationTimelineServer",
-                       command = "start",
-                       config_file="default.json"
-    )
+                       classname="ApplicationTimelineServer",
+                       command="start",
+                       config_file="default.json")
+
     self.assert_configure_default()
 
-    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start historyserver',
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid` >/dev/null 2>&1',
-                              user = 'yarn')
-    self.assertResourceCalled('Execute', 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid` >/dev/null 2>&1',
-                              initial_wait = 5,
-                              not_if = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid` >/dev/null 2>&1',
-                              user = 'yarn')
+    pid_check_cmd = 'ls /var/run/hadoop-yarn/yarn/yarn-yarn-timelineserver.pid >/dev/null 2>&1 && ps `cat /var/run/hadoop-yarn/yarn/yarn-yarn-timelineserver.pid` >/dev/null 2>&1'
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-timelineserver.pid',
+                              not_if=pid_check_cmd,
+                              action=['delete'])
+
+    self.assertResourceCalled('Execute', 'ulimit -c unlimited; export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf start timelineserver',
+                              not_if=pid_check_cmd,
+                              user='yarn')
+    self.assertResourceCalled('Execute', pid_check_cmd,
+                              initial_wait=5,
+                              not_if=pid_check_cmd,
+                              user='yarn')
     self.assertNoMoreResources()
 
   def test_stop_default(self):
     self.executeScript("2.0.6/services/YARN/package/scripts/application_timeline_server.py",
-                       classname = "ApplicationTimelineServer",
-                       command = "stop",
-                       config_file="default.json"
-    )
-    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop historyserver',
-                              user = 'yarn')
-    self.assertResourceCalled('Execute', 'rm -f /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid',
-                              user = 'yarn')
+                       classname="ApplicationTimelineServer",
+                       command="stop",
+                       config_file="default.json")
+
+    self.assertResourceCalled('Execute', 'export HADOOP_LIBEXEC_DIR=/usr/lib/hadoop/libexec && /usr/lib/hadoop-yarn/sbin/yarn-daemon.sh --config /etc/hadoop/conf stop timelineserver',
+                              user='yarn')
+
+    self.assertResourceCalled('File', '/var/run/hadoop-yarn/yarn/yarn-yarn-timelineserver.pid',
+                              action=['delete'])
     self.assertNoMoreResources()
-
-
-
 
   def assert_configure_default(self):
     self.assertResourceCalled('Directory', '/var/run/hadoop-yarn/yarn',
@@ -89,26 +95,6 @@ class TestAppTimelineServer(RMFTestCase):
                               group = 'hadoop',
                               recursive = True,
                               )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/local',
-                              owner = 'yarn',
-                              recursive = True,
-                              ignore_failures = True,
-                              )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/local1',
-                              owner = 'yarn',
-                              recursive = True,
-                              ignore_failures = True,
-                              )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/log',
-                              owner = 'yarn',
-                              recursive = True,
-                              ignore_failures = True,
-                              )
-    self.assertResourceCalled('Directory', '/hadoop/yarn/log1',
-                              owner = 'yarn',
-                              recursive = True,
-                              ignore_failures = True,
-                              )
     self.assertResourceCalled('Directory', '/var/log/hadoop-yarn',
                               owner = 'yarn',
                               recursive = True,
@@ -120,6 +106,7 @@ class TestAppTimelineServer(RMFTestCase):
                               mode = 0644,
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['core-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['core-site']
                               )
     self.assertResourceCalled('XmlConfig', 'mapred-site.xml',
                               owner = 'yarn',
@@ -127,6 +114,7 @@ class TestAppTimelineServer(RMFTestCase):
                               mode = 0644,
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'yarn-site.xml',
                               owner = 'yarn',
@@ -134,6 +122,7 @@ class TestAppTimelineServer(RMFTestCase):
                               mode = 0644,
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['yarn-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['yarn-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'yarn',
@@ -141,6 +130,7 @@ class TestAppTimelineServer(RMFTestCase):
                               mode = 0644,
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('Directory', '/var/log/hadoop-yarn/timeline',
                               owner = 'yarn',
@@ -178,16 +168,14 @@ class TestAppTimelineServer(RMFTestCase):
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['mapred-site'],
-                              )
-    self.assertResourceCalled('File', '/etc/hadoop/conf/mapred-queue-acls.xml',
-                              owner = 'mapred',
-                              group = 'hadoop',
+                              configuration_attributes = self.getConfig()['configuration_attributes']['mapred-site']
                               )
     self.assertResourceCalled('XmlConfig', 'capacity-scheduler.xml',
                               owner = 'hdfs',
                               group = 'hadoop',
                               conf_dir = '/etc/hadoop/conf',
                               configurations = self.getConfig()['configurations']['capacity-scheduler'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['capacity-scheduler']
                               )
     self.assertResourceCalled('File', '/etc/hadoop/conf/fair-scheduler.xml',
                               owner = 'mapred',
@@ -201,3 +189,15 @@ class TestAppTimelineServer(RMFTestCase):
                               owner = 'mapred',
                               group = 'hadoop',
                               )
+
+
+  def test_status(self):
+    self.executeScript("2.0.6/services/YARN/package/scripts/application_timeline_server.py",
+                       classname="ApplicationTimelineServer",
+                       command="status",
+                       config_file="default.json")
+
+    self.assertResourceCalled('Execute', 'mv /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid /var/run/hadoop-yarn/yarn/yarn-yarn-timelineserver.pid',
+        only_if = 'test -e /var/run/hadoop-yarn/yarn/yarn-yarn-historyserver.pid',
+    )
+    self.assertNoMoreResources()

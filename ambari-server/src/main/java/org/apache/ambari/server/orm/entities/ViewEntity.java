@@ -32,10 +32,14 @@ import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinColumns;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Transient;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -64,6 +68,13 @@ public class ViewEntity implements ViewDefinition {
   @Column
   @Basic
   private String label;
+
+  /**
+   * The view description.
+   */
+  @Column
+  @Basic
+  private String description;
 
   /**
    * The icon path.
@@ -101,8 +112,15 @@ public class ViewEntity implements ViewDefinition {
   private String mask;
 
   /**
-   * The list of view parameters.
+   * Indicates whether or not this is a system view.
    */
+  @Column(name = "system_view")
+  @Basic
+  private Integer system;
+
+  /**
+  * The list of view parameters.
+  */
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "view")
   private Collection<ViewParameterEntity> parameters = new HashSet<ViewParameterEntity>();
 
@@ -118,6 +136,23 @@ public class ViewEntity implements ViewDefinition {
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "view")
   private Collection<ViewInstanceEntity> instances = new HashSet<ViewInstanceEntity>();
 
+  /**
+   * The list of view permissions.
+   */
+  @OneToMany(cascade = CascadeType.ALL)
+  @JoinColumns({
+      @JoinColumn(name = "resource_type_id", referencedColumnName = "resource_type_id", nullable = false)
+  })
+  private Collection<PermissionEntity> permissions = new HashSet<PermissionEntity>();
+
+  /**
+   * The resource type.
+   */
+  @ManyToOne(cascade = CascadeType.ALL)
+  @JoinColumns({
+      @JoinColumn(name = "resource_type_id", referencedColumnName = "resource_type_id", nullable = false)
+  })
+  private ResourceTypeEntity resourceType;
 
   // ----- Transient data ----------------------------------------------------
 
@@ -143,7 +178,7 @@ public class ViewEntity implements ViewDefinition {
    * The classloader used to load the view.
    */
   @Transient
-  private final ClassLoader classLoader;
+  private ClassLoader classLoader = null;
 
   /**
    * The mapping of resource type to resource provider.
@@ -175,6 +210,18 @@ public class ViewEntity implements ViewDefinition {
   @Transient
   private View view = null;
 
+  /**
+   * The view status.
+   */
+  @Transient
+  private ViewStatus status = ViewStatus.PENDING;
+
+  /**
+   * The view status detail.
+   */
+  @Transient
+  private String statusDetail;
+
 
   // ----- Constructors ------------------------------------------------------
 
@@ -184,9 +231,9 @@ public class ViewEntity implements ViewDefinition {
   public ViewEntity() {
     this.configuration        = null;
     this.ambariConfiguration  = null;
-    this.classLoader          = null;
     this.archive              = null;
     this.externalResourceType = null;
+    this.system               = 0;
   }
 
   /**
@@ -194,25 +241,25 @@ public class ViewEntity implements ViewDefinition {
    *
    * @param configuration        the view configuration
    * @param ambariConfiguration  the Ambari configuration
-   * @param classLoader          the class loader
    * @param archivePath          the path of the view archive
    */
   public ViewEntity(ViewConfig configuration, Configuration ambariConfiguration,
-                        ClassLoader classLoader, String archivePath) {
+                    String archivePath) {
     this.configuration       = configuration;
     this.ambariConfiguration = ambariConfiguration;
-    this.classLoader         = classLoader;
     this.archive             = archivePath;
 
     String version = configuration.getVersion();
 
-    this.name    = getViewName(configuration.getName(), version);
-    this.label   = configuration.getLabel();
-    this.version = version;
+    this.name        = getViewName(configuration.getName(), version);
+    this.label       = configuration.getLabel();
+    this.description = configuration.getDescription();
+    this.version     = version;
 
-    this.mask    = configuration.getMasker();
-    this.icon    = configuration.getIcon();
-    this.icon64  = configuration.getIcon64();
+    this.mask        = configuration.getMasker();
+    this.icon        = configuration.getIcon();
+    this.icon64      = configuration.getIcon64();
+    this.system      = configuration.isSystem() ? 1 : 0;
 
     this.externalResourceType =
         new Resource.Type(getQualifiedResourceTypeName(ResourceConfig.EXTERNAL_RESOURCE_PLURAL_NAME));
@@ -232,8 +279,23 @@ public class ViewEntity implements ViewDefinition {
   }
 
   @Override
+  public String getDescription() {
+    return description;
+  }
+
+  @Override
   public String getVersion() {
     return version;
+  }
+
+  @Override
+  public ViewStatus getStatus() {
+    return status;
+  }
+
+  @Override
+  public String getStatusDetail() {
+    return statusDetail;
   }
 
 
@@ -274,16 +336,25 @@ public class ViewEntity implements ViewDefinition {
   /**
    * Set the view label (display name).
    *
-   * @param label  the view label
+   * @param label the view label
    */
   public void setLabel(String label) {
     this.label = label;
   }
 
   /**
+   * Set the view description.
+   *
+   * @param description the view description
+   */
+  public void setDescription(String description) {
+    this.description = description;
+  }
+
+  /**
    * Set the view version.
    *
-   * @param version  the version
+   * @param version the version
    */
   public void setVersion(String version) {
     this.version = version;
@@ -341,6 +412,41 @@ public class ViewEntity implements ViewDefinition {
    */
   public void setParameters(Collection<ViewParameterEntity> parameters) {
     this.parameters = parameters;
+  }
+
+  /**
+   * Get the view custom permissions.
+   *
+   * @return the view permissions
+   */
+  public Collection<PermissionEntity> getPermissions() {
+    return permissions;
+  }
+
+  /**
+   * Set the custom view permissions.
+   *
+   * @param permissions  the permissions
+   */
+  public void setPermissions(Collection<PermissionEntity> permissions) {
+    this.permissions = permissions;
+  }
+
+  /**
+   * Get the permission entity for the given permission name.
+   *
+   * @param permissionName  the permission name
+   *
+   * @return the matching permission entity or null
+   */
+  public PermissionEntity getPermission(String permissionName) {
+
+    for (PermissionEntity permissionEntity : permissions) {
+      if (permissionEntity.getPermissionName().equals(permissionName)) {
+        return permissionEntity;
+      }
+    }
+    return null;
   }
 
   /**
@@ -485,6 +591,15 @@ public class ViewEntity implements ViewDefinition {
   }
 
   /**
+   * Set the class loader.
+   *
+   * @param classLoader  the class loader
+   */
+  public void setClassLoader(ClassLoader classLoader) {
+    this.classLoader = classLoader;
+  }
+
+  /**
    * Add a resource provider for the given type.
    *
    * @param type      the resource type
@@ -607,8 +722,68 @@ public class ViewEntity implements ViewDefinition {
     return mask;
   }
 
+  /**
+   * Determine whether or not the view is a system view.
+   *
+   * @return true if the view is a system view
+   */
+  public boolean isSystem() {
+    return system == 1;
+  }
 
-  // ----- helper methods ----------------------------------------------------
+  /**
+   * Set the flag which indicates whether or not the view is a system view.
+   *
+   * @param required  the system flag; true if the view is a system view
+   */
+  public void setSystem(boolean required) {
+    this.system = required ? 1 : 0;
+  }
+
+  /**
+   * Get the admin resource type entity.
+   *
+   * @return the resource type entity
+   */
+  public ResourceTypeEntity getResourceType() {
+    return resourceType;
+  }
+
+  /**
+   * Set the admin resource type entity.
+   *
+   * @param resourceType  the resource type entity
+   */
+  public void setResourceType(ResourceTypeEntity resourceType) {
+    this.resourceType = resourceType;
+  }
+
+  /**
+   * Set the status of the view.
+   *
+   * @param status  the view status
+   */
+  public void setStatus(ViewStatus status) {
+    this.status = status;
+  }
+
+  /**
+   * Set the status detail for the view.
+   *
+   * @param statusDetail  the status detail
+   */
+  public void setStatusDetail(String statusDetail) {
+    this.statusDetail = statusDetail;
+  }
+
+  /**
+   * Determine whether or not the entity is deployed.
+   *
+   * @return true if the entity is deployed
+   */
+  public boolean isDeployed() {
+    return status.equals(ViewStatus.DEPLOYED);
+  }
 
   /**
    * Get the internal view name from the given common name and version.

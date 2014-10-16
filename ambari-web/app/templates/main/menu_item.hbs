@@ -17,7 +17,7 @@
 }}
 
 
-<a href="#/main/{{unbound view.content.routing}}">
+<a href="#" {{action goToSection view.content.routing target="view"}}>
   {{{unbound view.content.label}}}
   {{#if view.alertsCount}}
     <span class="label label-important alerts-count">
@@ -39,7 +39,7 @@
 {{/if}}
 {{#if view.isViewsItem}}
   <ul class="top-nav-dropdown-menu">
-    {{#if view.content.views}}
+    {{#if view.content.views.length}}
       {{#each category in view.content.views}}
         <li><a href="#" {{action "setView" category target="App.router.mainViewsController"}}>{{category.label}}</a></li>
       {{/each}}

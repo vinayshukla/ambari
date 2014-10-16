@@ -27,6 +27,13 @@ import os
 def hdfs(name=None):
   import params
 
+  # On some OS this folder could be not exists, so we will create it before pushing there files
+  Directory(params.limits_conf_dir,
+            recursive=True,
+            owner='root',
+            group='root'
+  )
+
   File(os.path.join(params.limits_conf_dir, 'hdfs.conf'),
        owner='root',
        group='root',
@@ -45,6 +52,7 @@ def hdfs(name=None):
     XmlConfig("hadoop-policy.xml",
               conf_dir=params.hadoop_conf_dir,
               configurations=params.config['configurations']['hadoop-policy'],
+              configuration_attributes=params.config['configuration_attributes']['hadoop-policy'],
               owner=params.hdfs_user,
               group=params.user_group
     )
@@ -52,8 +60,18 @@ def hdfs(name=None):
   XmlConfig("hdfs-site.xml",
             conf_dir=params.hadoop_conf_dir,
             configurations=params.config['configurations']['hdfs-site'],
+            configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
             owner=params.hdfs_user,
             group=params.user_group
+  )
+
+  XmlConfig("core-site.xml",
+            conf_dir=params.hadoop_conf_dir,
+            configurations=params.config['configurations']['core-site'],
+            configuration_attributes=params.config['configuration_attributes']['core-site'],
+            owner=params.hdfs_user,
+            group=params.user_group,
+            mode=0644
   )
 
   File(os.path.join(params.hadoop_conf_dir, 'slaves'),

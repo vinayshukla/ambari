@@ -20,14 +20,14 @@ limitations under the License.
 
 from resource_management import *
 from oozie import oozie
-         
+
 class OozieClient(Script):
   def install(self, env):
     # client checks env var to determine if it is installed
     if not os.environ.has_key("OOZIE_HOME"):
       self.install_packages(env)
     self.configure(env)
-    
+
   def configure(self, env):
     import params
     env.set_params(params)
@@ -35,6 +35,6 @@ class OozieClient(Script):
 
   def status(self, env):
     raise ClientComponentHasNoStatus()
-    
+
 if __name__ == "__main__":
   OozieClient().execute()

@@ -61,8 +61,9 @@ class TestXmlConfigResource(TestCase):
     with Environment('/') as env:
       XmlConfig('file.xml',
                 conf_dir='/dir/conf',
-                configurations={}
-      )
+                configurations={},
+                configuration_attributes={}
+                )
 
     open_mock.assert_called_with('/dir/conf/file.xml', 'wb')
     result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n  </configuration>\n')
@@ -93,11 +94,12 @@ class TestXmlConfigResource(TestCase):
     with Environment('/') as env:
       XmlConfig('file.xml',
                 conf_dir='/dir/conf',
-                configurations={'property1': 'value1'}
-      )
+                configurations={'property1': 'value1'},
+                configuration_attributes={'attr': {'property1': 'attr_value'}}
+                )
 
     open_mock.assert_called_with('/dir/conf/file.xml', 'wb')
-    result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n    <property>\n      <name>property1</name>\n      <value>value1</value>\n    </property>\n    \n  </configuration>\n')
+    result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n    <property>\n      <name>property1</name>\n      <value>value1</value>\n      <attr>attr_value</attr>\n    </property>\n    \n  </configuration>\n')
 
 
   @patch("resource_management.core.providers.system._ensure_metadata")
@@ -131,8 +133,88 @@ class TestXmlConfigResource(TestCase):
                                 "prop.2": "INFO, openjpa",
                                 "prop.4": "${oozie.log.dir}/oozie.log",
                                 "prop.empty": "",
-                },
-      )
+                                },
+                configuration_attributes={
+                    "": {
+                        "prop.1": "should_not_be_printed",
+                        "prop.2": "should_not_be_printed",
+                    },
+                    "attr1": {
+                        "prop.1": "x",
+                        "prop.8": "not_existed",
+                    },
+                    "attr2": {
+                        "prop.4": "value4",
+                        "prop.3": "value3"
+                    },
+                    "attr_empty": {
+                    },
+                    "attr_value_empty": {
+                        "prop.4": "",
+                        "prop.empty": ""
+                    }
+                })
 
     open_mock.assert_called_with('/dir/conf/file.xml', 'wb')
-    result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n    <property>\n      <name></name>\n      <value></value>\n    </property>\n    \n    <property>\n      <name>prop.empty</name>\n      <value></value>\n    </property>\n    \n    <property>\n      <name>prop.3</name>\n      <value>%d{ISO8601} %5p %c{1}:%L - %m%n</value>\n    </property>\n    \n    <property>\n      <name>prop.2</name>\n      <value>INFO, openjpa</value>\n    </property>\n    \n    <property>\n      <name>prop.1</name>\n      <value>&#39;.&#39;yyyy-MM-dd-HH</value>\n    </property>\n    \n    <property>\n      <name>prop.4</name>\n      <value>${oozie.log.dir}/oozie.log</value>\n    </property>\n    \n  </configuration>\n')
+    result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n    <property>\n      <name></name>\n      <value></value>\n    </property>\n    \n    <property>\n      <name>prop.1</name>\n      <value>&#39;.&#39;yyyy-MM-dd-HH</value>\n      <attr1>x</attr1>\n    </property>\n    \n    <property>\n      <name>prop.2</name>\n      <value>INFO, openjpa</value>\n    </property>\n    \n    <property>\n      <name>prop.3</name>\n      <value>%d{ISO8601} %5p %c{1}:%L - %m%n</value>\n      <attr2>value3</attr2>\n    </property>\n    \n    <property>\n      <name>prop.4</name>\n      <value>${oozie.log.dir}/oozie.log</value>\n      <attr_value_empty></attr_value_empty>\n      <attr2>value4</attr2>\n    </property>\n    \n    <property>\n      <name>prop.empty</name>\n      <value></value>\n      <attr_value_empty></attr_value_empty>\n    </property>\n    \n  </configuration>\n')
+
+  @patch("resource_management.core.providers.system._ensure_metadata")
+  @patch("__builtin__.open")
+  @patch.object(os.path, "exists")
+  @patch.object(os.path, "isdir")
+  @patch.object(time, "asctime")
+  def test_action_create_xml_config_sorted_by_key(self,
+                                                  time_asctime_mock,
+                                                  os_path_isdir_mock,
+                                                  os_path_exists_mock,
+                                                  open_mock,
+                                                  ensure_mock):
+    """
+    Tests if 'create' action - creates new non existent xml file and writes proper data
+    where configurations={"Key":"Value"} are stored in sorted by key order
+    """
+    os_path_isdir_mock.side_effect = [False, True]
+    os_path_exists_mock.return_value = False
+    time_asctime_mock.return_value = 'Wed 2014-02'
+
+    result_file = MagicMock()
+    open_mock.return_value = result_file
+
+    with Environment('/') as env:
+      XmlConfig('file.xml',
+                conf_dir='/dir/conf',
+                configurations={"": "",
+                                "third": "should be third",
+                                "first": "should be first",
+                                "z_last": "should be last",
+                                "second": "should be second",
+                                },
+                configuration_attributes={}
+                )
+
+    open_mock.assert_called_with('/dir/conf/file.xml', 'wb')
+    result_file.__enter__().write.assert_called_with(u'<!--Wed 2014-02-->\n    <configuration>\n    \n    <property>\n      <name></name>\n      <value></value>\n    </property>\n    \n    <property>\n      <name>first</name>\n      <value>should be first</value>\n    </property>\n    \n    <property>\n      <name>second</name>\n      <value>should be second</value>\n    </property>\n    \n    <property>\n      <name>third</name>\n      <value>should be third</value>\n    </property>\n    \n    <property>\n      <name>z_last</name>\n      <value>should be last</value>\n    </property>\n    \n  </configuration>\n')
+
+  @patch("resource_management.libraries.providers.xml_config.File")
+  @patch.object(os.path, "exists")
+  @patch.object(os.path, "isdir")
+  def test_action_create_arguments(self, os_path_isdir_mock ,os_path_exists_mock, file_mock):
+
+    os_path_isdir_mock.side_effect = [False, True]
+    os_path_exists_mock.return_value = False
+
+    with Environment() as env:
+      XmlConfig('xmlFile.xml',
+                conf_dir='/dir/conf',
+                configurations={'property1': 'value1'},
+                configuration_attributes={'attr': {'property1': 'attr_value'}},
+                mode = 0755,
+                owner = "hdfs",
+                group = "hadoop",
+                encoding = "Code"
+      )
+
+    self.assertEqual(file_mock.call_args[0][0],'/dir/conf/xmlFile.xml')
+    call_args = file_mock.call_args[1].copy()
+    del call_args['content']
+    self.assertEqual(call_args,{'owner': 'hdfs', 'group': 'hadoop', 'mode': 0755, 'encoding' : 'Code'})

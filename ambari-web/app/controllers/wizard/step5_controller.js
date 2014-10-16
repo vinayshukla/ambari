@@ -17,9 +17,11 @@
  */
 
 var App = require('app');
+var blueprintUtils = require('utils/blueprint');
 var numberUtils = require('utils/number_utils');
+var validationUtils = require('utils/validator');
 
-App.WizardStep5Controller = Em.Controller.extend({
+App.WizardStep5Controller = Em.Controller.extend(App.BlueprintMixin, {
 
   name: "wizardStep5Controller",
 
@@ -52,6 +54,14 @@ App.WizardStep5Controller = Em.Controller.extend({
   }.property('content.controllerName'),
 
   /**
+   * Check if <code>installerWizard</code> used
+   * @type {bool}
+   */
+  isInstallerWizard: function () {
+    return this.get('content.controllerName') === 'installerController';
+  }.property('content.controllerName'),
+
+  /**
    * Is AddServiceWizard used
    * @type {bool}
    */
@@ -64,6 +74,14 @@ App.WizardStep5Controller = Em.Controller.extend({
    * @type {string[]}
    */
   multipleComponents: function () {
+    return App.get('components.multipleMasters');
+  }.property('App.components.multipleMasters'),
+
+  /**
+   * Master components which could be assigned to multiple hosts
+   * @type {string[]}
+   */
+  addableComponents: function () {
     return App.get('components.addableMasterInstallerWizard');
   }.property('App.components.addableMasterInstallerWizard'),
 
@@ -72,6 +90,18 @@ App.WizardStep5Controller = Em.Controller.extend({
    * @type {bool}
    */
   submitDisabled: false,
+
+  /**
+   * Is Submit-click processing now
+   * @type {bool}
+   */
+  submitButtonClicked: false,
+
+  /**
+   * Either use or not use server validation in this controller
+   * @type {bool}
+   */
+  useServerValidation: true,
 
   /**
    * Trigger for executing host names check for components
@@ -120,6 +150,39 @@ App.WizardStep5Controller = Em.Controller.extend({
    * @type {bool}
    */
   isLoaded: false,
+
+  /**
+   * Validation error messages which don't related with any master
+   */
+  generalErrorMessages: [],
+
+  /**
+   * Validation warning messages which don't related with any master
+   */
+  generalWarningMessages: [],
+
+  /**
+   * true if any error exists
+   */
+  anyError: function() {
+    return this.get('servicesMasters').some(function(m) { return m.get('errorMessage'); }) || this.get('generalErrorMessages').some(function(m) { return m; });
+  }.property('servicesMasters.@each.errorMessage', 'generalErrorMessages'),
+
+  /**
+   * true if any warning exists
+   */
+  anyWarning: function() {
+    return this.get('servicesMasters').some(function(m) { return m.get('warnMessage'); }) || this.get('generalWarningMessages').some(function(m) { return m; });
+  }.property('servicesMasters.@each.warnMessage', 'generalWarningMessages'),
+
+    /**
+   * Clear loaded recommendations
+   */
+  clearRecommendations: function() {
+    if (this.get('content.recommendations')) {
+      this.set('content.recommendations', null);
+    }
+  },
 
   /**
    * List of host with assigned masters
@@ -177,15 +240,164 @@ App.WizardStep5Controller = Em.Controller.extend({
 
   /**
    * Update submit button status
-   * @metohd getIsSubmitDisabled
+   * @metohd updateIsSubmitDisabled
    */
-  getIsSubmitDisabled: function () {
-    var isSubmitDisabled = this.get('servicesMasters').someProperty('isHostNameValid', false);
-    this.set('submitDisabled', isSubmitDisabled);
-    return isSubmitDisabled;
+  updateIsSubmitDisabled: function () {
+    var self = this;
+
+    if (self.thereIsNoMasters()) {
+      return false;
+    }
+
+    if (App.get('supports.serverRecommendValidate') && this.get('useServerValidation')) {
+      self.set('submitDisabled', true);
+
+      // reset previous recommendations
+      this.clearRecommendations();
+
+      if (self.get('servicesMasters').length === 0) {
+        return;
+      }
+
+      var isSubmitDisabled = this.get('servicesMasters').someProperty('isHostNameValid', false);
+      if (!isSubmitDisabled) {
+        self.recommendAndValidate();
+      }
+    } else {
+      var isSubmitDisabled = this.get('servicesMasters').someProperty('isHostNameValid', false);
+      self.set('submitDisabled', isSubmitDisabled);
+      return isSubmitDisabled;
+    }
   }.observes('servicesMasters.@each.selectedHost', 'servicesMasters.@each.isHostNameValid'),
 
   /**
+   * Send AJAX request to validate current host layout
+   * @param blueprint - blueprint for validation (can be with/withour slave/client components)
+   */
+  validate: function(blueprint, callback) {
+    var self = this;
+
+    var selectedServices = App.StackService.find().filterProperty('isSelected').mapProperty('serviceName');
+    var installedServices = App.StackService.find().filterProperty('isInstalled').mapProperty('serviceName');
+    var services = installedServices.concat(selectedServices).uniq();
+
+    var hostNames = self.get('hosts').mapProperty('host_name');
+
+    App.ajax.send({
+      name: 'config.validations',
+      sender: self,
+      data: {
+        stackVersionUrl: App.get('stackVersionURL'),
+        hosts: hostNames,
+        services: services,
+        validate: 'host_groups',
+        recommendations: blueprint
+      },
+      success: 'updateValidationsSuccessCallback',
+      error: 'updateValidationsErrorCallback'
+    }).
+      then(function() {
+        if (callback) {
+          callback();
+        }
+      }
+    );
+  },
+
+/**
+  * Success-callback for validations request
+  * @param {object} data
+  * @method updateValidationsSuccessCallback
+  */
+  updateValidationsSuccessCallback: function (data) {
+    var self = this;
+
+    var generalErrorMessages = [];
+    var generalWarningMessages = [];
+    this.get('servicesMasters').setEach('warnMessage', null);
+    this.get('servicesMasters').setEach('errorMessage', null);
+    var anyErrors = false;
+
+    var validationData = validationUtils.filterNotInstalledComponents(data);
+    validationData.filterProperty('type', 'host-component').forEach(function(item) {
+      var master = self.get('servicesMasters').find(function(m) {
+        return m.component_name === item['component-name'] && m.selectedHost === item.host;
+      });
+      if (master) {
+        if (item.level === 'ERROR') {
+          anyErrors = true;
+          master.set('errorMessage', item.message);
+        } else if (item.level === 'WARN') {
+          master.set('warnMessage', item.message);
+        }
+      } else {
+        var details = " (" + item['component-name'] + " on " + item.host + ")";
+        if (item.level === 'ERROR') {
+          anyErrors = true;
+          generalErrorMessages.push(item.message + details);
+        } else if (item.level === 'WARN') {
+          generalWarningMessages.push(item.message + details);
+        }
+      }
+    });
+
+    this.set('generalErrorMessages', generalErrorMessages);
+    this.set('generalWarningMessages', generalWarningMessages);
+
+    // use this.set('submitDisabled', anyErrors); is validation results should block next button
+    // It's because showValidationIssuesAcceptBox allow use accept validation issues and continue
+    this.set('submitDisabled', false); //this.set('submitDisabled', anyErrors);
+  },
+
+  /**
+   * Error-callback for validations request
+   * @param {object} jqXHR
+   * @param {object} ajaxOptions
+   * @param {string} error
+   * @param {object} opt
+   * @method updateValidationsErrorCallback
+   */
+  updateValidationsErrorCallback: function (jqXHR, ajaxOptions, error, opt) {
+    App.ajax.defaultErrorHandler(jqXHR, opt.url, opt.method, jqXHR.status);
+    console.log('Load validations failed');
+  },
+
+  /**
+   * Composes selected values of comboboxes into master blueprint + merge it with currenlty installed slave blueprint
+   */
+  getCurrentBlueprint: function() {
+    var self = this;
+
+    var res = {
+      blueprint: { host_groups: [] },
+      blueprint_cluster_binding: { host_groups: [] }
+    };
+
+    var mapping = self.get('masterHostMapping');
+
+    mapping.forEach(function(item, i) {
+      var group_name = 'host-group-' + (i+1);
+
+      var host_group = {
+        name: group_name,
+        components: item.masterServices.map(function(master) {
+          return { name: master.component_name };
+        })
+      };
+
+      var binding = {
+        name: group_name,
+        hosts: [ { fqdn: item.host_name } ]
+      };
+
+      res.blueprint.host_groups.push(host_group);
+      res.blueprint_cluster_binding.host_groups.push(binding);
+    });
+
+    return blueprintUtils.mergeBlueprints(res, self.getCurrentSlaveBlueprint());
+  },
+
+/**
    * Clear controller data (hosts, masters etc)
    * @method clearStep
    */
@@ -207,14 +419,34 @@ App.WizardStep5Controller = Em.Controller.extend({
     console.log("WizardStep5Controller: Loading step5: Assign Masters");
     this.clearStep();
     this.renderHostInfo();
-    this.renderComponents(this.loadComponents());
-    this.get('multipleComponents').forEach(function (componentName) {
-      this.updateComponent(componentName);
-    }, this);
-    if (!this.get("selectedServicesMasters").filterProperty('isInstalled', false).length) {
+    if (App.get('supports.serverRecommendValidate')) {
+      this.loadComponentsRecommendationsFromServer(this.loadStepCallback);
+    } else {
+      this.loadComponentsRecommendationsLocally(this.loadStepCallback);
+    }
+  },
+
+  /**
+   * Callback after load controller data (hosts, host components etc)
+   * @method loadStepCallback
+   */
+  loadStepCallback: function(components, self) {
+    self.renderComponents(components);
+
+    self.get('addableComponents').forEach(function (componentName) {
+      self.updateComponent(componentName);
+    }, self);
+    if (self.thereIsNoMasters()) {
       console.log('no master components to add');
       App.router.send('next');
     }
+  },
+
+  /**
+  * Returns true if there is no new master components which need assigment to host
+  */
+  thereIsNoMasters: function() {
+    return !this.get("selectedServicesMasters").filterProperty('isInstalled', false).length;
   },
 
   /**
@@ -231,9 +463,10 @@ App.WizardStep5Controller = Em.Controller.extend({
     var showControl = !services.contains(currentService);
 
     if (showControl) {
-      if (this.get("selectedServicesMasters").filterProperty("component_name", componentName).length < this.get("hosts.length") && !this.get('isReassignWizard') && !this.get('isHighAvailabilityWizard')) {
+      var mastersLength = this.get("selectedServicesMasters").filterProperty("component_name", componentName).length;
+      if (mastersLength < this.get("hosts.length") && !this.get('isReassignWizard') && !this.get('isHighAvailabilityWizard')) {
         component.set('showAddControl', true);
-      } else {
+      } else if (mastersLength == 1 || this.get('isReassignWizard') || this.get('isHighAvailabilityWizard')) {
         component.set('showRemoveControl', false);
       }
     }
@@ -281,10 +514,168 @@ App.WizardStep5Controller = Em.Controller.extend({
   },
 
   /**
+   * Get recommendations info from API
+   * @return {undefined}
+   * @param function(componentInstallationobjects, this) callback
+   * @param bool includeMasters
+   */
+  loadComponentsRecommendationsFromServer: function(callback, includeMasters) {
+    var self = this;
+
+    if (this.get('content.recommendations')) {
+      // Don't do AJAX call if recommendations has been already received
+      // But if user returns to previous step (selecting services), stored recommendations will be cleared in routers' next handler and AJAX call will be made again
+      callback(self.createComponentInstallationObjects(), self);
+    } else {
+      var selectedServices = App.StackService.find().filterProperty('isSelected').mapProperty('serviceName');
+      var installedServices = App.StackService.find().filterProperty('isInstalled').mapProperty('serviceName');
+      var services = installedServices.concat(selectedServices).uniq();
+
+      var hostNames = self.get('hosts').mapProperty('host_name');
+
+      var data = {
+        stackVersionUrl: App.get('stackVersionURL'),
+        hosts: hostNames,
+        services: services,
+        recommend: 'host_groups'
+      };
+
+      if (includeMasters) {
+        // Made partial recommendation request for reflect in blueprint host-layout changes which were made by user in UI
+        data.recommendations = self.getCurrentBlueprint();
+      } else if (!self.get('isInstallerWizard')) {
+        data.recommendations = self.getCurrentMasterSlaveBlueprint();
+      }
+
+      return App.ajax.send({
+        name: 'wizard.loadrecommendations',
+        sender: self,
+        data: data,
+        success: 'loadRecommendationsSuccessCallback',
+        error: 'loadRecommendationsErrorCallback'
+      }).
+        then(function () {
+          callback(self.createComponentInstallationObjects(), self);
+        });
+    }
+  },
+
+  /**
+   * Create components for displaying component-host comboboxes in UI assign dialog
+   * expects content.recommendations will be filled with recommendations API call result
+   * @return {Object[]}
+   */
+  createComponentInstallationObjects: function() {
+    var self = this;
+
+    var masterComponents = [];
+    if (self.get('isAddServiceWizard')) {
+      masterComponents = App.StackServiceComponent.find().filterProperty('isShownOnAddServiceAssignMasterPage');
+    } else {
+      masterComponents = App.StackServiceComponent.find().filterProperty('isShownOnInstallerAssignMasterPage');
+    }
+
+    var masterHosts = self.get('content.masterComponentHosts'); //saved to local storage info
+    var selectedNotInstalledServices = self.get('content.services').filterProperty('isSelected').filterProperty('isInstalled', false).mapProperty('serviceName');
+    var recommendations = this.get('content.recommendations');
+
+    var resultComponents = [];
+    var multipleComponentHasBeenAdded = {};
+
+    recommendations.blueprint.host_groups.forEach(function(host_group) {
+      var hosts = recommendations.blueprint_cluster_binding.host_groups.findProperty('name', host_group.name).hosts;
+
+      hosts.forEach(function(host) {
+        host_group.components.forEach(function(component) {
+          var willBeAdded = true;
+          var fullComponent = masterComponents.findProperty('componentName', component.name);
+          // If it's master component which should be shown
+          if (fullComponent) {
+            // If service is already installed and not being added as a new service then render on UI only those master components
+            // that have already installed hostComponents.
+            // NOTE: On upgrade there might be a prior installed service with non-installed newly introduced serviceComponent
+            var isNotSelectedService = !selectedNotInstalledServices.contains(fullComponent.get('serviceName'));
+            if (isNotSelectedService) {
+              willBeAdded = App.HostComponent.find().someProperty('componentName', component.name);
+            }
+
+            if (willBeAdded) {
+              var savedComponents = masterHosts.filterProperty('component', component.name);
+
+              if (self.get('multipleComponents').contains(component.name) && savedComponents.length > 0) {
+                if (!multipleComponentHasBeenAdded[component.name]) {
+                  multipleComponentHasBeenAdded[component.name] = true;
+
+                  savedComponents.forEach(function(saved) {
+                    resultComponents.push(self.createComponentInstallationObject(fullComponent, host.fqdn, saved));
+                  });
+                }
+              } else {
+                var savedComponent = masterHosts.findProperty('component', component.name);
+                resultComponents.push(self.createComponentInstallationObject(fullComponent, host.fqdn, savedComponent));
+              }
+            }
+          }
+        });
+      });
+    });
+    return resultComponents;
+  },
+
+  /**
+   * Create component for displaying component-host comboboxes in UI assign dialog
+   * @param fullComponent - full component description
+   * @param hostName - host fqdn where component will be installed
+   * @param savedComponent - the same object which function returns but created before
+   * @return {Object}
+   */
+  createComponentInstallationObject: function(fullComponent, hostName, savedComponent) {
+    var componentName = fullComponent.get('componentName');
+
+    var componentObj = {};
+    componentObj.component_name = componentName;
+    componentObj.display_name = App.format.role(fullComponent.get('componentName'));
+    componentObj.serviceId = fullComponent.get('serviceName');
+    componentObj.isServiceCoHost = App.StackServiceComponent.find().findProperty('componentName', componentName).get('isCoHostedComponent') && !this.get('isReassignWizard');
+
+    if (savedComponent) {
+      componentObj.selectedHost = savedComponent.hostName;
+      componentObj.isInstalled = savedComponent.isInstalled;
+    } else {
+      componentObj.selectedHost = hostName;
+      componentObj.isInstalled = false;
+    }
+
+    return componentObj;
+  },
+
+  /**
+   * Success-callback for recommendations request
+   * @param {object} data
+   * @method loadRecommendationsSuccessCallback
+   */
+  loadRecommendationsSuccessCallback: function (data) {
+    this.set('content.recommendations', data.resources[0].recommendations);
+  },
+
+  /**
+   * Error-callback for recommendations request
+   * @param {object} jqXHR
+   * @param {object} ajaxOptions
+   * @param {string} error
+   * @param {object} opt
+   * @method loadRecommendationsErrorCallback
+   */
+  loadRecommendationsErrorCallback: function (jqXHR, ajaxOptions, error, opt) {
+    App.ajax.defaultErrorHandler(jqXHR, opt.url, opt.method, jqXHR.status);
+    console.log('Load recommendations failed');
+  },
+
+  /**
    * Load services info to appropriate variable and return masterComponentHosts
    * @return {Object[]}
    */
-  loadComponents: function () {
+  loadComponentsRecommendationsLocally: function (callback) {
     var selectedServices = App.StackService.find().filterProperty('isSelected').mapProperty('serviceName');
     var installedServices = App.StackService.find().filterProperty('isInstalled').mapProperty('serviceName');
     var services = installedServices.concat(selectedServices).uniq();
@@ -328,7 +719,7 @@ App.WizardStep5Controller = Em.Controller.extend({
               resultComponents.push(multipleMasterHost);
             })
           } else {
-            var multipleMasterHosts = this.selectHost(_componentInfo.get('componentName'));
+            var multipleMasterHosts = this.selectHostLocally(_componentInfo.get('componentName'));
             multipleMasterHosts.forEach(function (_host) {
               var multipleMasterHost = {};
               multipleMasterHost.component_name = _componentInfo.get('componentName');
@@ -346,7 +737,7 @@ App.WizardStep5Controller = Em.Controller.extend({
           var componentObj = {};
           componentObj.component_name = _componentInfo.get('componentName');
           componentObj.display_name = _componentInfo.get('displayName');
-          componentObj.selectedHost = savedComponent ? savedComponent.hostName : this.selectHost(_componentInfo.get('componentName'));   // call the method that plays selectNode algorithm or fetches from server
+          componentObj.selectedHost = savedComponent ? savedComponent.hostName : this.selectHostLocally(_componentInfo.get('componentName'));   // call the method that plays selectNode algorithm or fetches from server
           componentObj.isInstalled = savedComponent ? savedComponent.isInstalled : false;
           componentObj.serviceId = services[index];
           componentObj.isServiceCoHost = App.StackServiceComponent.find().findProperty('componentName', _componentInfo.get('componentName')).get('isCoHostedComponent') && !this.get('isReassignWizard');
@@ -355,7 +746,7 @@ App.WizardStep5Controller = Em.Controller.extend({
       }, this);
     }
 
-    return resultComponents;
+    callback(resultComponents, this);
   },
 
   /**
@@ -391,8 +782,10 @@ App.WizardStep5Controller = Em.Controller.extend({
         componentObj.set("showRemoveControl", showRemoveControl);
       }
       componentObj.set('isHostNameValid', true);
+
       result.push(componentObj);
     }, this);
+    result = this.sortComponentsByServiceName(result);
     this.set("selectedServicesMasters", result);
     if (this.get('isReassignWizard')) {
       var components = result.filterProperty('component_name', this.get('content.reassign.component_name'));
@@ -403,6 +796,14 @@ App.WizardStep5Controller = Em.Controller.extend({
     }
   },
 
+  sortComponentsByServiceName: function(components) {
+    var displayOrder = App.StackService.displayOrder;
+    return components.sort(function (a, b) {
+      var aValue = displayOrder.indexOf(a.serviceId) != -1 ? displayOrder.indexOf(a.serviceId) : components.length;
+      var bValue = displayOrder.indexOf(b.serviceId) != -1 ? displayOrder.indexOf(b.serviceId) : components.length;
+      return aValue - bValue;
+    });
+  },
   /**
    * Update dependent co-hosted components according to the change in the component host
    * @method updateCoHosts
@@ -477,9 +878,9 @@ App.WizardStep5Controller = Em.Controller.extend({
    * Return hostName of masterNode for specified service
    * @param componentName
    * @return {string|string[]}
-   * @method selectHost
+   * @method selectHostLocally
    */
-  selectHost: function (componentName) {
+  selectHostLocally: function (componentName) {
     var component = App.StackServiceComponent.find().findProperty('componentName', componentName);
     var hostNames = this.get('hosts').mapProperty('host_name');
     if (hostNames.length > 1 && App.StackServiceComponent.find().filterProperty('isNotPreferableOnAmbariServerHost').mapProperty('componentName').contains(componentName)) {
@@ -605,6 +1006,7 @@ App.WizardStep5Controller = Em.Controller.extend({
       newMaster.set("display_name", lastMaster.get("display_name"));
       newMaster.set("component_name", lastMaster.get("component_name"));
       newMaster.set("selectedHost", lastMaster.get("selectedHost"));
+      newMaster.set("serviceId", lastMaster.get("serviceId"));
       newMaster.set("isInstalled", false);
 
       if (currentMasters.get("length") === (maxNumMasters - 1)) {
@@ -669,15 +1071,65 @@ App.WizardStep5Controller = Em.Controller.extend({
     return true;
   },
 
+  recommendAndValidate: function(callback) {
+    var self = this;
+
+    // load recommendations with partial request
+    self.loadComponentsRecommendationsFromServer(function() {
+      // For validation use latest received recommendations because ir contains current master layout and recommended slave/client layout
+      self.validate(self.get('content.recommendations'), function() {
+        if (callback) {
+          callback();
+        }
+      });
+    }, true);
+  },
+
   /**
    * Submit button click handler
-   * @metohd submit
+   * @method submit
    */
   submit: function () {
-    this.getIsSubmitDisabled();
-    if (!this.get('submitDisabled')) {
-      App.router.send('next');
+    var self = this;
+    if (!this.get('submitButtonClicked')) {
+      this.set('submitButtonClicked', true);
+
+      var goNextStepIfValid = function () {
+        if (!self.get('submitDisabled')) {
+          App.router.send('next');
+        }
+        self.set('submitButtonClicked', false);
+      };
+
+      if (App.get('supports.serverRecommendValidate')  && this.get('useServerValidation')) {
+        self.recommendAndValidate(function () {
+          self.showValidationIssuesAcceptBox(goNextStepIfValid);
+        });
+      } else {
+        self.updateIsSubmitDisabled();
+        goNextStepIfValid();
+      }
+    }
+  },
+
+  /**
+   * In case of any validation issues shows accept dialog box for user which allow cancel and fix issues or continue anyway
+   * @method showValidationIssuesAcceptBox
+   */
+  showValidationIssuesAcceptBox: function(callback) {
+    var self = this;
+    if (self.get('anyWarning') || self.get('anyError')) {
+      App.ModalPopup.show({
+        primary: Em.I18n.t('common.continueAnyway'),
+        header: Em.I18n.t('installer.step5.validationIssuesAttention.header'),
+        body: Em.I18n.t('installer.step5.validationIssuesAttention'),
+        onPrimary: function () {
+          this.hide();
+          callback();
+        }
+      });
+    } else {
+      callback();
     }
   }
-
 });

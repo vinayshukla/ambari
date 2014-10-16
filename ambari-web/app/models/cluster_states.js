@@ -108,7 +108,6 @@ App.clusterStatus = Em.Object.create(App.UserPref, {
    * @method updateFromServer
    */
   updateFromServer: function (overrideLocaldb) {
-    // if overrideLocaldb is undefined, set it to true
     this.set('additionalData', {
       user: App.db.getUser(),
       login: App.db.getLoginName(),
@@ -178,14 +177,22 @@ App.clusterStatus = Em.Object.create(App.UserPref, {
   },
 
   /**
-   * update cluster status and post it on server
+   * update cluster status and post it on server.
+   * This function should always be called by admin user
    * @param {object} newValue
-   * @param {object} opt - used for additional ajax request options, by default ajax used synchronous mode
+   * @param {object} opt - Can have additional params for ajax callBacks and sender
+   *                 opt.successCallback
+   *                 opt.errorCallback
+   *                 opt.alwaysCallback
+   *                 opt.sender
    * @method setClusterStatus
    * @return {*}
    */
   setClusterStatus: function (newValue, opt) {
     if (App.get('testMode')) return false;
+    if (!App.get('isAdmin')) {
+      Em.assert('Non-Admin user should not execute setClusterStatus function', true);
+    }
     var user = App.db.getUser();
     var login = App.db.getLoginName();
     var val = {clusterName: this.get('clusterName')};
@@ -223,24 +230,16 @@ App.clusterStatus = Em.Object.create(App.UserPref, {
         App.db.setUser(user);
         App.db.setLoginName(login);
       }
-
-      if (opt) {
-        var keyValuePair = {};
-        keyValuePair[this.get('key')] = JSON.stringify(val);
-        App.ajax.send({
-          name: 'settings.post.user_pref',
-          sender: opt.sender || this,
-          data: {
-            keyValuePair: keyValuePair
-          },
-          success: opt.success,
-          beforeSend: opt.beforeSend,
-          error: opt.error
-        });
-      }
-      else {
-        this.postUserPref(this.get('key'), val);
-      }
+      this.postUserPref(this.get('key'), val)
+          .done(function () {
+            !!opt && Em.typeOf(opt.successCallback) === 'function' && opt.successCallback.call(opt.sender || this);
+          })
+          .fail(function () {
+            !!opt && Em.typeOf(opt.errorCallback) === 'function' && opt.errorCallback.call(opt.sender || this);
+          })
+          .always(function () {
+            !!opt && Em.typeOf(opt.alwaysCallback) === 'function' && opt.alwaysCallback.call(opt.sender || this);
+          });
       return newValue;
     }
   },

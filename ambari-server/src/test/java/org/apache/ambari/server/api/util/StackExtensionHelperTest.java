@@ -18,35 +18,33 @@
 
 package org.apache.ambari.server.api.util;
 
-import org.apache.ambari.server.api.services.AmbariMetaInfo;
-import org.apache.ambari.server.metadata.ActionMetadata;
-import org.apache.ambari.server.state.*;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
-
-import org.apache.ambari.server.state.stack.ConfigurationXml;
-import org.junit.Test;
-
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.metadata.ActionMetadata;
+import org.apache.ambari.server.state.*;
+import org.apache.ambari.server.state.stack.ConfigurationXml;
+import org.junit.Test;
+import org.xml.sax.SAXException;
+
+import javax.xml.bind.JAXBException;
 import javax.xml.namespace.QName;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathExpressionException;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+
+import static org.easymock.EasyMock.*;
+import static org.junit.Assert.*;
 
 public class StackExtensionHelperTest {
 
   private final String stackRootStr = "./src/test/resources/stacks/".
-          replaceAll("/", File.separator);
+      replaceAll("/", File.separator);
 
   private Injector injector = Guice.createInjector(new MockModule());
   
@@ -76,12 +74,14 @@ public class StackExtensionHelperTest {
       if (serviceInfo.getName().equals("HIVE")) {
         // Check old-style service
         assertEquals("HIVE", serviceInfo.getName());
+        assertEquals("Hive", serviceInfo.getDisplayName());
         assertEquals("2.0", serviceInfo.getSchemaVersion());
         assertTrue(serviceInfo.getComment().startsWith("Data warehouse system"));
         assertEquals("0.11.0.2.0.5.0", serviceInfo.getVersion());
         // Check some component definitions
         List<ComponentInfo> components = serviceInfo.getComponents();
         assertEquals("HIVE_METASTORE", components.get(0).getName());
+        assertEquals("Hive Metastore", components.get(0).getDisplayName());
         assertEquals("MASTER", components.get(0).getCategory());
         List<PropertyInfo> properties = serviceInfo.getProperties();
         // Check some property
@@ -180,8 +180,10 @@ public class StackExtensionHelperTest {
           }
         }
         assertEquals(28, emptyValueProperties.size());
-        assertEquals(66, properties.size());
-        boolean found = false;
+        assertEquals(68, properties.size());
+        boolean foundHBaseClusterDistributed = false;
+        boolean foundHBaseRegionServerXmnMax = false;
+        boolean foundHBaseRegionServerXmnRatio = false;
         for (PropertyInfo property : properties) {
           if (property.getName().equals("hbase.cluster.distributed")) {
             assertEquals("true",
@@ -189,10 +191,27 @@ public class StackExtensionHelperTest {
             assertTrue(property.getDescription().startsWith("The mode the"));
             assertEquals("hbase-site.xml",
                     property.getFilename());
-            found = true;
+            foundHBaseClusterDistributed = true;
+          } else if (property.getName().equals("hbase_regionserver_xmn_max")) {
+            assertEquals("512", property.getValue());
+            assertEquals("global.xml",
+                property.getFilename());
+            foundHBaseRegionServerXmnMax = true;
+          } else if (property.getName().equals("hbase_regionserver_xmn_ratio")) {
+            assertEquals("global.xml",
+                property.getFilename());
+            assertEquals("0.2", property.getValue());
+            foundHBaseRegionServerXmnRatio = true;
           }
         }
-        assertTrue("Property not found in a list of properties", found);
+
+        assertTrue("Property hbase.cluster.distributed not found in a list of properties",
+            foundHBaseClusterDistributed);
+        assertTrue("Property hbase_regionserver_xmn_max not found in a list of properties",
+            foundHBaseRegionServerXmnMax);
+        assertTrue("Property hbase_regionserver_xmn_ratio not found in a list of properties",
+            foundHBaseRegionServerXmnRatio);
+
         List<String> configDependencies = serviceInfo.getConfigDependencies();
         assertEquals(3, configDependencies.size());
         assertEquals("global", configDependencies.get(0));
@@ -225,7 +244,7 @@ public class StackExtensionHelperTest {
     for (ServiceInfo serviceInfo : allServices) {
       if (serviceInfo.getName().equals("HDFS")) {
         assertEquals(5, serviceInfo.getConfigDependencies().size());
-        assertEquals(5, serviceInfo.getConfigTypes().size());
+        assertEquals(4, serviceInfo.getConfigTypes().size());
         assertTrue(serviceInfo.getConfigDependencies().contains("core-site"));
         assertTrue(serviceInfo.getConfigDependencies().contains("global"));
         assertTrue(serviceInfo.getConfigDependencies().contains("hdfs-site"));
@@ -238,6 +257,33 @@ public class StackExtensionHelperTest {
         assertEquals(1, serviceInfo.getConfigTypes().size());
         assertTrue(serviceInfo.getConfigDependencies().contains("webhcat-site"));
         assertTrue(Boolean.valueOf(serviceInfo.getConfigTypes().get("webhcat-site").get("supports").get("final")));
+      }
+    }
+  }
+
+  @Test
+  public void testClientConfigFilesInheritance() throws Exception{
+    File stackRoot = new File(stackRootStr);
+    StackInfo stackInfo = new StackInfo();
+    stackInfo.setName("HDP");
+    stackInfo.setVersion("2.0.6");
+    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
+    helper.populateServicesForStack(stackInfo);
+    helper.fillInfo();
+    List<ServiceInfo> allServices = helper.getAllApplicableServices(stackInfo);
+    for (ServiceInfo serviceInfo : allServices) {
+      if (serviceInfo.getName().equals("ZOOKEEPER")) {
+        List<ComponentInfo> components = serviceInfo.getComponents();
+        assertTrue(components.size() == 2);
+        ComponentInfo componentInfo = components.get(1);
+        List<ClientConfigFileDefinition> clientConfigs = componentInfo.getClientConfigFiles();
+        assertEquals(2,clientConfigs.size());
+        assertEquals("zookeeper-env",clientConfigs.get(0).getDictionaryName());
+        assertEquals("zookeeper-env.sh",clientConfigs.get(0).getFileName());
+        assertEquals("env",clientConfigs.get(0).getType());
+        assertEquals("zookeeper-log4j",clientConfigs.get(1).getDictionaryName());
+        assertEquals("log4j.properties",clientConfigs.get(1).getFileName());
+        assertEquals("env",clientConfigs.get(1).getType());
       }
     }
   }
@@ -277,58 +323,90 @@ public class StackExtensionHelperTest {
     assertEquals("2.0", version);
   }
 
-  @Test
-  public void testPopulateConfigTypes() {
+  public StackExtensionHelper getStackExtensionHelper() {
     File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
-    List<String> configDependencies = Arrays.asList("dep1", "dep2");
-    ServiceInfo serviceInfo = new ServiceInfo();
-    serviceInfo.setConfigDependencies(configDependencies);
-    helper.populateConfigTypesFromDependencies(serviceInfo);
+    return new StackExtensionHelper(injector, stackRoot);
+  }
 
-    Map<String, Map<String, Map<String, String>>> configTypes = serviceInfo.getConfigTypes();
-    assertEquals(2, configTypes.size());
-    assertTrue(configTypes.containsKey("dep1"));
-    assertTrue(configTypes.containsKey("dep2"));
-    Map<String, Map<String, String>> properties;
-    properties= configTypes.get("dep1");
-    assertEquals(1, properties.size());
-    assertTrue(properties.containsKey("supports"));
-    assertEquals(1, properties.get("supports").size());
-    assertTrue(properties.get("supports").containsKey("final"));
-    assertEquals("false", properties.get("supports").get("final"));
-    properties= configTypes.get("dep2");
-    assertEquals(1, properties.size());
-    assertTrue(properties.containsKey("supports"));
-    assertEquals(1, properties.get("supports").size());
-    assertTrue(properties.get("supports").containsKey("final"));
-    assertEquals("false", properties.get("supports").get("final"));
+  public ServiceInfo getServiceFromStack(StackExtensionHelper helper, String stackName, String stackVersion, String serviceName) throws XPathExpressionException, ParserConfigurationException, SAXException, IOException, JAXBException {
+    StackInfo stackInfo = new StackInfo();
+    stackInfo.setName(stackName);
+    stackInfo.setVersion(stackVersion);
+
+    helper.populateServicesForStack(stackInfo);
+
+    for(ServiceInfo service:stackInfo.getServices()) {
+      if(service.getName().equals(serviceName)) {
+        return service;
+      }
+    }
+    return null;
+  }
+
+  private void addToPropertyMap(Map<String, Map<String, Map<String, String>>> configTypes,String configType,
+      String keyword, String attributeName, String value) {
+    if(!configTypes.containsKey(configType)) {
+      configTypes.put(configType, new HashMap<String, Map<String, String>>());
+    }
+    Map<String, Map<String, String>> config = configTypes.get(configType);
+    if(!config.containsKey(keyword)) {
+      config.put(keyword, new HashMap<String, String>());
+    }
+    Map<String, String> supports = config.get(keyword);
+    supports.put(attributeName, value);
+  }
+
+  /**
+   * This test ensures the service status check is added into the action metadata when
+   * the stack has no parent and is the only stack in the stack family
+   * @throws Exception
+   */
+  @Test
+  public void testGetServiceInfoFromSingleStack() throws Exception {
+    File stackRoot = new File("./src/test/resources/single_stack".replace("/", File.separator));
+    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
+    helper.fillInfo();
+    List<StackInfo> stackInfoList = helper.getAllAvailableStacks();
+    assertEquals(1, stackInfoList.size());
+
+    List<ServiceInfo> serviceInfoList = helper.getAllApplicableServices(stackInfoList.get(0));
+    for(ServiceInfo serviceInfo: serviceInfoList) {
+      if ("HDFS".equalsIgnoreCase(serviceInfo.getName())) {
+        ActionMetadata actionMetadata = injector.getInstance(ActionMetadata.class);
+        String hdfsStatusCheckCmd = actionMetadata.getServiceCheckAction("HDFS");
+        assertEquals("HDFS_SERVICE_CHECK", hdfsStatusCheckCmd);
+        break;
+      }
+    }
   }
 
   @Test
-  public void testPopulateConfigTypes_emptyList() {
-    File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
-    List<String> configDependencies = Collections.emptyList();
-    ServiceInfo serviceInfo = new ServiceInfo();
-    serviceInfo.setConfigDependencies(configDependencies);
-    helper.populateConfigTypesFromDependencies(serviceInfo);
+  public void testPopulateConfigTypes() throws XPathExpressionException, ParserConfigurationException, SAXException, IOException, JAXBException {
+    StackExtensionHelper helper = getStackExtensionHelper();
+    ServiceInfo serviceInfo = getServiceFromStack(helper, "HDP", "2.0.7", "HDFS");
+
+
+    Map<String, Map<String, Map<String, String>>> expectedConfigTypes = new HashMap<String, Map<String, Map<String, String>>>();
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "true");
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
 
     Map<String, Map<String, Map<String, String>>> configTypes = serviceInfo.getConfigTypes();
-    assertEquals(0, configTypes.size());
-  }
-
-  @Test
-  public void testPopulateConfigTypes_null() {
-    File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
-    List<String> configDependencies = null;
-    ServiceInfo serviceInfo = new ServiceInfo();
-    serviceInfo.setConfigDependencies(configDependencies);
-    helper.populateConfigTypesFromDependencies(serviceInfo);
-
-    Map<String, Map<String, Map<String, String>>> configTypes = serviceInfo.getConfigTypes();
-    assertTrue(configTypes == null);
+    assertEquals(4, configTypes.size());
+    assertEquals(expectedConfigTypes, configTypes);
   }
 
   @Test
@@ -343,7 +421,7 @@ public class StackExtensionHelperTest {
     replay(serviceInfo);
 
     // eval
-    helper.addConfigTypeProperty(serviceInfo, "dep", "group", "key", "value");
+    helper.addConfigTypeProperty(serviceInfo.getConfigTypes(), "dep", "group", "key", "value");
 
     // verification
     verify(serviceInfo);
@@ -361,7 +439,7 @@ public class StackExtensionHelperTest {
     serviceInfo.setConfigTypes(configTypes);
 
     // eval
-    helper.addConfigTypeProperty(serviceInfo, "dep", "group", "key", "value");
+    helper.addConfigTypeProperty(serviceInfo.getConfigTypes(), "dep", "group", "key", "value");
 
     // assert
     configTypes = serviceInfo.getConfigTypes();
@@ -387,7 +465,7 @@ public class StackExtensionHelperTest {
     serviceInfo.setConfigTypes(configTypes);
 
     // eval
-    helper.addConfigTypeProperty(serviceInfo, "no_such_dep", "group", "key", "value");
+    helper.addConfigTypeProperty(serviceInfo.getConfigTypes(), "no_such_dep", "group", "key", "value");
 
     // assert
     configTypes = serviceInfo.getConfigTypes();
@@ -412,7 +490,7 @@ public class StackExtensionHelperTest {
     serviceInfo.setConfigTypes(configTypes);
 
     // eval
-    helper.addConfigTypeProperty(serviceInfo, "dep", "group", "key", "value");
+    helper.addConfigTypeProperty(serviceInfo.getConfigTypes(), "dep", "group", "key", "value");
 
     // assert
     configTypes = serviceInfo.getConfigTypes();
@@ -427,81 +505,84 @@ public class StackExtensionHelperTest {
 
   @Test
   public void testPopulateServiceProperties_noSupportsFinalFlag() throws Exception {
-    // init
-    File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = createMockBuilder(StackExtensionHelper.class).addMockedMethod("addConfigTypeProperty")
-        .withConstructor(injector, stackRoot).createMock();
-    File config = new File(stackRootStr
+    StackExtensionHelper helper = getStackExtensionHelper();
+    ServiceInfo serviceInfo = getServiceFromStack(helper, "HDP", "2.0.7", "YARN");
+
+    File configFile = new File(stackRootStr
         + "HDP/2.0.7/services/YARN/configuration/yarn-site.xml".replaceAll("/", File.separator));
-    ServiceInfo serviceInfo = createNiceMock(ServiceInfo.class);
-    List<PropertyInfo> properties = createNiceMock(List.class);
 
-    // expectations
-    expect(serviceInfo.getProperties()).andReturn(properties).times(1);
-    expect(properties.addAll((Collection) anyObject())).andReturn(true).times(1);
-    replay(properties);
-    replay(serviceInfo);
-    replay(helper);
+    helper.populateServiceProperties(configFile, serviceInfo);
 
-    // eval
-    helper.populateServiceProperties(config, serviceInfo);
+    Map<String, Map<String, Map<String, String>>> expectedConfigTypes = new HashMap<String, Map<String, Map<String, String>>>();
+    addToPropertyMap(expectedConfigTypes, "yarn-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "yarn-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "true");
 
-    // verification
-    verify(properties, serviceInfo, helper);
+    assertEquals(expectedConfigTypes, serviceInfo.getConfigTypes());
   }
 
   @Test
   public void testPopulateServiceProperties_supportsFinalTrue() throws Exception {
-    // init
-    File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = createMockBuilder(StackExtensionHelper.class).addMockedMethod("addConfigTypeProperty")
-        .withConstructor(injector, stackRoot).createMock();
-    File config = new File(stackRootStr
+    StackExtensionHelper helper = getStackExtensionHelper();
+    ServiceInfo serviceInfo = getServiceFromStack(helper, "HDP", "2.0.7", "HDFS");
+
+    File configFile = new File(stackRootStr
         + "HDP/2.0.7/services/HDFS/configuration/global.xml".replaceAll("/", File.separator));
-    ServiceInfo serviceInfo = createNiceMock(ServiceInfo.class);
-    List<PropertyInfo> properties = createNiceMock(List.class);
+    helper.populateServiceProperties(configFile, serviceInfo);
 
-    // expectations
-    expect(serviceInfo.getProperties()).andReturn(properties).times(1);
-    expect(properties.addAll((Collection) anyObject())).andReturn(true).times(1);
-    helper.addConfigTypeProperty(serviceInfo, "global", StackExtensionHelper.Supports.KEYWORD,
+    Map<String, Map<String, Map<String, String>>> expectedConfigTypes = new HashMap<String, Map<String, Map<String, String>>>();
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
         StackExtensionHelper.Supports.FINAL.getPropertyName(), "true");
-    replay(properties);
-    replay(serviceInfo);
-    replay(helper);
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
 
-    // eval
-    helper.populateServiceProperties(config, serviceInfo);
-
-    // verification
-    verify(properties, serviceInfo, helper);
+    assertEquals(expectedConfigTypes, serviceInfo.getConfigTypes());
   }
 
   @Test
   public void testPopulateServiceProperties_supportsFinalFalse() throws Exception {
-    // init
-    File stackRoot = new File(stackRootStr);
-    StackExtensionHelper helper = createMockBuilder(StackExtensionHelper.class).addMockedMethod("addConfigTypeProperty")
-        .withConstructor(injector, stackRoot).createMock();
-    File config = new File(stackRootStr
-        + "HDP/2.0.7/services/HDFS/configuration/core-site.xml".replaceAll("/", File.separator));
-    ServiceInfo serviceInfo = createNiceMock(ServiceInfo.class);
-    List<PropertyInfo> properties = createNiceMock(List.class);
+    StackExtensionHelper helper = getStackExtensionHelper();
+    ServiceInfo serviceInfo = getServiceFromStack(helper, "HDP", "2.0.7", "HDFS");
+    File configFile = new File(stackRootStr
+        + "HDP/2.0.7/services/YARN/configuration/yarn-site.xml".replaceAll("/", File.separator));
+    helper.populateServiceProperties(configFile, serviceInfo);
 
-    // expectations
-    expect(serviceInfo.getProperties()).andReturn(properties).times(1);
-    expect(properties.addAll((Collection) anyObject())).andReturn(true).times(1);
-    helper.addConfigTypeProperty(serviceInfo, "core-site", StackExtensionHelper.Supports.KEYWORD,
+    Map<String, Map<String, Map<String, String>>> expectedConfigTypes = new HashMap<String, Map<String, Map<String, String>>>();
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "true");
+    addToPropertyMap(expectedConfigTypes, "global", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
         StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
-    replay(properties);
-    replay(serviceInfo);
-    replay(helper);
+    addToPropertyMap(expectedConfigTypes, "hdfs-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "hadoop-policy", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "core-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "yarn-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
+    addToPropertyMap(expectedConfigTypes, "yarn-site", StackExtensionHelper.Supports.KEYWORD,
+        StackExtensionHelper.Supports.ADDING_FORBIDDEN.getPropertyName(), "true");
 
-    // eval
-    helper.populateServiceProperties(config, serviceInfo);
-
-    // verification
-    verify(properties, serviceInfo, helper);
+    assertEquals(expectedConfigTypes, serviceInfo.getConfigTypes());
   }
 
   @Test
@@ -516,19 +597,16 @@ public class StackExtensionHelperTest {
     List<PropertyInfo> properties = createNiceMock(List.class);
 
     // expectations
+    expect(serviceInfo.getConfigTypes()).andReturn(new HashMap<String, Map<String, Map<String, String>>>()).times(2);
     expect(serviceInfo.getProperties()).andReturn(properties).times(1);
     expect(properties.addAll((Collection) anyObject())).andReturn(true).times(1);
-    helper.addConfigTypeProperty(serviceInfo, "yarn-site", StackExtensionHelper.Supports.KEYWORD,
-        StackExtensionHelper.Supports.FINAL.getPropertyName(), "false");
-    replay(properties);
-    replay(serviceInfo);
-    replay(helper);
+    replay(properties, serviceInfo);
 
     // eval
     helper.populateServiceProperties(config, serviceInfo);
 
     // verification
-    verify(properties, serviceInfo, helper);
+    verify(properties, serviceInfo);
   }
 
   @Test
@@ -538,13 +616,13 @@ public class StackExtensionHelperTest {
     StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
     File config = new File(stackRootStr
         + "HDP/2.1.1/services/PIG/configuration/pig-properties.xml".replaceAll("/", File.separator));
-    ServiceInfo serviceInfo = createMock(ServiceInfo.class);
-    List<PropertyInfo> properties = createNiceMock(List.class);
+    ServiceInfo serviceInfo = createNiceMock(ServiceInfo.class);
+    List<PropertyInfo> properties = createMock(List.class);
 
     // expectations
+    expect(serviceInfo.getConfigTypes()).andReturn(new HashMap<String, Map<String, Map<String, String>>>()).times(2);
     expect(serviceInfo.getProperties()).andReturn(properties).times(1);
     expect(properties.addAll((Collection) anyObject())).andReturn(true).times(1);
-    expect(serviceInfo.getConfigTypes()).andReturn(null).times(1);
     replay(properties);
     replay(serviceInfo);
 
@@ -566,7 +644,7 @@ public class StackExtensionHelperTest {
     assertEquals(2, attributes.size());
     QName supportsFinal = new QName("", "supports_final");
     assertTrue(attributes.containsKey(supportsFinal));
-    assertEquals("true", attributes.get(supportsFinal));
+    assertEquals("false", attributes.get(supportsFinal));
     QName supportsDeletable = new QName("", "supports_deletable");
     assertTrue(attributes.containsKey(supportsDeletable));
     assertEquals("false", attributes.get(supportsDeletable));
@@ -579,31 +657,33 @@ public class StackExtensionHelperTest {
     assertEquals("yarn.scheduler.capacity.maximum-applications", propertyInfo.getName());
     assertEquals("Maximum number of applications that can be pending and running.", propertyInfo.getDescription());
     assertEquals("10000", propertyInfo.getValue());
-    assertEquals(true, propertyInfo.isFinal());
+    assertEquals(1, propertyInfo.getAttributesMap().size());
+    assertEquals("true", propertyInfo.getAttributesMap().get("final"));
     assertEquals(null, propertyInfo.getFilename());
     assertEquals(false, propertyInfo.isDeleted());
     assertEquals(false, propertyInfo.isRequireInput());
-    assertEquals(PropertyInfo.PropertyType.DEFAULT, propertyInfo.getType());
+    assertTrue(propertyInfo.getPropertyTypes().isEmpty());
 
     propertyInfo = properties.get(1);
     assertEquals("yarn.scheduler.capacity.maximum-am-resource-percent", propertyInfo.getName());
     assertEquals("Maximum percent of resources in the cluster.", propertyInfo.getDescription());
     assertEquals("0.2", propertyInfo.getValue());
-    assertEquals(false, propertyInfo.isFinal());
+    assertEquals(1, propertyInfo.getAttributesMap().size());
+    assertEquals("false", propertyInfo.getAttributesMap().get("final"));
     assertEquals(null, propertyInfo.getFilename());
     assertEquals(true, propertyInfo.isDeleted());
     assertEquals(false, propertyInfo.isRequireInput());
-    assertEquals(PropertyInfo.PropertyType.DEFAULT, propertyInfo.getType());
+    assertTrue(propertyInfo.getPropertyTypes().isEmpty());
 
     propertyInfo = properties.get(2);
     assertEquals("yarn.scheduler.capacity.root.queues", propertyInfo.getName());
     assertEquals("The queues at the this level (root is the root queue).", propertyInfo.getDescription());
     assertEquals("default", propertyInfo.getValue());
-    assertEquals(false, propertyInfo.isFinal());
+    assertEquals(0, propertyInfo.getAttributesMap().size());
     assertEquals(null, propertyInfo.getFilename());
     assertEquals(false, propertyInfo.isDeleted());
     assertEquals(true, propertyInfo.isRequireInput());
-    assertEquals(PropertyInfo.PropertyType.DEFAULT, propertyInfo.getType());
+    assertTrue(propertyInfo.getPropertyTypes().isEmpty());
   }
 
   @Test
@@ -625,6 +705,60 @@ public class StackExtensionHelperTest {
     assertEquals(0, merged.getConfigDependencies().size());
     assertNotNull(merged.getConfigTypes());
     assertEquals(0, merged.getConfigTypes().size());
+  }
+
+  @Test
+  public void testServiceInheritance() throws Exception {
+    File stackRoot = new File(stackRootStr);
+    StackInfo stackInfo = new StackInfo();
+    stackInfo.setName("HDP");
+    stackInfo.setVersion("2.0.6");
+    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
+    helper.populateServicesForStack(stackInfo);
+    helper.fillInfo();
+    List<ServiceInfo> allServices = helper.getAllApplicableServices(stackInfo);
+    for (ServiceInfo serviceInfo : allServices) {
+      if (serviceInfo.getName().equals("HDFS")){
+        assertEquals("HDFS", serviceInfo.getName());
+        assertNotNull(serviceInfo.getMetricsFile());
+      }
+    }
+
+  }
+
+
+  @Test
+  public void testMergeComponentInfo() throws Exception {
+    File stackRoot = new File(stackRootStr);
+    StackExtensionHelper helper = new StackExtensionHelper(injector, stackRoot);
+    ComponentInfo child = new ComponentInfo();
+    ComponentInfo parent = new ComponentInfo();
+    DependencyInfo a = new DependencyInfo();
+    a.setName("serviceName/A");
+    DependencyInfo b = new DependencyInfo();
+    b.setName("serviceName/B");
+    List<DependencyInfo> parentDependencies = new ArrayList<DependencyInfo>();
+    parentDependencies.add(a);
+    parentDependencies.add(b);
+    parent.setDependencies(parentDependencies);
+
+    DependencyInfo c = new DependencyInfo();
+    c.setName("serviceName/C");
+    List<DependencyInfo> childDependencies = new ArrayList<DependencyInfo>();
+    childDependencies.add(c);
+    child.setDependencies(childDependencies);
+
+    child.setCardinality("1");
+    parent.setCardinality("1+");
+
+    child.setCategory("CLIENT");
+    parent.setCategory("MASTER");
+
+    ComponentInfo result = helper.mergeComponents(parent, child);
+
+    assertEquals(result.getCardinality(),"1");
+    assertEquals(result.getCategory(), "CLIENT");
+    assertEquals(result.getDependencies().size(), 3);
   }
 }
 

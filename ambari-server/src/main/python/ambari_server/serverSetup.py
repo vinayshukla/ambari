@@ -22,6 +22,7 @@ import socket
 import sys
 import urllib2
 from ambari_commons.inet_utils import force_download_file
+from ambari_commons.logging import print_warning_msg, print_error_msg
 
 from serverConfiguration import *
 from setupSecurity import adjust_directory_permissions, get_is_secure, store_password_file, encrypt_password, \
@@ -456,78 +457,36 @@ def setup(options):
 #
 # Upgrades the Ambari Server.
 #
-# def upgrade(args):
-#   if not is_root():
-#     err = 'Ambari-server upgrade should be run with ' \
-#           'root-level privileges'
-#     raise FatalException(4, err)
-#
-#   print 'Updating properties in ' + AMBARI_PROPERTIES_FILE + ' ...'
-#   retcode = update_ambari_properties()
-#   if not retcode == 0:
-#     err = AMBARI_PROPERTIES_FILE + ' file can\'t be updated. Exiting'
-#     raise FatalException(retcode, err)
-#
-#   try:
-#     check_database_name_property()
-#   except FatalException:
-#     properties = get_ambari_properties()
-#     if properties == -1:
-#       print_error_msg("Error getting ambari properties")
-#       return -1
-#     print_warning_msg(JDBC_DATABASE_PROPERTY + " property isn't set in " +
-#     AMBARI_PROPERTIES_FILE + ". Setting it to default value - " + DEFAULT_DB_NAME)
-#     properties.process_pair(JDBC_DATABASE_PROPERTY, DEFAULT_DB_NAME)
-#     conf_file = find_properties_file()
-#     try:
-#       properties.store(open(conf_file, "w"))
-#     except Exception, e:
-#       print_error_msg('Could not write ambari config file "%s": %s' % (conf_file, e))
-#       return -1
-#
-#   parse_properties_file(args)
-#   #TODO check database version
-#   if args.persistence_type == 'local':
-#     retcode, stdout, stderr = change_objects_owner(args)
-#     if not retcode == 0:
-#       raise FatalException(20, 'Unable to change owner of database objects')
-#
-#   retcode = run_schema_upgrade()
-#   if not retcode == 0:
-#     print_error_msg("Ambari server upgrade failed. Please look at /var/log/ambari-server/ambari-server.log, for more details.")
-#     raise FatalException(11, 'Schema upgrade failed.')
-#
-#   user = read_ambari_user()
-#   if user is None:
-#     warn = "Can not determine custom ambari user.\n" + SETUP_OR_UPGRADE_MSG
-#     print_warning_msg(warn)
-#   else:
-#     adjust_directory_permissions(user)
-#
-#   # local repo
-#   upgrade_local_repo(args)
-#
-#   # create jdbc symlinks if jdbc drivers are available in resources
-#   properties = get_ambari_properties()
-#   if properties == -1:
-#     err = "Error getting ambari properties"
-#     print_error_msg(err)
-#     raise FatalException(-1, err)
-#   conf_file = properties.fileName
-#
-#   try:
-#     resources_dir = properties[RESOURCES_DIR_PROPERTY]
-#   except (KeyError), e:
-#     err = 'Property ' + str(e) + ' is not defined at ' + conf_file
-#     raise FatalException(1, err)
-#
-#   for db_name in list(JDBC_DB_DEFAULT_DRIVER):
-#     if os.path.isfile(os.path.join(resources_dir, JDBC_DB_DEFAULT_DRIVER[db_name])):
-#       symlink_name = db_name + "-jdbc-driver.jar"
-#       jdbc_symlink = os.path.join(resources_dir, symlink_name)
-#       if os.path.lexists(jdbc_symlink):
-#         os.remove(jdbc_symlink)
-#       os.symlink(os.path.join(resources_dir,JDBC_DB_DEFAULT_DRIVER[db_name]), jdbc_symlink)
+def upgrade(args):
+  if not is_root():
+    err = 'Ambari-server upgrade should be run with ' \
+          'root-level privileges'
+    raise FatalException(4, err)
+
+  print 'Updating properties in ' + AMBARI_PROPERTIES_FILE + ' ...'
+  retcode = update_ambari_properties()
+  if not retcode == 0:
+    err = AMBARI_PROPERTIES_FILE + ' file can\'t be updated. Exiting'
+    raise FatalException(retcode, err)
+
+  try:
+    update_database_name_property()
+  except FatalException:
+    return -1
+
+  parse_properties_file(args)
+
+  retcode = run_schema_upgrade()
+  if not retcode == 0:
+    print_error_msg("Ambari server upgrade failed. Please look at /var/log/ambari-server/ambari-server.log, for more details.")
+    raise FatalException(11, 'Schema upgrade failed.')
+
+  user = read_ambari_user()
+  if user is None:
+    warn = "Can not determine custom ambari user.\n" + SETUP_OR_UPGRADE_MSG
+    print_warning_msg(warn)
+  else:
+    adjust_directory_permissions(user)
 
 
 #

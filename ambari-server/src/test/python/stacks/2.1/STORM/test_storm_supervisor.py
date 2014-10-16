@@ -21,9 +21,9 @@ limitations under the License.
 from mock.mock import MagicMock, call, patch
 from stacks.utils.RMFTestCase import *
 import  resource_management.core.source
+from test_storm_base import TestStormBase
 
-@patch.object(resource_management.core.source, "InlineTemplate", new = MagicMock(return_value='InlineTemplateMock'))
-class TestStormSupervisor(RMFTestCase):
+class TestStormSupervisor(TestStormBase):
 
   def test_configure_default(self):
     self.executeScript("2.1/services/STORM/package/scripts/supervisor.py",
@@ -43,9 +43,10 @@ class TestStormSupervisor(RMFTestCase):
 
     self.assert_configure_default()
 
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm supervisor > /var/log/storm/supervisor.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm supervisor > /var/log/storm/supervisor.out 2>&1',
       wait_for_finish = False,
       not_if = 'ls /var/run/storm/supervisor.pid >/dev/null 2>&1 && ps `cat /var/run/storm/supervisor.pid` >/dev/null 2>&1',
+      path = ['/usr/bin'],
       user = 'storm',
     )
 
@@ -53,11 +54,13 @@ class TestStormSupervisor(RMFTestCase):
       logoutput = True,
       tries = 6,
       user = 'storm',
+      path = ['/usr/bin'],
       try_sleep = 10,
     )
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm logviewer > /var/log/storm/logviewer.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm logviewer > /var/log/storm/logviewer.out 2>&1',
                                wait_for_finish = False,
                                not_if = 'ls /var/run/storm/logviewer.pid >/dev/null 2>&1 && ps `cat /var/run/storm/logviewer.pid` >/dev/null 2>&1',
+                               path = ['/usr/bin'],
                                user = 'storm'
     )
 
@@ -65,6 +68,7 @@ class TestStormSupervisor(RMFTestCase):
                               logoutput = True,
                               tries = 12,
                               user = 'storm',
+                              path = ['/usr/bin'],
                               try_sleep = 10
     )
 
@@ -94,7 +98,7 @@ class TestStormSupervisor(RMFTestCase):
     self.assertResourceCalled('Execute', 'rm -f /var/run/storm/logviewer.pid')
     self.assertNoMoreResources()
 
-  def test_configure_default(self):
+  def test_configure_secured(self):
     self.executeScript("2.1/services/STORM/package/scripts/supervisor.py",
                        classname = "Supervisor",
                        command = "configure",
@@ -112,9 +116,10 @@ class TestStormSupervisor(RMFTestCase):
 
     self.assert_configure_secured()
 
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm supervisor > /var/log/storm/supervisor.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm supervisor > /var/log/storm/supervisor.out 2>&1',
       wait_for_finish = False,
       not_if = 'ls /var/run/storm/supervisor.pid >/dev/null 2>&1 && ps `cat /var/run/storm/supervisor.pid` >/dev/null 2>&1',
+      path = ['/usr/bin'],
       user = 'storm',
     )
 
@@ -122,11 +127,13 @@ class TestStormSupervisor(RMFTestCase):
       logoutput = True,
       tries = 6,
       user = 'storm',
+      path = ['/usr/bin'],
       try_sleep = 10,
     )
-    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin /usr/bin/storm logviewer > /var/log/storm/logviewer.out 2>&1',
+    self.assertResourceCalled('Execute', 'env JAVA_HOME=/usr/jdk64/jdk1.7.0_45 PATH=$PATH:/usr/jdk64/jdk1.7.0_45/bin storm logviewer > /var/log/storm/logviewer.out 2>&1',
                         wait_for_finish = False,
                         not_if = 'ls /var/run/storm/logviewer.pid >/dev/null 2>&1 && ps `cat /var/run/storm/logviewer.pid` >/dev/null 2>&1',
+                        path = ['/usr/bin'],
                         user = 'storm'
     )
 
@@ -134,6 +141,7 @@ class TestStormSupervisor(RMFTestCase):
                         logoutput = True,
                         tries = 12,
                         user = 'storm',
+                        path = ['/usr/bin'],
                         try_sleep = 10
     )
     self.assertNoMoreResources()
@@ -189,15 +197,11 @@ class TestStormSupervisor(RMFTestCase):
       content = Template('config.yaml.j2'),
       group = 'hadoop',
     )
-    self.assertResourceCalled('File', '/etc/storm/conf/storm.yaml',
-      owner = 'storm',
-      content = 'InlineTemplateMock',
-      group = 'hadoop',
-      mode = None,
-    )
+    #assert that storm.yam was properly configured
+    self.call_storm_template_and_assert()
     self.assertResourceCalled('File', '/etc/storm/conf/storm-env.sh',
                               owner = 'storm',
-                              content = 'InlineTemplate'
+                              content = InlineTemplate(self.getConfig()['configurations']['storm-env']['content'])
                               )
 
   def assert_configure_secured(self):
@@ -226,16 +230,30 @@ class TestStormSupervisor(RMFTestCase):
       content = Template('config.yaml.j2'),
       group = 'hadoop',
     )
-    self.assertResourceCalled('File', '/etc/storm/conf/storm.yaml',
-      owner = 'storm',
-      content = 'InlineTemplateMock',
-      group = 'hadoop',
-      mode = None,
-    )
+#     self.assertResourceCalled('File', '/etc/storm/conf/storm.yaml',
+#       owner = 'storm',
+#       content = self.get_yaml_inline_template(self.getConfig()['configurations']['storm-site']),
+#       group = 'hadoop',
+#       mode = None,
+#     )
+    #assert that storm.yam was properly configured
+    self.call_storm_template_and_assert()
+
     self.assertResourceCalled('File', '/etc/storm/conf/storm-env.sh',
                               owner = 'storm',
-                              content = 'InlineTemplate'
+                              content = InlineTemplate(self.getConfig()['configurations']['storm-env']['content'])
                               )
     self.assertResourceCalled('TemplateConfig', '/etc/storm/conf/storm_jaas.conf',
       owner = 'storm',
     )
+
+#   def get_yaml_inline_template(self, configurations):
+#     with self.env:
+#       from yaml_config import yaml_inline_template
+#       from storm import enrich_kerberos_settings
+#       import params
+#
+#       if params.security_enabled:
+#         return yaml_inline_template(enrich_kerberos_settings(configurations, params.conf_dir, "EXAMPLE.COM"))
+#       else:
+#         return yaml_inline_template(configurations)

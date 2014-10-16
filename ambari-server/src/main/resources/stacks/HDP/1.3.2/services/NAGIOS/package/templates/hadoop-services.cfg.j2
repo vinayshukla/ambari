@@ -64,6 +64,7 @@ define service {
 }
 
 # NAGIOS SERVER HDFS Checks
+{% if hostgroup_defs['namenode'] %}
 define service {
         hostgroup_name          nagios-server
         use                     hadoop-service
@@ -85,6 +86,7 @@ define service {
         retry_check_interval    0.25
         max_check_attempts      3
 }
+{% endif %}
 
 # AMBARI AGENT Checks
 {% for hostname in all_hosts %}
@@ -496,7 +498,7 @@ define service {
         service_description     HBASEMASTER::HBase Master CPU utilization
         servicegroups           HBASE
 #        check_command           check_cpu!200%!250%
-        check_command           check_hbase_cpu!{{ hbase_master_hosts_in_str }}!{{ hbase_master_port }}!200%!250%!{{ str(hadoop_ssl_enabled).lower() }}!{{ nagios_keytab_path }}!{{ nagios_principal_name }}!{{ kinit_path_local }}!{{ str(security_enabled).lower() }}
+        check_command           check_cpu_ha!{{ hbase_master_hosts_in_str }}!{{ hbase_master_port }}!200%!250%!{{ str(hadoop_ssl_enabled).lower() }}!{{ nagios_keytab_path }}!{{ nagios_principal_name }}!{{ kinit_path_local }}!{{ str(security_enabled).lower() }}
         normal_check_interval   5
         retry_check_interval    2
         max_check_attempts      5
@@ -537,7 +539,7 @@ define service {
         use                     hadoop-service
         service_description     HIVE-SERVER::HiveServer2 process
         servicegroups           HIVE
-        check_command           check_tcp_wrapper_sasl!{{ hive_server_port }}!-w 1 -c 1!A001 AUTHENTICATE ANONYMOUS
+        check_command           check_tcp_wrapper_sasl!{{ hive_server_port }}!{{ '--security-enabled' if security_enabled else '' }}!-w 1 -c 1
         normal_check_interval   0.5
         retry_check_interval    0.5
         max_check_attempts      3
@@ -566,7 +568,7 @@ define service {
         hostgroup_name          webhcat-server
         use                     hadoop-service
         service_description     WEBHCAT::WebHCat Server status
-        servicegroups           WEBHCAT 
+        servicegroups           HIVE
         {% if security_enabled %}
         check_command           check_templeton_status!{{ templeton_port }}!v1!{{ str(security_enabled).lower() }}!{{ nagios_keytab_path }}!{{ nagios_principal_name }}!{{ kinit_path_local }}
         {% else %}

@@ -44,6 +44,7 @@ class TestOozieServer(RMFTestCase):
       mode = 0664,
       conf_dir = '/etc/oozie/conf',
       configurations = self.getConfig()['configurations']['oozie-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
     )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
       owner = 'oozie',
@@ -159,7 +160,7 @@ class TestOozieServer(RMFTestCase):
                          command = "stop",
                          config_file="default.json"
     )
-    self.assertResourceCalled('Execute', "su - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
+    self.assertResourceCalled('Execute', "su -s /bin/bash - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
       only_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
     )
     self.assertNoMoreResources()
@@ -187,6 +188,7 @@ class TestOozieServer(RMFTestCase):
       mode = 0664,
       conf_dir = '/etc/oozie/conf',
       configurations = self.getConfig()['configurations']['oozie-site'],
+      configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
     )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
       owner = 'oozie',
@@ -301,7 +303,7 @@ class TestOozieServer(RMFTestCase):
                          command = "stop",
                          config_file="secured.json"
     )
-    self.assertResourceCalled('Execute', "su - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
+    self.assertResourceCalled('Execute', "su -s /bin/bash - oozie -c  'cd /var/tmp/oozie && /usr/lib/oozie/bin/oozie-stop.sh' && rm -f /var/run/oozie/oozie.pid",
       only_if = 'ls /var/run/oozie/oozie.pid >/dev/null 2>&1 && ps `cat /var/run/oozie/oozie.pid` >/dev/null 2>&1',
     )
     self.assertNoMoreResources()
@@ -323,6 +325,7 @@ class TestOozieServer(RMFTestCase):
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
                               configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
                               owner = 'oozie',
@@ -423,6 +426,7 @@ class TestOozieServer(RMFTestCase):
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
                               configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('Directory', '/etc/oozie/conf',
                               owner = 'oozie',

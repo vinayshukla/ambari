@@ -215,7 +215,7 @@ describe('utils/helper', function() {
           'FALCON_CLIENT': 'Falcon Client',
           'FALCON_SERVER': 'Falcon Server',
           'FALCON_SERVICE_CHECK': 'Falcon Service Check',
-          'FLUME_HANDLER': 'Flume Agent',
+          'FLUME_HANDLER': 'Flume',
           'FLUME_SERVICE_CHECK': 'Flume Service Check',
           'GANGLIA_MONITOR': 'Ganglia Monitor',
           'GANGLIA_SERVER': 'Ganglia Server',
@@ -228,8 +228,7 @@ describe('utils/helper', function() {
           'HBASE_MASTER': 'HBase Master',
           'HBASE_REGIONSERVER': 'RegionServer',
           'HBASE_SERVICE_CHECK': 'HBase Service Check',
-          'HCAT': 'HCat',
-          'HCAT_SERVICE_CHECK': 'HCat Service Check',
+          'HCAT': 'HCat Client',
           'HDFS': 'HDFS',
           'HDFS_CLIENT': 'HDFS Client',
           'HDFS_SERVICE_CHECK': 'HDFS Service Check',
@@ -272,7 +271,6 @@ describe('utils/helper', function() {
           'TASKTRACKER': 'TaskTracker',
           'TEZ_CLIENT': 'Tez Client',
           'WEBHCAT_SERVER': 'WebHCat Server',
-          'WEBHCAT_SERVICE_CHECK': 'WebHCat Service Check',
           'YARN_CLIENT': 'YARN Client',
           'YARN_SERVICE_CHECK': 'YARN Service Check',
           'ZKFC': 'ZKFailoverController',
@@ -320,7 +318,113 @@ describe('utils/helper', function() {
         expect(App.permit(obj, test.keys)).to.deep.eql(test.e);
       });
     });
+  });
 
+  describe('#App.keysUnderscoreToCamelCase()', function() {
+    var tests = [
+      {
+        object: {
+          'key_upper': '2'
+        },
+        expected: {
+          keyUpper: '2'
+        },
+        m: 'One level object, key should be camelCased'
+      },
+      {
+        object: {
+          'key_upper': '2',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          key: '1'
+        },
+        m: 'One level object, one key should be camelCased.'
+      },
+      {
+        object: {
+          'key_upper': '2',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          key: '1'
+        },
+        m: 'One level object, one key should be camelCased.'
+      },
+      {
+        object: {
+          'key_upper': '2',
+          'key_upone_uptwo_upthree': '4',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          keyUponeUptwoUpthree: '4',
+          key: '1'
+        },
+        m: 'One level object, two keys should be camelCased, few dots notation.'
+      }
+    ];
+    tests.forEach(function(test) {
+      it(test.m, function() {
+        expect(App.keysUnderscoreToCamelCase(test.object)).to.deep.equal(test.expected);
+      });
+    });
+  });
 
+  describe('#App.keysDottedToCamelCase()', function() {
+    var tests = [
+      {
+        object: {
+          'key.upper': '2'
+        },
+        expected: {
+          keyUpper: '2'
+        },
+        m: 'One level object, key should be camelCased'
+      },
+      {
+        object: {
+          'key.upper': '2',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          key: '1'
+        },
+        m: 'One level object, one key should be camelCased.'
+      },
+      {
+        object: {
+          'key.upper': '2',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          key: '1'
+        },
+        m: 'One level object, one key should be camelCased.'
+      },
+      {
+        object: {
+          'key.upper': '2',
+          'key.upone.uptwo.upthree': '4',
+          'key': '1'
+        },
+        expected: {
+          keyUpper: '2',
+          keyUponeUptwoUpthree: '4',
+          key: '1'
+        },
+        m: 'One level object, two keys should be camelCased, few dots notation.'
+      }
+    ];
+    tests.forEach(function(test) {
+      it(test.m, function() {
+        expect(App.keysDottedToCamelCase(test.object)).to.deep.equal(test.expected);
+      });
+    });
   });
 });

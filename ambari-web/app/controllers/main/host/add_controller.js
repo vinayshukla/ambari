@@ -153,16 +153,7 @@ App.AddHostController = App.WizardController.extend({
   saveClients: function () {
     var clients = [];
     var serviceComponents = App.StackServiceComponent.find();
-    var clientComponents = [];
     var hosts = this.get('content.hosts');
-
-    for (var hostName in hosts) {
-      if(hosts[hostName].isInstalled) {
-        hosts[hostName].hostComponents.forEach(function (component) {
-          clientComponents[component.HostRoles.component_name] = true;
-        }, this);
-      }
-    }
 
     this.get('content.services').filterProperty('isSelected').forEach(function (_service) {
       var client = serviceComponents.filterProperty('serviceName', _service.get('serviceName')).findProperty('isClient');
@@ -170,7 +161,7 @@ App.AddHostController = App.WizardController.extend({
         clients.push({
           component_name: client.get('componentName'),
           display_name: client.get('displayName'),
-          isInstalled: !!clientComponents[client.get('componentName')]
+          isInstalled: false
         });
       }
     }, this);
@@ -255,12 +246,13 @@ App.AddHostController = App.WizardController.extend({
         if (slave.hosts.length > 0) {
           if (slave.componentName !== "CLIENT") {
             var service = App.StackServiceComponent.find(slave.componentName).get('stackService');
-            var configGroups = this.get('content.configGroups').filterProperty('ConfigGroup.tag', service);
+            var serviceName = service.get('serviceName');
+            var configGroups = this.get('content.configGroups').filterProperty('ConfigGroup.tag', serviceName);
             var configGroupsNames = configGroups.mapProperty('ConfigGroup.group_name');
             var defaultGroupName = service.get('displayName') + ' Default';
             configGroupsNames.unshift(defaultGroupName);
             selectedServices.push({
-              serviceId: service.get('serviceName'),
+              serviceId: serviceName,
               displayName: service.get('displayName'),
               hosts: slave.hosts.mapProperty('hostName'),
               configGroupsNames: configGroupsNames,
@@ -359,23 +351,7 @@ App.AddHostController = App.WizardController.extend({
 
   clearStorageData: function () {
     this._super();
-    App.db.cleanAddHost();
-  },
-
-  /**
-   * save the local db data stored on the server as value to the key api/v1/persist/CLUSTER_CURRENT_STATUS
-   */
-  saveClusterState: function () {
-    App.clusterStatus.setClusterStatus({
-      clusterName: App.router.getClusterName(),
-      clusterState: 'DEFAULT'
-    });
-  },
-
-  clearData: function () {
-    // Clear Add Host namespace in Browser Local storage and save it to server persist data
-    this.clearStorageData();
-    this.saveClusterState();
+    this.resetDbNamespace();
   },
 
   /**
@@ -384,9 +360,10 @@ App.AddHostController = App.WizardController.extend({
   finish: function () {
     this.setCurrentStep('1');
     this.clearAllSteps();
-    this.clearData();
+    this.clearStorageData();
     App.router.get('updateController').updateAll();
     App.updater.immediateRun('updateHost');
+    App.router.get('clusterController').getAllHostNames();
   },
 
   /**
@@ -411,7 +388,8 @@ App.AddHostController = App.WizardController.extend({
       data: {
         "context": Em.I18n.t('requestInfo.installComponents'),
         "query": "HostRoles/host_name.in(" + hostNames.join(',') + ")",
-        "HostRoles": {"state": "INSTALLED"}
+        "HostRoles": {"state": "INSTALLED"},
+        "level": "HOST_COMPONENT"
       },
       success: 'installServicesSuccessCallback',
       error: 'installServicesErrorCallback'

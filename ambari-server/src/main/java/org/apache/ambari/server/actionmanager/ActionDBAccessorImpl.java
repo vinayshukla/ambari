@@ -23,6 +23,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import com.google.inject.persist.Transactional;
+import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.agent.CommandReport;
 import org.apache.ambari.server.agent.ExecutionCommand;
 import org.apache.ambari.server.orm.dao.ClusterDAO;
@@ -42,6 +43,7 @@ import org.apache.ambari.server.orm.entities.RequestScheduleEntity;
 import org.apache.ambari.server.orm.entities.RoleSuccessCriteriaEntity;
 import org.apache.ambari.server.orm.entities.StageEntity;
 import org.apache.ambari.server.state.Clusters;
+import org.apache.ambari.server.state.Host;
 import org.apache.ambari.server.utils.StageUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -201,7 +203,7 @@ public class ActionDBAccessorImpl implements ActionDBAccessor {
 
   @Override
   @Transactional
-  public void persistActions(Request request) {
+  public void persistActions(Request request) throws AmbariException {
 
     RequestEntity requestEntity = request.constructNewPersistenceEntity();
 
@@ -237,14 +239,31 @@ public class ActionDBAccessorImpl implements ActionDBAccessor {
         if (hostEntity == null) {
           String msg = String.format("Host %s doesn't exist in database", hostRoleCommandEntity.getHostName());
           LOG.error(msg);
-          throw new RuntimeException(msg);
+          throw new AmbariException(msg);
         }
         hostRoleCommandEntity.setHost(hostEntity);
         hostRoleCommandDAO.create(hostRoleCommandEntity);
 
         assert hostRoleCommandEntity.getTaskId() != null;
-
         hostRoleCommand.setTaskId(hostRoleCommandEntity.getTaskId());
+
+        try {
+          // Get the in-memory host object and its prefix to construct the output and error log paths.
+          Host hostObject = clusters.getHost(hostRoleCommandEntity.getHostName());
+          String prefix = hostObject.getPrefix();
+          if (null != prefix && !prefix.isEmpty()) {
+            if (!prefix.endsWith("/")) {
+              prefix = prefix + "/";
+            }
+            hostRoleCommand.setOutputLog(prefix + "output-" + hostRoleCommandEntity.getTaskId() + ".txt");
+            hostRoleCommand.setErrorLog(prefix + "errors-" + hostRoleCommandEntity.getTaskId() + ".txt");
+            hostRoleCommandEntity.setOutputLog(hostRoleCommand.getOutputLog());
+            hostRoleCommandEntity.setErrorLog(hostRoleCommand.getErrorLog());
+          }
+        } catch (AmbariException e) {
+          LOG.warn("Exception in getting prefix for host and setting output and error log files.");
+        }
+
         ExecutionCommandEntity executionCommandEntity = hostRoleCommand.constructExecutionCommandEntity();
         executionCommandEntity.setHostRoleCommand(hostRoleCommandEntity);
 
@@ -327,11 +346,18 @@ public class ActionDBAccessorImpl implements ActionDBAccessor {
     long now = System.currentTimeMillis();
 
     List<Long> requestsToCheck = new ArrayList<Long>();
+    List<Long> abortedCommandUpdates = new ArrayList<Long>();
 
     List<HostRoleCommandEntity> commandEntities = hostRoleCommandDAO.findByPKs(taskReports.keySet());
     for (HostRoleCommandEntity commandEntity : commandEntities) {
       CommandReport report = taskReports.get(commandEntity.getTaskId());
-      commandEntity.setStatus(HostRoleStatus.valueOf(report.getStatus()));
+      if (commandEntity.getStatus() != HostRoleStatus.ABORTED) {
+        // We don't want to overwrite statuses for ABORTED tasks with
+        // statuses that have been received from the agent after aborting task
+        commandEntity.setStatus(HostRoleStatus.valueOf(report.getStatus()));
+      } else {
+        abortedCommandUpdates.add(commandEntity.getTaskId());
+      }
       commandEntity.setStdOut(report.getStdOut().getBytes());
       commandEntity.setStdError(report.getStdErr().getBytes());
       commandEntity.setStructuredOut(report.getStructuredOut() == null ? null :
@@ -352,6 +378,8 @@ public class ActionDBAccessorImpl implements ActionDBAccessor {
     }
 
     hostRoleCommandDAO.mergeAll(commandEntities);
+    // Invalidate cache because of updates to ABORTED commands
+    hostRoleCommandCache.invalidateAll(abortedCommandUpdates);
 
     for (Long requestId : requestsToCheck) {
       endRequestIfCompleted(requestId);

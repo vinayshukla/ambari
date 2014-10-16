@@ -23,6 +23,14 @@ App.MainDashboardServiceStormView = App.MainDashboardServiceView.extend({
   templateName: require('templates/main/service/services/storm'),
   serviceName: 'STORM',
 
+  /**
+   * this parameter is used to fiter hosts by component name
+   * used in mainHostController.filterByComponent() method
+   */
+  filterComponent: function() {
+    return Em.Object.create({componentName: 'SUPERVISOR'});
+  }.property(),
+
   freeSlotsPercentage: function() {
     return Math.round(this.get('service.freeSlots')/this.get('service.totalSlots')*100);
   }.property('service.freeSlots', 'service.totalSlots'),
@@ -36,9 +44,6 @@ App.MainDashboardServiceStormView = App.MainDashboardServiceView.extend({
   }.property('service.superVisorsTotal'),
 
   nimbusUptimeFormatted: function() {
-    if (this.get('service.nimbusUptime') > 0) {
-      return date.timingFormat(this.get('service.nimbusUptime')*1000);
-    }
-    return Em.I18n.t('services.service.summary.notRunning');
+    return this.get('service.nimbusUptime') || Em.I18n.t('services.service.summary.notRunning');
   }.property('service.nimbusUptime')
 });

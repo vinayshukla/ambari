@@ -61,6 +61,7 @@
   <property>
     <name>hive_user</name>
     <value>hive</value>
+    <property-type>USER</property-type>
     <description>Hive User.</description>
   </property>
 
@@ -79,18 +80,20 @@
   <property>
     <name>hcat_user</name>
     <value>hcat</value>
+    <property-type>USER</property-type>
     <description>HCat User.</description>
   </property>
   <property>
     <name>webhcat_user</name>
     <value>hcat</value>
+    <property-type>USER</property-type>
     <description>WebHCat User.</description>
   </property>
   
   <!-- hive-env.sh -->
   <property>
     <name>content</name>
-    <description>hive-env.sh content</description>
+    <description>This is the jinja template for hive-env.sh file</description>
     <value>
  if [ "$SERVICE" = "cli" ]; then
    if [ -z "$DEBUG" ]; then
@@ -114,7 +117,7 @@ export HADOOP_CLIENT_OPTS="-Xmx${HADOOP_HEAPSIZE}m $HADOOP_CLIENT_OPTS"
 HADOOP_HOME=${HADOOP_HOME:-{{hadoop_home}}}
 
 # Hive Configuration Directory can be controlled by:
-export HIVE_CONF_DIR={{conf_dir}}
+export HIVE_CONF_DIR={{hive_config_dir}}
 
 # Folder containing extra ibraries required for hive compilation/execution can be controlled by:
 if [ "${HIVE_AUX_JARS_PATH}" != "" ]; then

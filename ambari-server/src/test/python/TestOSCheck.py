@@ -27,12 +27,14 @@ import sys
 from unittest import TestCase
 from mock.mock import patch
 
-from ambari_commons import OSCheck, OSConst
+from ambari_commons import OSCheck
 import os_check_type
 
-with patch("platform.linux_distribution", return_value=('Suse', '11', 'Final')):
-  # We have to use this import HACK because the filename contains a dash
-  ambari_server = __import__('ambari-server')
+utils = __import__('ambari_server.utils').utils
+# We have to use this import HACK because the filename contains a dash
+with patch("platform.linux_distribution", return_value = ('Suse','11','Final')):
+  with patch.object(utils, "get_postgre_hba_dir"):
+    ambari_server = __import__('ambari-server')
 
 
 class TestOSCheck(TestCase):
@@ -85,7 +87,6 @@ class TestOSCheck(TestCase):
     result = OSCheck.get_os_type()
     self.assertEquals(result, 'redhat')
 
-
   @patch("platform.linux_distribution")
   @patch("os.path.exists")
   def test_get_os_family(self, mock_exists, mock_linux_distribution):
@@ -102,11 +103,11 @@ class TestOSCheck(TestCase):
     result = OSCheck.get_os_family()
     self.assertEquals(result, 'redhat')
 
-    # 3 - Debian
+    # 3 - Ubuntu
     mock_exists.return_value = False
     mock_linux_distribution.return_value = ('Ubuntu', '', '')
     result = OSCheck.get_os_family()
-    self.assertEquals(result, 'debian')
+    self.assertEquals(result, 'ubuntu')
 
     # 4 - Suse
     mock_exists.return_value = False
@@ -130,7 +131,6 @@ class TestOSCheck(TestCase):
       self.assertEquals("Cannot detect os type. Exiting...", str(e))
       pass
 
-
   @patch("platform.linux_distribution")
   def test_get_os_version(self, mock_linux_distribution):
 
@@ -149,7 +149,6 @@ class TestOSCheck(TestCase):
       self.assertEquals("Cannot detect os version. Exiting...", str(e))
       pass
 
-
   @patch("platform.linux_distribution")
   def test_get_os_major_version(self, mock_linux_distribution):
 
@@ -162,7 +161,6 @@ class TestOSCheck(TestCase):
     mock_linux_distribution.return_value = ('Suse', '11', '')
     result = OSCheck.get_os_major_version()
     self.assertEquals(result, '11')
-
 
   @patch("platform.linux_distribution")
   def test_get_os_release_name(self, mock_linux_distribution):
@@ -182,12 +180,11 @@ class TestOSCheck(TestCase):
       self.assertEquals("Cannot detect os release name. Exiting...", str(e))
       pass
 
-
   @patch.object(ambari_server, "get_conf_dir")
   def test_update_ambari_properties_os(self, get_conf_dir_mock):
 
     properties = ["server.jdbc.user.name=ambari-server\n",
-                  "server.jdbc.database=ambari\n",
+                  "server.jdbc.database_name=ambari\n",
                   "ambari-server.user=root\n",
                   "server.jdbc.user.name=ambari-server\n",
                   "jdk.name=jdk-6u31-linux-x64.bin\n",
@@ -217,7 +214,7 @@ class TestOSCheck(TestCase):
 
     count = 0
     for line in ambari_properties_content:
-      if ( not line.startswith('#') ):
+      if (not line.startswith('#')):
         count += 1
         if (line == "server.os_type=old_sys_os6\n"):
           self.fail("line=" + line)
@@ -253,18 +250,18 @@ class TestOSCheck(TestCase):
       self.fail("Must fail because os's not compatible.")
     except Exception as e:
       self.assertEquals(
-        "Local OS is not compatible with cluster primary OS. Please perform manual bootstrap on this host.",
+        "Local OS is not compatible with cluster primary OS family. Please perform manual bootstrap on this host.",
         str(e))
       pass
 
   @patch.object(OSCheck, "get_os_family")
-  def test_is_debian_family(self, get_os_family_mock):
+  def is_ubuntu_family(self, get_os_family_mock):
 
-    get_os_family_mock.return_value = "debian"
-    self.assertEqual(OSCheck.is_debian_family(), True)
+    get_os_family_mock.return_value = "ubuntu"
+    self.assertEqual(OSCheck.is_ubuntu_family(), True)
 
     get_os_family_mock.return_value = "troll_os"
-    self.assertEqual(OSCheck.is_debian_family(), False)
+    self.assertEqual(OSCheck.is_ubuntu_family(), False)
 
   @patch.object(OSCheck, "get_os_family")
   def test_is_suse_family(self, get_os_family_mock):

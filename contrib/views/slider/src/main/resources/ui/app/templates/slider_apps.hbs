@@ -17,15 +17,8 @@
 }}
 
 <div id="slider-apps-table">
-  <div class="box-header">
-    <div class="pull-right create-app">
-      <a href="#" class="btn btn-primary" {{action createApp}}>
-        <i class="icon-plus"></i><span>&nbsp;{{t slider.apps.create}}</span>
-      </a>
-    </div>
-  </div>
 
-  <table class="datatable table table-bordered table-striped" id="slider-table">
+  <table class="datatable table table-striped" id="slider-table">
     <thead>
     {{#view view.sortView classNames="label-row" contentBinding="view.filteredContent"}}
       {{view view.parentView.nameSort}}
@@ -51,26 +44,25 @@
 
           <td>
             {{#link-to 'slider_app.summary' slider}}
-              {{slider.name}}
+              <span {{bs-bind-popover view.popover}}>{{slider.name}}</span>
             {{/link-to}}
           </td>
 
-          <td>{{slider.status}}</td>
+          <td>{{slider.displayStatus}}</td>
 
           <td>{{slider.appType.displayName}}</td>
 
           <td>{{slider.user}}</td>
 
-          <td>{{slider.started}}</td>
+          <td>{{slider.startedToLocalTime}}</td>
 
-          <td>{{slider.ended}}</td>
+          <td>{{slider.endedToLocalTime}}</td>
 
         {{/view}}
       {{/each}}
     {{else}}
       <tr>
-        <td class="first"></td>
-        <td colspan="11">
+        <td colspan="6">
           {{t tableView.filters.noItems}}
         </td>
       </tr>

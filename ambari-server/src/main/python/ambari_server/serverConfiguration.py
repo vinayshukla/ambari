@@ -20,8 +20,10 @@ limitations under the License.
 
 import datetime
 import glob
+import re
 
 from ambari_commons.os_utils import *
+from ambari_commons.logging import print_warning_msg, print_info_msg, print_error_msg
 from properties import Properties
 
 if OSCheck.is_windows_os():
@@ -47,7 +49,7 @@ BOOTSTRAP_DIR_PROPERTY = "bootstrap.dir"
 
 AMBARI_CONF_VAR = "AMBARI_CONF_DIR"
 AMBARI_PROPERTIES_FILE = "ambari.properties"
-AMBARI_PROPERTIES_RPMSAVE_FILE = "ambari.properties.rpmsave"
+AMBARI_PROPERTIES_BACKUP_FILE = "ambari.properties.backup"
 
 GET_FQDN_SERVICE_URL = "server.fqdn.service.url"
 
@@ -200,13 +202,101 @@ def backup_file_in_temp(filePath):
         back_up_file_count, e)))
   return 0
 
+def check_database_name_property():
+  properties = get_ambari_properties()
+  if properties == -1:
+    print_error_msg("Error getting ambari properties")
+    return -1
+
+  dbname = properties[JDBC_DATABASE_PROPERTY]
+  if dbname is None or dbname == "":
+    err = "DB Name property not set in config file.\n" + SETUP_OR_UPGRADE_MSG
+    raise FatalException(-1, err)
+
+def update_database_name_property():
+  try:
+    check_database_name_property()
+  except FatalException:
+    properties = get_ambari_properties()
+    if properties == -1:
+      err = "Error getting ambari properties"
+      raise FatalException(-1, err)
+    print_warning_msg(JDBC_DATABASE_PROPERTY + " property isn't set in " +
+                      AMBARI_PROPERTIES_FILE + ". Setting it to default value - " + DEFAULT_DB_NAME)
+    properties.process_pair(JDBC_DATABASE_PROPERTY, DEFAULT_DB_NAME)
+    conf_file = find_properties_file()
+    try:
+      properties.store(open(conf_file, "w"))
+    except Exception, e:
+      err = 'Could not write ambari config file "%s": %s' % (conf_file, e)
+      raise FatalException(-1, err)
+
+
+def is_alias_string(passwdStr):
+  regex = re.compile("\$\{alias=[\w\.]+\}")
+  # Match implies string at beginning of word
+  r = regex.match(passwdStr)
+  if r is not None:
+    return True
+  else:
+    return False
+
+
+# Load database connection properties from conf file
+def parse_properties_file(args):
+  properties = get_ambari_properties()
+  if properties == -1:
+    print_error_msg("Error getting ambari properties")
+    return -1
+
+  # args.server_version_file_path = properties[SERVER_VERSION_FILE_PATH]
+  args.persistence_type = properties[PERSISTENCE_TYPE_PROPERTY]
+  args.jdbc_url = properties[JDBC_URL_PROPERTY]
+
+  if not args.persistence_type:
+    args.persistence_type = "local"
+
+  if args.persistence_type == 'remote':
+    args.dbms = properties[JDBC_DATABASE_PROPERTY]
+    args.database_host = properties[JDBC_HOSTNAME_PROPERTY]
+    args.database_port = properties[JDBC_PORT_PROPERTY]
+    args.database_name = properties[JDBC_SCHEMA_PROPERTY]
+  else:
+    #TODO incorrect property used!! leads to bunch of troubles. Workaround for now
+    args.database_name = properties[JDBC_DATABASE_PROPERTY]
+
+  args.database_username = properties[JDBC_USER_NAME_PROPERTY]
+  args.database_password_file = properties[JDBC_PASSWORD_PROPERTY]
+  if args.database_password_file:
+    if not is_alias_string(args.database_password_file):
+      args.database_password = open(properties[JDBC_PASSWORD_PROPERTY]).read()
+    else:
+      args.database_password = args.database_password_file
+  return 0
+
+
+def run_schema_upgrade():
+  jdk_path = find_jdk()
+  if jdk_path is None:
+    print_error_msg("No JDK found, please run the \"setup\" "
+                    "command to install a JDK automatically or install any "
+                    "JDK manually to " + JDK_INSTALL_DIR)
+    return 1
+  command = SCHEMA_UPGRADE_HELPER_CMD.format(jdk_path, get_conf_dir(), get_ambari_classpath())
+  (retcode, stdout, stderr) = run_os_command(command)
+  print_info_msg("Return code from schema upgrade command, retcode = " + str(retcode))
+  if retcode > 0:
+    print_error_msg("Error executing schema upgrade, please check the server logs.")
+  return retcode
+
+
 def update_ambari_properties():
-  prev_conf_file = search_file(AMBARI_PROPERTIES_RPMSAVE_FILE, get_conf_dir())
+  prev_conf_file = search_file(AMBARI_PROPERTIES_BACKUP_FILE, get_conf_dir())
   conf_file = search_file(AMBARI_PROPERTIES_FILE, get_conf_dir())
 
   # Previous config file does not exist
   if (not prev_conf_file) or (prev_conf_file is None):
-    print_warning_msg("Can not find ambari.properties.rpmsave file from previous version, skipping import of settings")
+    print_warning_msg("Can not find ambari.properties.backup file from previous version, skipping import of settings")
     return 0
 
   try:

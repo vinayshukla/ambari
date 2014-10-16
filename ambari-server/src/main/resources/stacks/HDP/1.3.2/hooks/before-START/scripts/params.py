@@ -24,13 +24,12 @@ import os
 config = Script.get_config()
 
 #security params
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 
 #users and groups
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 
 #hosts
 hostname = config["hostname"]
@@ -48,6 +47,7 @@ namenode_host = default("/clusterHostInfo/namenode_host", [])
 zk_hosts = default("/clusterHostInfo/zookeeper_hosts", [])
 ganglia_server_hosts = default("/clusterHostInfo/ganglia_server_host", [])
 
+has_namenode = not len(namenode_host) == 0
 has_resourcemanager = not len(rm_host) == 0
 has_slaves = not len(slave_hosts) == 0
 has_nagios = not len(hagios_server_hosts) == 0
@@ -67,7 +67,8 @@ is_slave = hostname in slave_hosts
 if has_ganglia_server:
   ganglia_server_host = ganglia_server_hosts[0]
 #hadoop params
-hadoop_tmp_dir = format("/tmp/hadoop-{hdfs_user}")
+if has_namenode:
+  hadoop_tmp_dir = format("/tmp/hadoop-{hdfs_user}")
 hadoop_lib_home = "/usr/lib/hadoop/lib"
 hadoop_conf_dir = "/etc/hadoop/conf"
 hadoop_pid_dir_prefix = config['configurations']['hadoop-env']['hadoop_pid_dir_prefix']
@@ -93,8 +94,8 @@ ambari_db_rca_driver = config['hostLevelParams']['ambari_db_rca_driver']
 ambari_db_rca_username = config['hostLevelParams']['ambari_db_rca_username']
 ambari_db_rca_password = config['hostLevelParams']['ambari_db_rca_password']
 
-if 'rca_enabled' in config['configurations']['hadoop-env']:
-  rca_enabled =  config['configurations']['hadoop-env']['rca_enabled']
+if has_namenode and 'mapred-env' in config['configurations']:
+  rca_enabled =  config['configurations']['mapred-env']['rca_enabled']
 else:
   rca_enabled = False
 rca_disabled_prefix = "###"
@@ -115,11 +116,6 @@ namenode_heapsize = config['configurations']['hadoop-env']['namenode_heapsize']
 namenode_opt_newsize =  config['configurations']['hadoop-env']['namenode_opt_newsize']
 namenode_opt_maxnewsize =  config['configurations']['hadoop-env']['namenode_opt_maxnewsize']
 
-jtnode_opt_newsize = default("/configurations/mapred-env/jtnode_opt_newsize","200m")
-jtnode_opt_maxnewsize = default("/configurations/mapred-env/jtnode_opt_maxnewsize","200m")
-jtnode_heapsize =  default("/configurations/mapred-env/jtnode_heapsize","1024m")
-ttnode_heapsize = default("/configurations/mapred-env/ttnode_heapsize","1024m")
-
 dtnode_heapsize = config['configurations']['hadoop-env']['dtnode_heapsize']
 mapred_pid_dir_prefix = "/var/run/hadoop-mapreduce"
 mapreduce_libs_path = "/usr/lib/hadoop-mapreduce/*"
@@ -133,22 +129,12 @@ mapred_local_dir = "/tmp/hadoop-mapred/mapred/local"
 dfs_hosts = default('/configurations/hdfs-site/dfs.hosts', None)
 
 #log4j.properties
-rca_properties = format('''
+if 'mapred-env' in config['configurations'] and 'rca_properties' in config['configurations']['mapred-env']:
+  rca_properties = format(config['configurations']['mapred-env']['rca_properties'])
 
-log4j.appender.JHA=org.apache.ambari.log4j.hadoop.mapreduce.jobhistory.JobHistoryAppender
-log4j.appender.JHA.database={ambari_db_rca_url}
-log4j.appender.JHA.driver={ambari_db_rca_driver}
-log4j.appender.JHA.user={ambari_db_rca_username}
-log4j.appender.JHA.password={ambari_db_rca_password}
-
-log4j.logger.org.apache.hadoop.mapred.JobHistory$JobHistoryLogger=DEBUG,JHA
-log4j.additivity.org.apache.hadoop.mapred.JobHistory$JobHistoryLogger=true
-
-''')
-
-if (('hdfs-log4j' in config['configurations']) and ('content' in config['configurations']['hdfs-log4j'])):
+if 'hdfs-log4j' in config['configurations']:
   log4j_props = config['configurations']['hdfs-log4j']['content']
-  if (('mapreduce-log4j' in config['configurations']) and ('content' in config['configurations']['mapreduce-log4j'])):
+  if 'mapreduce-log4j' in config['configurations']:
     log4j_props += config['configurations']['mapreduce-log4j']['content']
     if rca_enabled:
       log4j_props += rca_properties

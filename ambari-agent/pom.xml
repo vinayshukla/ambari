@@ -38,9 +38,9 @@
     <package.pid.dir>/var/run/ambari-agent</package.pid.dir>
     <skipTests>false</skipTests>
     <agent.install.dir>/usr/lib/python2.6/site-packages/ambari_agent</agent.install.dir>
-    <resmgmt.install.dir>/usr/lib/python2.6/site-packages/resource_management</resmgmt.install.dir>
     <ambari_commons.install.dir>/usr/lib/ambari-agent/lib/ambari_commons</ambari_commons.install.dir>
-    <jinja.install.dir>/usr/lib/python2.6/site-packages/jinja2</jinja.install.dir>
+    <resource_management.install.dir>/usr/lib/ambari-agent/lib/resource_management</resource_management.install.dir>
+    <jinja.install.dir>/usr/lib/ambari-agent/lib/ambari_jinja2</jinja.install.dir>
     <lib.dir>/usr/lib/ambari-agent/lib</lib.dir>
     <python.ver>python &gt;= 2.6</python.ver>
     <deb.python.ver>python (&gt;= 2.6)</deb.python.ver>
@@ -49,6 +49,7 @@
     <ambari.server.module>../ambari-server</ambari.server.module>
     <target.cache.dir>${project.build.directory}/cache/</target.cache.dir>
     <resource.keeper.script>${ambari.server.module}/src/main/python/ambari_server/resourceFilesKeeper.py</resource.keeper.script>
+    <init.d.dir>/etc/rc.d/init.d</init.d.dir>
   </properties>
   <build>
     <plugins>
@@ -198,6 +199,10 @@
             <scriptFile>src/main/package/rpm/preremove.sh</scriptFile>
             <fileEncoding>utf-8</fileEncoding>
           </preremoveScriptlet>
+          <posttransScriptlet>
+            <scriptFile>src/main/package/rpm/posttrans_agent.sh</scriptFile>
+            <fileEncoding>utf-8</fileEncoding>
+          </posttransScriptlet>
 
           <needarch>x86_64</needarch>
           <autoRequires>false</autoRequires>
@@ -225,16 +230,6 @@
               </sources>
             </mapping>
             <mapping>
-              <directory>${resmgmt.install.dir}</directory>
-              <username>root</username>
-              <groupname>root</groupname>
-              <sources>
-                <source>
-                  <location>${project.build.directory}/${project.artifactId}-${project.version}/resource_management</location>
-                </source>
-              </sources>
-            </mapping>
-            <mapping>
               <directory>${ambari_commons.install.dir}</directory>
               <username>root</username>
               <groupname>root</groupname>
@@ -245,14 +240,24 @@
               </sources>
             </mapping>
             <mapping>
+              <directory>${resource_management.install.dir}</directory>
+              <username>root</username>
+              <groupname>root</groupname>
+              <sources>
+                <source>
+                  <location>${project.basedir}/../ambari-common/src/main/python/resource_management</location>
+                </source>
+              </sources>
+            </mapping>
+            <mapping>
               <directory>${jinja.install.dir}</directory>
               <username>root</username>
               <groupname>root</groupname>
               <sources>
                 <source>
-                  <location>${project.basedir}/../ambari-common/src/main/python/jinja2/jinja2</location>
+                  <location>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2</location>
                   <excludes>
-                    <exclude>${project.basedir}/../ambari-common/src/main/python/jinja2/jinja2/testsuite</exclude>
+                    <exclude>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2/testsuite</exclude>
                   </excludes>
                 </source>
               </sources>
@@ -327,6 +332,12 @@
               <groupname>root</groupname>
             </mapping>
             <mapping>
+              <directory>/var/lib/${project.artifactId}/data/tmp</directory>
+              <filemode>755</filemode>
+              <username>root</username>
+              <groupname>root</groupname>
+            </mapping>
+            <mapping>
               <directory>/var/lib/${project.artifactId}/keys</directory>
               <filemode>755</filemode>
               <username>root</username>
@@ -339,7 +350,7 @@
               <groupname>root</groupname>
             </mapping>
             <mapping>
-              <directory>/etc/rc.d/init.d</directory>
+              <directory>${init.d.dir}</directory>
               <filemode>755</filemode>
               <username>root</username>
               <groupname>root</groupname>
@@ -402,18 +413,8 @@
               </mapper>
             </data>
             <data>
-              <src>${project.build.directory}/${project.artifactId}-${project.version}/resource_management</src>
-              <type>directory</type>
-              <mapper>
-                <type>perm</type>
-                <prefix>${resmgmt.install.dir}</prefix>
-                <user>root</user>
-                <group>root</group>
-              </mapper>
-            </data>
-            <data>
-              <src>${project.basedir}/../ambari-common/src/main/python/jinja2/jinja2</src>
-              <excludes>${project.basedir}/../ambari-common/src/main/python/jinja2/jinja2/testsuite</excludes>
+              <src>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2</src>
+              <excludes>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2/testsuite</excludes>
               <type>directory</type>
               <mapper>
                 <type>perm</type>
@@ -482,6 +483,7 @@
               <paths>
                 <path>${package.pid.dir}</path>
                 <path>/var/lib/${project.artifactId}/data</path>
+                <path>/var/lib/${project.artifactId}/data/tmp</path>
                 <path>/var/lib/${project.artifactId}/keys</path>
                 <path>${package.log.dir}</path>
               </paths>
@@ -549,6 +551,19 @@
                 <group>root</group>
               </mapper>
             </data>
+            <data>
+              <src>
+                ${project.basedir}/../ambari-common/src/main/python/resource_management
+              </src>
+              <type>directory</type>
+              <mapper>
+                <type>perm</type>
+                <prefix>${resource_management.install.dir}</prefix>
+                <filemode>755</filemode>
+                <user>root</user>
+                <group>root</group>
+              </mapper>
+            </data>
           </dataSet>
         </configuration>
       </plugin>
@@ -568,7 +583,8 @@
                 <resource>
                   <directory>${ambari.server.module}/src/main/resources</directory>
                   <includes>
-                    <include>stacks/${hdpstackname}/**/*</include>
+                    <include>stacks/stack_advisor.py</include>
+                    <include>stacks/${stack.distribution}/**/*</include>
                     <include>custom_actions/**/*</include>
                   </includes>
                   <filtering>false</filtering>
@@ -614,6 +630,7 @@
             <exclude>src/test/python/ambari_agent/dummy_files/*</exclude>
             <exclude>src/test/python/ambari_agent/dummy*.txt</exclude>
             <exclude>src/main/python/ambari_agent/imports.txt</exclude>
+            <exclude>src/main/python/ambari_agent/apscheduler/**</exclude>
             <exclude>**/*.erb</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.pydevproject</exclude>
@@ -665,12 +682,12 @@
       <envClassifier>win</envClassifier>
       <dirsep>\</dirsep>
       <pathsep>;</pathsep>
-      <hdpstackname>HDPWIN</hdpstackname>
+      <stack.distribution>HDPWIN</stack.distribution>
       <executable.python>python</executable.python>
       <executable.shell>cmd</executable.shell>
       <fileextension.shell>cmd</fileextension.shell>
       <fileextension.dot.shell-default>.cmd</fileextension.dot.shell-default>
-      <path.python.1>${project.basedir}\..\ambari-common\src\main\python\jinja2;${project.basedir}\..\ambari-common\src\main\python\common_functions;${project.basedir}\..\ambari-common\src\test\python;${project.basedir}\..\ambari-common\src\main\python;${project.basedir}\src\main\python\ambari_agent;${project.basedir}\src\main\python\resource_management;${project.basedir}\src\test\python\ambari_agent;${project.basedir}\src\test\python\resource_management;${project.basedir}\src\main\python;${project.basedir}\..\ambari-server\src\main\resources\stacks\HDPWIN\2.1\services\HDFS\package\files</path.python.1>
+      <path.python.1>${project.basedir}\..\ambari-common\src\main\python\ambari_jinja2:${project.basedir}\..\ambari-common\src\main\python\ambari_commons:${project.basedir}\..\ambari-common\src\main\python\resource_management:${project.basedir}\..\ambari-common\src\test\python:${project.basedir}\..\ambari-common\src\main\python:${project.basedir}\src\main\python\ambari_agent:${project.basedir}\src\test\python\ambari_agent:${project.basedir}\src\test\python\resource_management:${project.basedir}\src\main\python:${project.basedir}\..\ambari-server\src\main\resources\stacks\HDP\2.0.6\services\HDFS\package\files:${project.basedir}\..\ambari-server\src\main\resources\stacks\HDP\1.3.2\services\HDFS\package\files</path.python.1>
      </properties>
     </profile>
     <profile>
@@ -684,12 +701,12 @@
       <envClassifier>linux</envClassifier>
       <dirsep>/</dirsep>
       <pathsep>:</pathsep>
-      <hdpstackname>HDP</hdpstackname>
+      <stack.distribution>HDP</stack.distribution>
       <executable.python>${project.basedir}/../ambari-common/src/main/unix/ambari-python-wrap</executable.python>
       <executable.shell>sh</executable.shell>
       <fileextension.shell>sh</fileextension.shell>
       <fileextension.dot.shell-default></fileextension.dot.shell-default>
-      <path.python.1>${project.basedir}/../ambari-common/src/main/python/jinja2:${project.basedir}/../ambari-common/src/main/python/common_functions:${project.basedir}/../ambari-common/src/test/python:${project.basedir}/../ambari-common/src/main/python:${project.basedir}/src/main/python/ambari_agent:${project.basedir}/src/main/python/resource_management:${project.basedir}/src/test/python/ambari_agent:${project.basedir}/src/test/python/resource_management:${project.basedir}/src/main/python:${project.basedir}/../ambari-server/src/main/resources/stacks/HDP/2.0.6/services/HDFS/package/files:${project.basedir}/../ambari-server/src/main/resources/stacks/HDP/1.3.2/services/HDFS/package/files</path.python.1>
+      <path.python.1>${project.basedir}/../ambari-common/src/main/python/ambari_jinja2:${project.basedir}/../ambari-common/src/main/python/ambari_commons:${project.basedir}/../ambari-common/src/main/python/resource_management:${project.basedir}/../ambari-common/src/test/python:${project.basedir}/../ambari-common/src/main/python:${project.basedir}/src/main/python/ambari_agent:${project.basedir}/src/test/python/ambari_agent:${project.basedir}/src/test/python/resource_management:${project.basedir}/src/main/python:${project.basedir}/../ambari-server/src/main/resources/stacks/HDP/2.0.6/services/HDFS/package/files:${project.basedir}/../ambari-server/src/main/resources/stacks/HDP/1.3.2/services/HDFS/package/files</path.python.1>
      </properties>
     </profile>
     <profile>
@@ -800,6 +817,12 @@
             <!-- end msi creation -->
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>suse11</id>
+      <properties>
+        <init.d.dir>/etc/init.d</init.d.dir>
+      </properties>
     </profile>
   </profiles>
 </project>

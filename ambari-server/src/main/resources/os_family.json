@@ -1,4 +1,10 @@
 {
+  "redhat7": [
+    "redhat7",
+    "centos7",
+    "oraclelinux7",
+    "rhel7"
+  ],
   "redhat6": [
     "redhat6",
     "centos6",
@@ -16,7 +22,7 @@
     "sles11",
     "opensuse11"
   ],
-  "debian12": [
+  "ubuntu12": [
     "debian12",
     "ubuntu12"
   ]

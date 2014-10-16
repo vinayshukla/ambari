@@ -19,6 +19,7 @@ limitations under the License.
 '''
 
 import string
+import os
 
 JDBC_USE_INTEGRATED_AUTH_PROPERTY = "server.jdbc.use.integrated.auth"
 
@@ -85,3 +86,13 @@ NR_ADJUST_OWNERSHIP_LIST = [
 MASTER_KEY_FILE_PERMISSIONS = "600"
 CREDENTIALS_STORE_FILE_PERMISSIONS = "600"
 TRUST_STORE_LOCATION_PERMISSIONS = "600"
+
+SCHEMA_UPGRADE_HELPER_CMD = "{0}" + os.sep + "bin" + os.sep + "java -cp {1}" + \
+  os.pathsep + "{2} " + \
+  "org.apache.ambari.server.upgrade.SchemaUpgradeHelper" + \
+  " > " + SERVER_OUT_FILE + " 2>&1"
+
+STACK_UPGRADE_HELPER_CMD = "{0}" + os.sep + "bin" + os.sep + "java -cp {1}" + \
+                           os.pathsep + "{2} " + \
+                           "org.apache.ambari.server.upgrade.StackUpgradeHelper" + \
+                           " {3} {4} > " + SERVER_OUT_FILE + " 2>&1"

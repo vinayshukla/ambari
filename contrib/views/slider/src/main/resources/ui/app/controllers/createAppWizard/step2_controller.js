@@ -24,7 +24,8 @@ App.CreateAppWizardStep2Controller = Ember.ArrayController.extend({
 
   /**
    * List of app type components
-   * @type {App.SliderAppTypeComponent}
+   * @type {Em.Object[]}
+   * @see <code>loadTypeComponents</code> for information about elements type
    */
   content: [],
 
@@ -53,17 +54,7 @@ App.CreateAppWizardStep2Controller = Ember.ArrayController.extend({
    * <code>isError</code> should be true
    * @type {bool}
    */
-  isSubmitDisabled: function () {
-    return this.get('isError');
-  }.property('isError'),
-
-  /**
-   * Load all required data for step
-   * @method loadStep
-   */
-  loadStep: function () {
-    this.initializeNewApp();
-  },
+  isSubmitDisabled: Em.computed.alias('isError'),
 
   /**
    * Initialize new App to use it scope of controller
@@ -72,18 +63,29 @@ App.CreateAppWizardStep2Controller = Ember.ArrayController.extend({
   initializeNewApp: function () {
     var newApp = this.get('appWizardController.newApp');
     this.set('newApp', newApp);
+    this.loadTypeComponents();
   },
+
+  /**
+   * @type {Em.Object}
+   */
+  typeComponent: Em.Object.extend({
+    yarnLabelChecked: false,
+    yarnLabelNotChecked: Em.computed.not('yarnLabelChecked'),
+    yarnLabel: ''
+  }),
 
   /**
    * Fill <code>content</code> with objects created from <code>App.SliderAppTypeComponent</code>
    * @method loadTypeComponents
    */
   loadTypeComponents: function () {
-    var content = [];
-    var allTypeComponents = this.get('newApp.appType.components');
+    var content = [],
+        component = this.get('typeComponent'),
+        allTypeComponents = this.get('newApp.appType.components');
     if (allTypeComponents && allTypeComponents.get('length')) {
       allTypeComponents.forEach(function (typeComponent) {
-        content.push(Ember.Object.create({
+        content.push(component.create({
           displayName: typeComponent.get('displayName'),
           name: typeComponent.get('name'),
           priority: typeComponent.get('priority'),
@@ -94,16 +96,16 @@ App.CreateAppWizardStep2Controller = Ember.ArrayController.extend({
       });
       this.set('content', content);
     }
-  }.observes('newApp.appType.components.length'),
+  },
 
   /**
-   * Check if param is integer
+   * Check if param is integer (and >= 0)
    * @param {string} value value to check
    * @return {Boolean}
    * @method isNotInteger
    */
   isNotInteger: function (value) {
-    return !(value.trim().length && (value % 1 == 0));
+    return !(value && value.trim().length && (value % 1 == 0) && value >= 0);
   },
 
   /**

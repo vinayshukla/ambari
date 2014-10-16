@@ -23,18 +23,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
 import org.apache.ambari.server.api.services.PersistKeyValueService;
-import org.apache.ambari.server.controller.AmbariManagementController;
-import org.apache.ambari.server.controller.ClusterRequest;
-import org.apache.ambari.server.controller.ClusterResponse;
-import org.apache.ambari.server.controller.ConfigGroupRequest;
-import org.apache.ambari.server.controller.ConfigurationRequest;
-import org.apache.ambari.server.controller.RequestStatusResponse;
+import org.apache.ambari.server.controller.*;
 import org.apache.ambari.server.controller.spi.NoSuchParentResourceException;
 import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 import org.apache.ambari.server.controller.spi.Predicate;
@@ -47,11 +43,14 @@ import org.apache.ambari.server.controller.spi.SystemException;
 import org.apache.ambari.server.controller.spi.UnsupportedPropertyException;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
 import org.apache.ambari.server.orm.dao.BlueprintDAO;
+import org.apache.ambari.server.orm.entities.BlueprintConfigEntity;
 import org.apache.ambari.server.orm.entities.BlueprintEntity;
 import org.apache.ambari.server.orm.entities.HostGroupEntity;
 import org.apache.ambari.server.state.Config;
+import org.apache.ambari.server.state.ConfigHelper;
 import org.apache.ambari.server.state.ConfigImpl;
 import org.apache.ambari.server.state.PropertyInfo;
+import org.apache.ambari.server.state.StackId;
 
 /**
  * Resource provider for cluster resources.
@@ -63,27 +62,35 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
   // Clusters
   protected static final String CLUSTER_ID_PROPERTY_ID      = PropertyHelper.getPropertyId("Clusters", "cluster_id");
   protected static final String CLUSTER_NAME_PROPERTY_ID    = PropertyHelper.getPropertyId("Clusters", "cluster_name");
-  protected static final String CLUSTER_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "version");  
+  protected static final String CLUSTER_VERSION_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "version");
   protected static final String CLUSTER_PROVISIONING_STATE_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "provisioning_state");
   protected static final String CLUSTER_DESIRED_CONFIGS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "desired_configs");
+  protected static final String CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "desired_service_config_versions");
   protected static final String CLUSTER_TOTAL_HOSTS_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "total_hosts");
   protected static final String CLUSTER_HEALTH_REPORT_PROPERTY_ID = PropertyHelper.getPropertyId("Clusters", "health_report");
   protected static final String BLUEPRINT_PROPERTY_ID = PropertyHelper.getPropertyId(null, "blueprint");
 
+  /**
+   * Request info property ID.  Allow internal getResources call to bypass permissions check.
+   */
+  public static final String GET_IGNORE_PERMISSIONS_PROPERTY_ID = "get_resource/ignore_permissions";
+
+  /**
+   * The cluster primary key properties.
+   */
   private static Set<String> pkPropertyIds =
       new HashSet<String>(Arrays.asList(new String[]{CLUSTER_ID_PROPERTY_ID}));
-
-   /**
-   * Maps properties to updaters which update the property when provisioning a cluster via a blueprint
-   */
-  private Map<String, PropertyUpdater> propertyUpdaters =
-      new HashMap<String, PropertyUpdater>();
 
   /**
    * Maps configuration type (string) to associated properties
    */
   private Map<String, Map<String, String>> mapClusterConfigurations =
       new HashMap<String, Map<String, String>>();
+  /**
+   * Maps configuration type (string) to property attributes, and their values
+   */
+  private Map<String, Map<String, Map<String, String>>> mapClusterAttributes =
+      new HashMap<String, Map<String, Map<String, String>>>();
 
 
   // ----- Constructors ----------------------------------------------------
@@ -100,21 +107,10 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
                           AmbariManagementController managementController) {
 
     super(propertyIds, keyPropertyIds, managementController);
-    registerPropertyUpdaters();
-  }
-
-  /**
-   * Inject the blueprint data access object which is used to obtain blueprint entities.
-   *
-   * @param dao  blueprint data access object
-   */
-  public static void init(BlueprintDAO dao, AmbariMetaInfo metaInfo) {
-    blueprintDAO = dao;
-    stackInfo    = metaInfo;
   }
 
 
-// ----- ResourceProvider ------------------------------------------------
+  // ----- ResourceProvider ------------------------------------------------
 
   @Override
   public RequestStatus createResources(Request request)
@@ -163,16 +159,26 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
       LOG.debug("Found clusters matching getClusters request"
           + ", clusterResponseCount=" + responses.size());
     }
-    
+
+    // Allow internal call to bypass permissions check.
+    Map<String, String> requestInfoProperties = request.getRequestInfoProperties();
+    boolean ignorePermissions = requestInfoProperties == null ? false :
+        Boolean.valueOf(requestInfoProperties.get(GET_IGNORE_PERMISSIONS_PROPERTY_ID));
+
     for (ClusterResponse response : responses) {
+
+      String clusterName = response.getClusterName();
+
       Resource resource = new ResourceImpl(Resource.Type.Cluster);
       setResourceProperty(resource, CLUSTER_ID_PROPERTY_ID, response.getClusterId(), requestedIds);
-      setResourceProperty(resource, CLUSTER_NAME_PROPERTY_ID, response.getClusterName(), requestedIds);
+      setResourceProperty(resource, CLUSTER_NAME_PROPERTY_ID, clusterName, requestedIds);
       setResourceProperty(resource, CLUSTER_PROVISIONING_STATE_PROPERTY_ID, response.getProvisioningState(), requestedIds);
       setResourceProperty(resource, CLUSTER_DESIRED_CONFIGS_PROPERTY_ID, response.getDesiredConfigs(), requestedIds);
+      setResourceProperty(resource, CLUSTER_DESIRED_SERVICE_CONFIG_VERSIONS_PROPERTY_ID,
+        response.getDesiredServiceConfigVersions(), requestedIds);
       setResourceProperty(resource, CLUSTER_TOTAL_HOSTS_PROPERTY_ID, response.getTotalHosts(), requestedIds);
       setResourceProperty(resource, CLUSTER_HEALTH_REPORT_PROPERTY_ID, response.getClusterHealthReport(), requestedIds);
-      
+
       resource.setProperty(CLUSTER_VERSION_PROPERTY_ID,
           response.getDesiredStackVersion());
 
@@ -180,8 +186,9 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
         LOG.debug("Adding ClusterResponse to resource"
             + ", clusterResponse=" + response.toString());
       }
-
-      resources.add(resource);
+      if (ignorePermissions || includeCluster(clusterName, true)) {
+        resources.add(resource);
+      }
     }
     return resources;
   }
@@ -196,7 +203,10 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     for (Map<String, Object> requestPropertyMap : request.getProperties()) {
       Set<Map<String, Object>> propertyMaps = getPropertyMaps(requestPropertyMap, predicate);
       for (Map<String, Object> propertyMap : propertyMaps) {
-        requests.add(getRequest(propertyMap));
+        ClusterRequest clusterRequest = getRequest(propertyMap);
+        if (includeCluster(clusterRequest.getClusterName(), false)) {
+          requests.add(clusterRequest);
+        }
       }
     }
     response = modifyResources(new Command<RequestStatusResponse>() {
@@ -206,7 +216,42 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
       }
     });
     notifyUpdate(Resource.Type.Cluster, request, predicate);
-    return getRequestStatus(response);
+
+    Set<Resource> associatedResources = null;
+    for (ClusterRequest clusterRequest : requests) {
+      ClusterResponse updateResults = getManagementController().getClusterUpdateResults(clusterRequest);
+      if (updateResults != null) {
+        Map<String, Collection<ServiceConfigVersionResponse>> serviceConfigVersions = updateResults.getDesiredServiceConfigVersions();
+        if (serviceConfigVersions != null) {
+          associatedResources = new HashSet<Resource>();
+          for (Collection<ServiceConfigVersionResponse> scvCollection : serviceConfigVersions.values()) {
+            for (ServiceConfigVersionResponse serviceConfigVersionResponse : scvCollection) {
+              Resource resource = new ResourceImpl(Resource.Type.ServiceConfigVersion);
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_SERVICE_NAME_PROPERTY_ID,
+                serviceConfigVersionResponse.getServiceName());
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_PROPERTY_ID,
+                serviceConfigVersionResponse.getVersion());
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_NOTE_PROPERTY_ID,
+                serviceConfigVersionResponse.getNote());
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_GROUP_ID_PROPERTY_ID,
+                  serviceConfigVersionResponse.getGroupId());
+              resource.setProperty(ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_GROUP_NAME_PROPERTY_ID,
+                  serviceConfigVersionResponse.getGroupName());
+              if (serviceConfigVersionResponse.getConfigurations() != null) {
+                resource.setProperty(
+                  ServiceConfigVersionResourceProvider.SERVICE_CONFIG_VERSION_CONFIGURATIONS_PROPERTY_ID,
+                  serviceConfigVersionResponse.getConfigurations());
+              }
+              associatedResources.add(resource);
+            }
+          }
+
+        }
+      }
+    }
+
+
+    return getRequestStatus(response, associatedResources);
   }
 
   @Override
@@ -215,13 +260,15 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
 
     for (Map<String, Object> propertyMap : getPropertyMaps(predicate)) {
       final ClusterRequest clusterRequest = getRequest(propertyMap);
-      modifyResources(new Command<Void>() {
-        @Override
-        public Void invoke() throws AmbariException {
-          getManagementController().deleteCluster(clusterRequest);
-          return null;
-        }
-      });
+      if (includeCluster(clusterRequest.getClusterName(), false)) {
+        modifyResources(new Command<Void>() {
+          @Override
+          public Void invoke() throws AmbariException {
+            getManagementController().deleteCluster(clusterRequest);
+            return null;
+          }
+        });
+      }
     }
     notifyDelete(Resource.Type.Cluster, predicate);
     return getRequestStatus(null);
@@ -248,7 +295,32 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     return checkConfigPropertyIds(baseUnsupported, "Clusters");
   }
 
-  // ----- utility methods -------------------------------------------------
+
+  // ----- ClusterResourceProvider -------------------------------------------
+
+  /**
+   * Inject the blueprint data access object which is used to obtain blueprint entities.
+   *
+   * @param dao  blueprint data access object
+   */
+  public static void init(BlueprintDAO dao, AmbariMetaInfo metaInfo, ConfigHelper ch) {
+    blueprintDAO = dao;
+    stackInfo    = metaInfo;
+    configHelper = ch;
+  }
+
+
+  /**
+   * Package-level access for cluster config
+   * @return cluster config map
+   */
+  Map<String, Map<String, String>> getClusterConfigurations() {
+    return mapClusterConfigurations;
+  }
+
+
+
+  // ----- utility methods ---------------------------------------------------
 
   /**
    * Get a cluster request object from a map of property values.
@@ -265,12 +337,46 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
         (String) properties.get(CLUSTER_VERSION_PROPERTY_ID),
         null);
 
-    ConfigurationRequest configRequest = getConfigurationRequest("Clusters", properties);
+    List<ConfigurationRequest> configRequests = getConfigurationRequests("Clusters", properties);
 
-    if (null != configRequest)
-      cr.setDesiredConfig(configRequest);
+    ServiceConfigVersionRequest serviceConfigVersionRequest = getServiceConfigVersionRequest("Clusters", properties);
+
+    if (!configRequests.isEmpty())
+      cr.setDesiredConfig(configRequests);
+
+    if (serviceConfigVersionRequest != null) {
+      cr.setServiceConfigVersionRequest(serviceConfigVersionRequest);
+    }
 
     return cr;
+  }
+
+  /**
+   * Helper method for creating rollback request
+   */
+  protected ServiceConfigVersionRequest getServiceConfigVersionRequest(String parentCategory, Map<String, Object> properties) {
+    ServiceConfigVersionRequest serviceConfigVersionRequest = null;
+
+    for (Map.Entry<String, Object> entry : properties.entrySet()) {
+      String absCategory = PropertyHelper.getPropertyCategory(entry.getKey());
+      String propName = PropertyHelper.getPropertyName(entry.getKey());
+
+      if (absCategory.startsWith(parentCategory + "/desired_service_config_version")) {
+        serviceConfigVersionRequest =
+            (serviceConfigVersionRequest ==null ) ? new ServiceConfigVersionRequest() : serviceConfigVersionRequest;
+
+        if (propName.equals("service_name"))
+          serviceConfigVersionRequest.setServiceName(entry.getValue().toString());
+        else if (propName.equals("service_config_version"))
+          serviceConfigVersionRequest.setVersion(Long.valueOf(entry.getValue().toString()));
+        else if (propName.equals("service_config_version_note")) {
+          serviceConfigVersionRequest.setNote(entry.getValue().toString());
+        }
+
+      }
+    }
+
+    return serviceConfigVersionRequest;
   }
 
   /**
@@ -312,10 +418,20 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     BlueprintEntity blueprint = getExistingBlueprint(blueprintName);
     Stack stack = parseStack(blueprint);
 
-    Map<String, HostGroup> blueprintHostGroups = parseBlueprintHostGroups(blueprint, stack);
+    Map<String, HostGroupImpl> blueprintHostGroups = parseBlueprintHostGroups(blueprint, stack);
     applyRequestInfoToHostGroups(properties, blueprintHostGroups);
-    processConfigurations(processBlueprintConfigurations(blueprint, (Collection<Map<String, String>>)
-        properties.get("configurations")), stack, blueprintHostGroups);
+    Collection<Map<String, String>> configOverrides = (Collection<Map<String, String>>)properties.get("configurations");
+
+    String message = null;
+    for (BlueprintConfigEntity blueprintConfig: blueprint.getConfigurations()){
+      if(blueprintConfig.getType().equals("global")){
+        message = "WARNING: Global configurations are deprecated, please use *-env";
+        break;
+      }
+    }
+
+    processConfigurations(processBlueprintConfigurations(blueprint, configOverrides),
+        processBlueprintAttributes(blueprint), stack, blueprintHostGroups);
     validatePasswordProperties(blueprint, blueprintHostGroups, (String) properties.get("default_password"));
 
     String clusterName = (String) properties.get(CLUSTER_NAME_PROPERTY_ID);
@@ -329,9 +445,14 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
 
     registerConfigGroups(clusterName, blueprintHostGroups, stack);
 
-    persistInstallStateForUI();
-    return ((ServiceResourceProvider) getResourceProvider(Resource.Type.Service)).
+    persistInstallStateForUI(clusterName);
+
+    RequestStatusResponse request = ((ServiceResourceProvider) getResourceProvider(Resource.Type.Service)).
         installAndStart(clusterName);
+
+    request.setMessage(message);
+
+    return request;
   }
 
   /**
@@ -344,11 +465,11 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws IllegalArgumentException if required password properties are missing and no
    *                                  default is specified via 'default_password'
    */
-  private void validatePasswordProperties(BlueprintEntity blueprint, Map<String, HostGroup> hostGroups,
+  private void validatePasswordProperties(BlueprintEntity blueprint, Map<String, HostGroupImpl> hostGroups,
                                           String defaultPassword) {
 
     Map<String, Map<String, Collection<String>>> missingPasswords = blueprint.validateConfigurations(
-        stackInfo, PropertyInfo.PropertyType.PASSWORD);
+        stackInfo, true);
 
     Iterator<Map.Entry<String, Map<String, Collection<String>>>> iter;
     for(iter = missingPasswords.entrySet().iterator(); iter.hasNext(); ) {
@@ -366,8 +487,8 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
           if (isPropertyInConfiguration(mapClusterConfigurations.get(configType), property)){
               propIter.remove();
           } else {
-            HostGroup hg = hostGroups.get(entry.getKey());
-            if (hg != null && isPropertyInConfiguration(hg.getConfigurations().get(configType), property)) {
+            HostGroupImpl hg = hostGroups.get(entry.getKey());
+            if (hg != null && isPropertyInConfiguration(hg.getConfigurationProperties().get(configType), property)) {
               propIter.remove();
             }  else if (setDefaultPassword(defaultPassword, configType, property)) {
               propIter.remove();
@@ -444,7 +565,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws ResourceAlreadyExistsException attempted to create a service or component that already exists
    * @throws NoSuchParentResourceException  a required parent resource is missing
    */
-  private void createServiceAndComponentResources(Map<String, HostGroup> blueprintHostGroups,
+  private void createServiceAndComponentResources(Map<String, HostGroupImpl> blueprintHostGroups,
                                                   String clusterName, Set<String> services)
                                                   throws SystemException,
                                                          UnsupportedPropertyException,
@@ -489,12 +610,12 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws ResourceAlreadyExistsException attempt to create a host or host_component which already exists
    * @throws NoSuchParentResourceException  a required parent resource is missing
    */
-  private void createHostAndComponentResources(Map<String, HostGroup> blueprintHostGroups, String clusterName)
+  private void createHostAndComponentResources(Map<String, HostGroupImpl> blueprintHostGroups, String clusterName)
       throws SystemException, UnsupportedPropertyException, ResourceAlreadyExistsException, NoSuchParentResourceException {
 
     ResourceProvider hostProvider = getResourceProvider(Resource.Type.Host);
     ResourceProvider hostComponentProvider = getResourceProvider(Resource.Type.HostComponent);
-    for (HostGroup group : blueprintHostGroups.values()) {
+    for (HostGroupImpl group : blueprintHostGroups.values()) {
       for (String host : group.getHostInfo()) {
         Map<String, Object> hostProperties = new HashMap<String, Object>();
         hostProperties.put("Hosts/cluster_name", clusterName);
@@ -533,7 +654,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws ResourceAlreadyExistsException attempt to create a component which already exists
    * @throws NoSuchParentResourceException  a required parent resource is missing
    */
-  private void createComponentResources(Map<String, HostGroup> blueprintHostGroups,
+  private void createComponentResources(Map<String, HostGroupImpl> blueprintHostGroups,
                                         String clusterName, Set<String> services)
                                         throws SystemException,
                                                UnsupportedPropertyException,
@@ -541,7 +662,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
                                                NoSuchParentResourceException {
     for (String service : services) {
       Set<String> components = new HashSet<String>();
-      for (HostGroup hostGroup : blueprintHostGroups.values()) {
+      for (HostGroupImpl hostGroup : blueprintHostGroups.values()) {
         Collection<String> serviceComponents = hostGroup.getComponents(service);
         if (serviceComponents != null && !serviceComponents.isEmpty()) {
           components.addAll(serviceComponents);
@@ -573,9 +694,10 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     for (Map.Entry<String, Map<String, String>> entry : mapClusterConfigurations.entrySet()) {
       String type = entry.getKey();
 
+      Map<String, Map<String, String>> confAttributes = mapClusterAttributes.get(type);
       try {
         //todo: properly handle non system exceptions
-        setConfigurationsOnCluster(clusterName, type, entry.getValue());
+        setConfigurationsOnCluster(clusterName, type, entry.getValue(), confAttributes);
       } catch (AmbariException e) {
         throw new SystemException("Unable to set configurations on cluster.", e);
       }
@@ -592,7 +714,8 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws AmbariException if an exception occurs setting the properties
    */
   private void setConfigurationsOnCluster(String clusterName, String type,
-                                          Map<String, String> properties) throws AmbariException {
+                                          Map<String, String> properties,
+                                          Map<String, Map<String, String>> propertiesAttributes) throws AmbariException {
 
     Map<String, Object> clusterProperties = new HashMap<String, Object>();
     clusterProperties.put(CLUSTER_NAME_PROPERTY_ID, clusterName);
@@ -602,8 +725,17 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
       clusterProperties.put(CLUSTER_DESIRED_CONFIGS_PROPERTY_ID +
           "/properties/" + entry.getKey(), entry.getValue());
     }
+    if (propertiesAttributes != null) {
+      for (Map.Entry<String, Map<String, String>> attribute : propertiesAttributes.entrySet()) {
+        String attributeName = attribute.getKey();
+        for (Map.Entry<String, String> attributeOccurrence : attribute.getValue().entrySet()) {
+          clusterProperties.put(CLUSTER_DESIRED_CONFIGS_PROPERTY_ID + "/properties_attributes/"
+              + attributeName + "/" + attributeOccurrence.getKey(), attributeOccurrence.getValue());
+        }
+      }
+    }
     getManagementController().updateClusters(
-        Collections.singleton(getRequest(clusterProperties)), null);
+      Collections.singleton(getRequest(clusterProperties)), null);
   }
 
   /**
@@ -617,7 +749,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    */
   @SuppressWarnings("unchecked")
   private void applyRequestInfoToHostGroups(Map<String, Object> properties,
-                                            Map<String, HostGroup> blueprintHostGroups)
+                                            Map<String, HostGroupImpl> blueprintHostGroups)
                                             throws IllegalArgumentException {
 
     @SuppressWarnings("unchecked")
@@ -634,7 +766,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
       if (name == null || name.isEmpty()) {
         throw new IllegalArgumentException("Every host_group must include a non-null 'name' property");
       }
-      HostGroup hostGroup = blueprintHostGroups.get(name);
+      HostGroupImpl hostGroup = blueprintHostGroups.get(name);
 
       if (hostGroup == null) {
         throw new IllegalArgumentException("Invalid host_group specified: " + name +
@@ -654,7 +786,7 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
         }
         hostGroup.addHostInfo(fqdn);
       }
-      Map<String, Map<String, String>> existingConfigurations = hostGroup.getConfigurations();
+      Map<String, Map<String, String>> existingConfigurations = hostGroup.getConfigurationProperties();
       overrideExistingProperties(existingConfigurations, (Collection<Map<String, String>>)
           hostGroupProperties.get("configurations"));
 
@@ -687,15 +819,20 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * Persist cluster state for the ambari UI.  Setting this state informs that UI that a cluster has been
    * installed and started and that the monitoring screen for the cluster should be displayed to the user.
    *
-   * @throws SystemException if an unexpected exception occurs
+   * @param clusterName  name of cluster
+   *
+   * @throws SystemException if unable to update the cluster with the UI installed flag
    */
-  private void persistInstallStateForUI() throws SystemException {
-    PersistKeyValueService persistService = new PersistKeyValueService();
+  private void persistInstallStateForUI(String clusterName) throws SystemException {
+    Map<String, Object> clusterProperties = new HashMap<String, Object>();
+    clusterProperties.put(CLUSTER_PROVISIONING_STATE_PROPERTY_ID, "INSTALLED");
+    clusterProperties.put(CLUSTER_NAME_PROPERTY_ID, clusterName);
+
     try {
-      persistService.update("{\"CLUSTER_CURRENT_STATUS\": \"{\\\"clusterState\\\":\\\"CLUSTER_STARTED_5\\\"}\"}");
-    } catch (Exception e) {
-      throw new SystemException("Unable to finalize state of cluster for UI.  " +
-          "Cluster creation will not be affected but the cluster may be inaccessible by Ambari UI." );
+      getManagementController().updateClusters(
+          Collections.singleton(getRequest(clusterProperties)), null);
+    } catch (AmbariException e) {
+      throw new SystemException("Unable to finalize state of cluster for UI.");
     }
   }
 
@@ -708,7 +845,9 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @param blueprintHostGroups  host groups contained in the blueprint
    */
   private void processConfigurations(Map<String, Map<String, String>> blueprintConfigurations,
-                                    Stack stack, Map<String, HostGroup> blueprintHostGroups)  {
+                                     Map<String, Map<String, Map<String, String>>> blueprintAttributes,
+                                     Stack stack, Map<String, HostGroupImpl> blueprintHostGroups)  {
+
 
     for (String service : getServicesToDeploy(stack, blueprintHostGroups)) {
       for (String type : stack.getConfigurationTypes(service)) {
@@ -718,21 +857,42 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
           mapClusterConfigurations.put(type, typeProps);
         }
         typeProps.putAll(stack.getConfigurationProperties(service, type));
-      }
-    }
-    processBlueprintClusterConfigurations(blueprintConfigurations);
-
-    for (Map.Entry<String, Map<String, String>> entry : mapClusterConfigurations.entrySet()) {
-      for (Map.Entry<String, String> propertyEntry : entry.getValue().entrySet()) {
-        String propName = propertyEntry.getKey();
-        // see if property needs to be updated
-        PropertyUpdater propertyUpdater = propertyUpdaters.get(propName);
-        if (propertyUpdater != null) {
-          propertyEntry.setValue(propertyUpdater.update(blueprintHostGroups, propertyEntry.getValue()));
+        Map<String, Map<String, String>> stackTypeAttributes = stack.getConfigurationAttributes(service, type);
+        if (!stackTypeAttributes.isEmpty()) {
+          if (!mapClusterAttributes.containsKey(type)) {
+            mapClusterAttributes.put(type, new HashMap<String, Map<String, String>>());
+          }
+          Map<String, Map<String, String>> typeAttrs = mapClusterAttributes.get(type);
+          for (Map.Entry<String, Map<String, String>> attribute : stackTypeAttributes.entrySet()) {
+            String attributeName = attribute.getKey();
+            Map<String, String> attributes = typeAttrs.get(attributeName);
+            if (attributes == null) {
+                attributes = new HashMap<String, String>();
+                typeAttrs.put(attributeName, attributes);
+            }
+            attributes.putAll(attribute.getValue());
+          }
         }
       }
     }
-    setMissingConfigurations();
+    processBlueprintClusterConfigurations(blueprintConfigurations);
+    processBlueprintClusterConfigAttributes(blueprintAttributes);
+
+    BlueprintConfigurationProcessor configurationProcessor = new BlueprintConfigurationProcessor(mapClusterConfigurations);
+    configurationProcessor.doUpdateForClusterCreate(blueprintHostGroups);
+    setMissingConfigurations(blueprintHostGroups);
+  }
+
+  /**
+   * Since global configs are deprecated since 1.7.0, but still supported.
+   * We should automatically map any globals used, to *-env dictionaries.
+   *
+   * @param blueprintConfigurations  map of blueprint configurations keyed by type
+   */
+  private void handleGlobalsBackwardsCompability(Stack stack,
+      Map<String, Map<String, String>> blueprintConfigurations, String clusterName) {
+    StackId stackId = new StackId(stack.getName(), stack.getVersion());
+    configHelper.moveDeprecatedGlobals(stackId, blueprintConfigurations, clusterName);
   }
 
   /**
@@ -757,27 +917,95 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
   }
 
   /**
+   * Process cluster scoped configuration attributes provided in blueprint.
+   *
+   * @param blueprintAttributes  map of configuration type to configuration attributes and their values
+   */
+  private void processBlueprintClusterConfigAttributes(Map<String, Map<String, Map<String, String>>> blueprintAttributes) {
+    for (Map.Entry<String, Map<String, Map<String, String>>> entry : blueprintAttributes.entrySet()) {
+      Map<String, Map<String, String>> attributes = entry.getValue();
+      if (attributes != null && !attributes.isEmpty()) {
+        String type = entry.getKey();
+        if (!mapClusterAttributes.containsKey(type)) {
+          mapClusterAttributes.put(type, new HashMap<String, Map<String, String>>());
+        }
+        Map<String, Map<String, String>> typeAttrs = mapClusterAttributes.get(type);
+        for (Map.Entry<String, Map<String, String>> attribute : attributes.entrySet()) {
+          String attributeName = attribute.getKey();
+          if (!typeAttrs.containsKey(attributeName)) {
+            typeAttrs.put(attributeName, new HashMap<String, String>());
+          }
+          typeAttrs.get(attributeName).putAll(attribute.getValue());
+        }
+      }
+    }
+  }
+
+  /**
    * Explicitly set any properties that are required but not currently provided in the stack definition.
    */
-  private void setMissingConfigurations() {
-    // AMBARI-4921
-    ensureProperty("global", "user_group", "hadoop");
-    ensureProperty("global", "nagios_contact", "default@REPLACEME.NOWHERE");
-    ensureProperty("global", "smokeuser", "ambari-qa");
-
+  void setMissingConfigurations(Map<String, HostGroupImpl> blueprintHostGroups) {
     // AMBARI-5206
-    Map<String, String> globalConfig = mapClusterConfigurations.get("global");
-    String[] userProps = {"oozie_user", "hive_user", "hcat_user", "hbase_user", "falcon_user"};
+    final Map<String , String> userProps = new HashMap<String , String>();
+
+    // only add user properties to the map for
+    // services actually included in the blueprint definition
+    if (isServiceIncluded("OOZIE", blueprintHostGroups)) {
+      userProps.put("oozie_user", "oozie-env");
+    }
+
+    if (isServiceIncluded("HIVE", blueprintHostGroups)) {
+      userProps.put("hive_user", "hive-env");
+      userProps.put("hcat_user", "hive-env");
+    }
+
+    if (isServiceIncluded("HBASE", blueprintHostGroups)) {
+      userProps.put("hbase_user", "hbase-env");
+    }
+
+    if (isServiceIncluded("FALCON", blueprintHostGroups)) {
+      userProps.put("falcon_user", "falcon-env");
+    }
+
+
     String proxyUserHosts  = "hadoop.proxyuser.%s.hosts";
     String proxyUserGroups = "hadoop.proxyuser.%s.groups";
 
-    for (String userProp : userProps) {
-      String user = globalConfig.get(userProp);
-      if (user != null && !user.isEmpty()) {
-        ensureProperty("core-site", String.format(proxyUserHosts, user), "*");
-        ensureProperty("core-site", String.format(proxyUserGroups, user), "users");
+    for (String property : userProps.keySet()) {
+      String configType = userProps.get(property);
+      Map<String, String> configs = mapClusterConfigurations.get(configType);
+      if (configs != null) {
+        String user = configs.get(property);
+        if (user != null && !user.isEmpty()) {
+          ensureProperty("core-site", String.format(proxyUserHosts, user), "*");
+          ensureProperty("core-site", String.format(proxyUserGroups, user), "users");
+        }
+      } else {
+        LOG.debug("setMissingConfigurations: no user configuration found for type = " + configType + ".  This may be caused by an error in the blueprint configuration.");
+      }
+
+    }
+  }
+
+
+  /**
+   * Determines if any components in the specified service are
+   *   included in the current blueprint's host group definitions.
+   *
+   * @param serviceName the Hadoop service name to query on
+   * @param blueprintHostGroups the map of Host Groups in the current blueprint
+   * @return true if the named service is included in the blueprint
+   *         false if the named service it not included in the blueprint
+   */
+  protected boolean isServiceIncluded(String serviceName, Map<String, HostGroupImpl> blueprintHostGroups) {
+    for (String hostGroupName : blueprintHostGroups.keySet()) {
+      HostGroupImpl hostGroup = blueprintHostGroups.get(hostGroupName);
+      if (hostGroup.getServices().contains(serviceName)) {
+        return true;
       }
     }
+
+    return false;
   }
 
   /**
@@ -808,9 +1036,9 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    *
    * @return set of service names which will be deployed
    */
-  private Set<String> getServicesToDeploy(Stack stack, Map<String, HostGroup> blueprintHostGroups) {
+  private Set<String> getServicesToDeploy(Stack stack, Map<String, HostGroupImpl> blueprintHostGroups) {
     Set<String> services = new HashSet<String>();
-    for (HostGroup group : blueprintHostGroups.values()) {
+    for (HostGroupImpl group : blueprintHostGroups.values()) {
       if (! group.getHostInfo().isEmpty()) {
         services.addAll(stack.getServicesForComponents(group.getComponents()));
       }
@@ -819,75 +1047,6 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     services.remove(null);
 
     return services;
-  }
-
-  /**
-   * Register updaters for configuration properties.
-   */
-  private void registerPropertyUpdaters() {
-    // NAMENODE
-    propertyUpdaters.put("dfs.http.address", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("dfs.namenode.http-address", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("dfs.https.address", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("dfs.namenode.https-address", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("fs.default.name", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("fs.defaultFS", new SingleHostPropertyUpdater("NAMENODE"));
-    propertyUpdaters.put("hbase.rootdir", new SingleHostPropertyUpdater("NAMENODE"));
-
-    // SECONDARY_NAMENODE
-    propertyUpdaters.put("dfs.secondary.http.address", new SingleHostPropertyUpdater("SECONDARY_NAMENODE"));
-    propertyUpdaters.put("dfs.namenode.secondary.http-address", new SingleHostPropertyUpdater("SECONDARY_NAMENODE"));
-
-    // HISTORY_SERVER
-    propertyUpdaters.put("yarn.log.server.url", new SingleHostPropertyUpdater("HISTORYSERVER"));
-    propertyUpdaters.put("mapreduce.jobhistory.webapp.address", new SingleHostPropertyUpdater("HISTORYSERVER"));
-    propertyUpdaters.put("mapreduce.jobhistory.address", new SingleHostPropertyUpdater("HISTORYSERVER"));
-
-    // RESOURCEMANAGER
-    propertyUpdaters.put("yarn.resourcemanager.hostname", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-    propertyUpdaters.put("yarn.resourcemanager.resource-tracker.address", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-    propertyUpdaters.put("yarn.resourcemanager.webapp.address", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-    propertyUpdaters.put("yarn.resourcemanager.scheduler.address", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-    propertyUpdaters.put("yarn.resourcemanager.address", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-    propertyUpdaters.put("yarn.resourcemanager.admin.address", new SingleHostPropertyUpdater("RESOURCEMANAGER"));
-
-    // JOBTRACKER
-    propertyUpdaters.put("mapred.job.tracker", new SingleHostPropertyUpdater("JOBTRACKER"));
-    propertyUpdaters.put("mapred.job.tracker.http.address", new SingleHostPropertyUpdater("JOBTRACKER"));
-    propertyUpdaters.put("mapreduce.history.server.http.address", new SingleHostPropertyUpdater("JOBTRACKER"));
-
-    // HIVE_SERVER
-    propertyUpdaters.put("hive.metastore.uris", new SingleHostPropertyUpdater("HIVE_SERVER"));
-    propertyUpdaters.put("hive_ambari_host", new SingleHostPropertyUpdater("HIVE_SERVER"));
-    propertyUpdaters.put("javax.jdo.option.ConnectionURL",
-        new DBPropertyUpdater("MYSQL_SERVER", "hive-env", "hive_database"));
-
-    // OOZIE_SERVER
-    propertyUpdaters.put("oozie.base.url", new SingleHostPropertyUpdater("OOZIE_SERVER"));
-    propertyUpdaters.put("oozie_ambari_host", new SingleHostPropertyUpdater("OOZIE_SERVER"));
-
-    // ZOOKEEPER_SERVER
-    propertyUpdaters.put("hbase.zookeeper.quorum", new MultipleHostPropertyUpdater("ZOOKEEPER_SERVER"));
-    propertyUpdaters.put("templeton.zookeeper.hosts", new MultipleHostPropertyUpdater("ZOOKEEPER_SERVER"));
-
-    // STORM
-    propertyUpdaters.put("nimbus.host", new SingleHostPropertyUpdater("NIMBUS"));
-    propertyUpdaters.put("worker.childopts", new SingleHostPropertyUpdater("GANGLIA_SERVER"));
-    propertyUpdaters.put("supervisor.childopts", new SingleHostPropertyUpdater("GANGLIA_SERVER"));
-    propertyUpdaters.put("nimbus.childopts", new SingleHostPropertyUpdater("GANGLIA_SERVER"));
-    propertyUpdaters.put("storm.zookeeper.servers",
-      new YamlMultiValuePropertyDecorator(new MultipleHostPropertyUpdater("ZOOKEEPER_SERVER")));
-
-    // properties which need "m' appended.  Required due to AMBARI-4933
-    propertyUpdaters.put("namenode_heapsize", new MPropertyUpdater());
-    propertyUpdaters.put("namenode_opt_newsize", new MPropertyUpdater());
-    propertyUpdaters.put("namenode_opt_maxnewsize", new MPropertyUpdater());
-    propertyUpdaters.put("dtnode_heapsize", new MPropertyUpdater());
-    propertyUpdaters.put("jtnode_opt_newsize", new MPropertyUpdater());
-    propertyUpdaters.put("jtnode_opt_maxnewsize", new MPropertyUpdater());
-    propertyUpdaters.put("jtnode_heapsize", new MPropertyUpdater());
-    propertyUpdaters.put("hbase_master_heapsize", new MPropertyUpdater());
-    propertyUpdaters.put("hbase_regionserver_heapsize", new MPropertyUpdater());
   }
 
   /**
@@ -904,18 +1063,20 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    * @throws UnsupportedPropertyException   an invalid property is provided when creating a config group
    * @throws NoSuchParentResourceException  attempt to create a config group for a non-existing cluster
    */
-  private void registerConfigGroups(String clusterName, Map<String, HostGroup> hostGroups, Stack stack) throws
+  private void registerConfigGroups(String clusterName, Map<String, HostGroupImpl> hostGroups, Stack stack) throws
       ResourceAlreadyExistsException, SystemException,
       UnsupportedPropertyException, NoSuchParentResourceException {
 
-    for (HostGroup group : hostGroups.values()) {
+    for (HostGroupImpl group : hostGroups.values()) {
       HostGroupEntity entity = group.getEntity();
       Map<String, Map<String, Config>> groupConfigs = new HashMap<String, Map<String, Config>>();
-      for (Map.Entry<String, Map<String, String>> entry: group.getConfigurations().entrySet()) {
+
+      handleGlobalsBackwardsCompability(stack, group.getConfigurationProperties(), clusterName);
+      for (Map.Entry<String, Map<String, String>> entry: group.getConfigurationProperties().entrySet()) {
         String type = entry.getKey();
         String service = stack.getServiceForConfigType(type);
         Config config = new ConfigImpl(type);
-        config.setVersionTag(entity.getName());
+        config.setTag(entity.getName());
         config.setProperties(entry.getValue());
         Map<String, Config> serviceConfigs = groupConfigs.get(service);
         if (serviceConfigs == null) {
@@ -943,11 +1104,11 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
    *
    * @param hostGroups map of host group name to host group
    */
-  private void validateHostMappings(Map<String, HostGroup> hostGroups) {
+  private void validateHostMappings(Map<String, HostGroupImpl> hostGroups) {
     Collection<String> mappedHosts = new HashSet<String>();
     Collection<String> flaggedHosts = new HashSet<String>();
 
-    for (HostGroup hostgroup : hostGroups.values()) {
+    for (HostGroupImpl hostgroup : hostGroups.values()) {
       for (String host : hostgroup.getHostInfo()) {
         if (mappedHosts.contains(host)) {
           flaggedHosts.add(host);
@@ -964,278 +1125,18 @@ public class ClusterResourceProvider extends BaseBlueprintProcessor {
     }
   }
 
-
   /**
-   * Provides functionality to update a property value.
+   * Determine whether or not the cluster resource identified
+   * by the given cluster name should be included based on the
+   * permissions granted to the current user.
+   *
+   * @param clusterName  the cluster name
+   * @param readOnly     indicate whether or not this is for a read only operation
+   *
+   * @return true if the cluster should be included based on the permissions of the current user
    */
-  public interface PropertyUpdater {
-    /**
-     * Update a property value.
-     *
-     * @param hostGroups  host groups
-     * @param origValue   original value of property
-     *
-     * @return new property value
-     */
-    public String update(Map<String, HostGroup> hostGroups, String origValue);
-  }
-
-  /**
-   * Topology based updater which replaces the original host name of a property with the host name
-   * which runs the associated (master) component in the new cluster.
-   */
-  private class SingleHostPropertyUpdater implements PropertyUpdater {
-    /**
-     * Component name
-     */
-    private String component;
-
-    /**
-     * Constructor.
-     *
-     * @param component  component name associated with the property
-     */
-    public SingleHostPropertyUpdater(String component) {
-      this.component = component;
-    }
-
-    /**
-     * Update the property with the new host name which runs the associated component.
-     *
-     * @param hostGroups  host groups                 host groups
-     * @param origValue   original value of property  original property value
-     *
-     * @return updated property value with old host name replaced by new host name
-     */
-    public String update(Map<String, HostGroup> hostGroups, String origValue)  {
-      Collection<HostGroup> matchingGroups = getHostGroupsForComponent(component, hostGroups.values());
-      if (matchingGroups.size() == 1) {
-        return origValue.replace("localhost", matchingGroups.iterator().next().getHostInfo().iterator().next());
-      } else {
-        throw new IllegalArgumentException("Unable to update configuration property with topology information. " +
-            "Component '" + this.component + "' is not mapped to any host group or is mapped to multiple groups.");
-      }
-    }
-  }
-
-  /**
-   * Topology based updater which replaces the original host name of a database property with the host name
-   * where the DB is deployed in the new cluster.  If an existing database is specified, the original property
-   * value is returned.
-   */
-  private class DBPropertyUpdater extends SingleHostPropertyUpdater {
-    /**
-     * Property type (global, core-site ...) for property which is used to determine if DB is external.
-     */
-    private final String configPropertyType;
-
-    /**
-     * Name of property which is used to determine if DB is new or existing (exernal).
-     */
-    private final String conditionalPropertyName;
-
-    /**
-     * Constructor.
-     *
-     * @param component                component to get hot name if new DB
-     * @param configPropertyType       config type of property used to determine if DB is external
-     * @param conditionalPropertyName  name of property which is used to determine if DB is external
-     */
-    private DBPropertyUpdater(String component, String configPropertyType, String conditionalPropertyName) {
-      super(component);
-      this.configPropertyType = configPropertyType;
-      this.conditionalPropertyName = conditionalPropertyName;
-    }
-
-    /**
-     * If database is a new managed database, update the property with the new host name which
-     * runs the associated component.  If the database is external (non-managed), return the
-     * original value.
-     *
-     * @param hostGroups  host groups                 host groups
-     * @param origValue   original value of property  original property value
-     *
-     * @return updated property value with old host name replaced by new host name or original value
-     *         if the database is exernal
-     */
-    @Override
-    public String update(Map<String, HostGroup> hostGroups, String origValue) {
-      if (isDatabaseManaged()) {
-        return super.update(hostGroups, origValue);
-      } else {
-        return origValue;
-      }
-    }
-
-    /**
-     * Determine if database is managed, meaning that it is a component in the cluster topology.
-     *
-     * @return true if the DB is managed; false otherwise
-     */
-    //todo: use super.isDependencyManaged() and remove this method
-    private boolean isDatabaseManaged() {
-      // conditional property should always exist since it is required to be specified in the stack
-      return mapClusterConfigurations.get(configPropertyType).
-          get(conditionalPropertyName).startsWith("New");
-    }
-  }
-
-  /**
-   * Topology based updater which replaces original host names (possibly more than one) contained in a property
-   * value with the host names which runs the associated component in the new cluster.
-   */
-  private class MultipleHostPropertyUpdater implements PropertyUpdater {
-    /**
-     * Component name
-     */
-    private String component;
-
-    /**
-     * Separator for multiple property values
-     */
-    private Character separator = ',';
-
-    /**
-     * Constructor.
-     *
-     * @param component  component name associated with the property
-     */
-    public MultipleHostPropertyUpdater(String component) {
-      this.component = component;
-    }
-
-    /**
-     * Constructor with customized separator.
-     * @param component Component name
-     * @param separator separator character
-     */
-    public MultipleHostPropertyUpdater(String component, Character separator) {
-      this.component = component;
-      this.separator = separator;
-    }
-
-    //todo: specific to default values of EXACTLY 'localhost' or 'localhost:port'.
-    //todo: when blueprint contains source configurations, these props will contain actual host names, not localhost.
-    //todo: currently assuming that all hosts will share the same port
-    /**
-     * Update all host names included in the original property value with new host names which run the associated
-     * component.
-     *
-     * @param hostGroups  host groups                 host groups
-     * @param origValue   original value of property  original value
-     *
-     * @return updated property value with old host names replaced by new host names
-     */
-    public String update(Map<String, HostGroup> hostGroups, String origValue) {
-      Collection<HostGroup> matchingGroups = getHostGroupsForComponent(component, hostGroups.values());
-      boolean containsPort = origValue.contains(":");
-      String port = null;
-      if (containsPort) {
-        port = origValue.substring(origValue.indexOf(":") + 1);
-      }
-      StringBuilder sb = new StringBuilder();
-      boolean firstHost = true;
-      for (HostGroup group : matchingGroups) {
-        for (String host : group.getHostInfo()) {
-          if (!firstHost) {
-            sb.append(separator);
-          } else {
-            firstHost = false;
-          }
-          sb.append(host);
-          if (containsPort) {
-            sb.append(":");
-            sb.append(port);
-          }
-        }
-      }
-
-      return sb.toString();
-    }
-  }
-
-  /**
-   * Updater which appends "m" to the original property value.
-   * For example, "1024" would be updated to "1024m".
-   */
-  private class MPropertyUpdater implements PropertyUpdater {
-    /**
-     * Append 'm' to the original property value if it doesn't already exist.
-     *
-     * @param hostGroups  host groups                 host groups
-     * @param origValue   original value of property  original property value
-     *
-     * @return property with 'm' appended
-     */
-    public String update(Map<String, HostGroup> hostGroups, String origValue) {
-      return origValue.endsWith("m") ? origValue : origValue + 'm';
-    }
-  }
-
-  /**
-   * Class to facilitate special formatting needs of property values.
-   */
-  private abstract class AbstractPropertyValueDecorator implements PropertyUpdater {
-    PropertyUpdater propertyUpdater;
-
-    public AbstractPropertyValueDecorator(PropertyUpdater propertyUpdater) {
-      this.propertyUpdater = propertyUpdater;
-    }
-
-    /**
-     * Return decorated form of the updated input property value.
-     * @param hostGroupMap Map of host group name to HostGroup
-     * @param origValue   original value of property
-     *
-     * @return Formatted output string
-     */
-    @Override
-    public String update(Map<String, HostGroup> hostGroupMap, String origValue) {
-      return doFormat(propertyUpdater.update(hostGroupMap, origValue));
-    }
-
-    /**
-     * Transform input string to required output format.
-     * @param originalValue Original value of property
-     * @return Formatted output string
-     */
-    public abstract String doFormat(String originalValue);
-  }
-
-  /**
-   * Return properties of the form ['value']
-   */
-  private class YamlMultiValuePropertyDecorator extends AbstractPropertyValueDecorator {
-
-    public YamlMultiValuePropertyDecorator(PropertyUpdater propertyUpdater) {
-      super(propertyUpdater);
-    }
-
-    /**
-     * Format input String of the form, str1,str2 to ['str1','str2']
-     * @param origValue Input string
-     * @return Formatted string
-     */
-    @Override
-    public String doFormat(String origValue) {
-      StringBuilder sb = new StringBuilder();
-      if (origValue != null) {
-        sb.append("[");
-        boolean isFirst = true;
-        for (String value : origValue.split(",")) {
-          if (!isFirst) {
-            sb.append(",");
-          } else {
-            isFirst = false;
-          }
-          sb.append("'");
-          sb.append(value);
-          sb.append("'");
-        }
-        sb.append("]");
-      }
-      return sb.toString();
-    }
+  private boolean includeCluster(String clusterName, boolean readOnly) {
+    return getManagementController().getClusters().checkPermission(clusterName, readOnly);
   }
 }
 

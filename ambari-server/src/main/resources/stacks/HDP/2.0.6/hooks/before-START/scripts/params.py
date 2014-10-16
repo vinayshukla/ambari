@@ -23,16 +23,33 @@ import os
 
 config = Script.get_config()
 
+#RPM versioning support
+rpm_version = default("/configurations/cluster-env/rpm_version", None)
+
+#hadoop params
+if rpm_version:
+  mapreduce_libs_path = "/usr/hdp/current/hadoop-mapreduce-client/*"
+  hadoop_libexec_dir = "/usr/hdp/current/hadoop-client/libexec"
+  hadoop_lib_home = "/usr/hdp/current/hadoop-client/lib"
+  hadoop_bin = "/usr/hdp/current/hadoop-client/sbin"
+  hadoop_home = '/usr/hdp/current/hadoop-client'
+else:
+  mapreduce_libs_path = "/usr/lib/hadoop-mapreduce/*"
+  hadoop_libexec_dir = "/usr/lib/hadoop/libexec"
+  hadoop_lib_home = "/usr/lib/hadoop/lib"
+  hadoop_bin = "/usr/lib/hadoop/sbin"
+  hadoop_home = '/usr'
+
+hadoop_conf_dir = "/etc/hadoop/conf"
 #security params
-_authentication = config['configurations']['core-site']['hadoop.security.authentication']
-security_enabled = ( not is_empty(_authentication) and _authentication == 'kerberos')
+security_enabled = config['configurations']['cluster-env']['security_enabled']
 
 #users and groups
 mapred_user = config['configurations']['mapred-env']['mapred_user']
 hdfs_user = config['configurations']['hadoop-env']['hdfs_user']
 yarn_user = config['configurations']['yarn-env']['yarn_user']
 
-user_group = config['configurations']['hadoop-env']['user_group']
+user_group = config['configurations']['cluster-env']['user_group']
 
 #hosts
 hostname = config["hostname"]
@@ -50,6 +67,7 @@ namenode_host = default("/clusterHostInfo/namenode_host", [])
 zk_hosts = default("/clusterHostInfo/zookeeper_hosts", [])
 ganglia_server_hosts = default("/clusterHostInfo/ganglia_server_host", [])
 
+has_namenode = not len(namenode_host) == 0
 has_resourcemanager = not len(rm_host) == 0
 has_slaves = not len(slave_hosts) == 0
 has_nagios = not len(hagios_server_hosts) == 0
@@ -69,12 +87,10 @@ is_slave = hostname in slave_hosts
 if has_ganglia_server:
   ganglia_server_host = ganglia_server_hosts[0]
 #hadoop params
-hadoop_tmp_dir = format("/tmp/hadoop-{hdfs_user}")
-hadoop_lib_home = "/usr/lib/hadoop/lib"
-hadoop_conf_dir = "/etc/hadoop/conf"
+
+if has_namenode:
+  hadoop_tmp_dir = format("/tmp/hadoop-{hdfs_user}")
 hadoop_pid_dir_prefix = config['configurations']['hadoop-env']['hadoop_pid_dir_prefix']
-hadoop_home = "/usr"
-hadoop_bin = "/usr/lib/hadoop/sbin"
 
 task_log4j_properties_location = os.path.join(hadoop_conf_dir, "task-log4j.properties")
 
@@ -94,7 +110,7 @@ ambari_db_rca_driver = config['hostLevelParams']['ambari_db_rca_driver'][0]
 ambari_db_rca_username = config['hostLevelParams']['ambari_db_rca_username'][0]
 ambari_db_rca_password = config['hostLevelParams']['ambari_db_rca_password'][0]
 
-if 'rca_enabled' in config['configurations']['hadoop-env']:
+if has_namenode and 'rca_enabled' in config['configurations']['hadoop-env']:
   rca_enabled =  config['configurations']['hadoop-env']['rca_enabled']
 else:
   rca_enabled = False
@@ -125,8 +141,6 @@ ttnode_heapsize = "1024m"
 
 dtnode_heapsize = config['configurations']['hadoop-env']['dtnode_heapsize']
 mapred_pid_dir_prefix = default("/configurations/mapred-env/mapred_pid_dir_prefix","/var/run/hadoop-mapreduce")
-mapreduce_libs_path = "/usr/lib/hadoop-mapreduce/*"
-hadoop_libexec_dir = "/usr/lib/hadoop/libexec"
 mapred_log_dir_prefix = default("/configurations/mapred-env/mapred_log_dir_prefix","/var/log/hadoop-mapreduce")
 
 #log4j.properties

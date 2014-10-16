@@ -18,28 +18,12 @@
 
 package org.apache.ambari.server.controller;
 
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createNiceMock;
-import static org.easymock.EasyMock.createStrictMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.verify;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
-
+import com.google.gson.Gson;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.util.Modules;
 import junit.framework.Assert;
 import org.apache.ambari.server.AmbariException;
 import org.apache.ambari.server.ClusterNotFoundException;
@@ -48,8 +32,15 @@ import org.apache.ambari.server.ParentObjectNotFoundException;
 import org.apache.ambari.server.ServiceComponentHostNotFoundException;
 import org.apache.ambari.server.ServiceComponentNotFoundException;
 import org.apache.ambari.server.ServiceNotFoundException;
+import org.apache.ambari.server.actionmanager.ActionDBAccessorImpl;
 import org.apache.ambari.server.actionmanager.ActionManager;
 import org.apache.ambari.server.api.services.AmbariMetaInfo;
+import org.apache.ambari.server.configuration.Configuration;
+import org.apache.ambari.server.orm.InMemoryDefaultTestModule;
+import org.apache.ambari.server.orm.entities.LdapSyncSpecEntity;
+import org.apache.ambari.server.security.authorization.Users;
+import org.apache.ambari.server.security.ldap.AmbariLdapDataPopulator;
+import org.apache.ambari.server.security.ldap.LdapBatchDto;
 import org.apache.ambari.server.state.Cluster;
 import org.apache.ambari.server.state.Clusters;
 import org.apache.ambari.server.state.Host;
@@ -57,20 +48,61 @@ import org.apache.ambari.server.state.MaintenanceState;
 import org.apache.ambari.server.state.Service;
 import org.apache.ambari.server.state.ServiceComponent;
 import org.apache.ambari.server.state.ServiceComponentHost;
-import org.apache.ambari.server.state.StackId;
-import org.apache.ambari.server.state.ServiceOsSpecific;
 import org.apache.ambari.server.state.ServiceInfo;
+import org.apache.ambari.server.state.ServiceOsSpecific;
+import org.apache.ambari.server.state.StackId;
 import org.easymock.Capture;
+import org.junit.Before;
 import org.junit.Test;
 
-import com.google.gson.Gson;
-import com.google.inject.Injector;
+import javax.persistence.RollbackException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.DB_DRIVER_FILENAME;
+import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_NAME;
+import static org.apache.ambari.server.agent.ExecutionCommand.KeyNames.STACK_VERSION;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.createMockBuilder;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.createStrictMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * AmbariManagementControllerImpl unit tests
  */
 public class AmbariManagementControllerImplTest {
 
+  // Mocks
+  private static final AmbariLdapDataPopulator ldapDataPopulator = createMock(AmbariLdapDataPopulator.class);
+  private static final Clusters clusters = createNiceMock(Clusters.class);
+  private static final ActionDBAccessorImpl actionDBAccessor = createNiceMock(ActionDBAccessorImpl.class);
+  private static final AmbariMetaInfo ambariMetaInfo = createMock(AmbariMetaInfo.class);
+  private static final Users users = createMock(Users.class);
+
+  @Before
+  public void before() throws Exception {
+    reset(ldapDataPopulator, clusters,actionDBAccessor, ambariMetaInfo, users);
+  }
 
   @Test
   public void testgetAmbariServerURI() throws Exception {
@@ -274,6 +306,90 @@ public class AmbariManagementControllerImplTest {
     assertTrue(setResponses.contains(response2));
 
     verify(injector, clusters, cluster, cluster2, response, response2);
+  }
+
+  /**
+   * Ensure that when the cluster id is provided and the given cluster name is different from the cluster's name
+   * then the cluster rename logic is executed.
+   */
+  @Test
+  public void testUpdateClusters() throws Exception {
+    // member state mocks
+    Capture<AmbariManagementController> controllerCapture = new Capture<AmbariManagementController>();
+    Injector injector = createStrictMock(Injector.class);
+    Cluster cluster = createNiceMock(Cluster.class);
+    ActionManager actionManager = createNiceMock(ActionManager.class);
+    Clusters clusters = createNiceMock(Clusters.class);
+    ClusterRequest clusterRequest = createNiceMock(ClusterRequest.class);
+
+    // requests
+    Set<ClusterRequest> setRequests = Collections.singleton(clusterRequest);
+
+    // expectations
+    injector.injectMembers(capture(controllerCapture));
+    expect(injector.getInstance(Gson.class)).andReturn(null);
+    expect(injector.getInstance(MaintenanceStateHelper.class)).andReturn(null);
+    expect(clusterRequest.getClusterName()).andReturn("clusterNew").times(4);
+    expect(clusterRequest.getClusterId()).andReturn(1L).times(4);
+    expect(clusters.getClusterById(1L)).andReturn(cluster);
+    expect(cluster.getClusterName()).andReturn("clusterOld").times(2);
+    cluster.setClusterName("clusterNew");
+    expectLastCall();
+
+    // replay mocks
+    replay(actionManager, cluster, clusters, injector, clusterRequest);
+
+    // test
+    AmbariManagementController controller = new AmbariManagementControllerImpl(actionManager, clusters, injector);
+    controller.updateClusters(setRequests, null);
+
+    // assert and verify
+    assertSame(controller, controllerCapture.getValue());
+    verify(actionManager, cluster, clusters, injector, clusterRequest);
+  }
+
+  /**
+   * Ensure that RollbackException is thrown outside the updateClusters method
+   * when a unique constraint violation occurs.
+   */
+  @Test
+  public void testUpdateClusters__RollbackException() throws Exception {
+    // member state mocks
+    Capture<AmbariManagementController> controllerCapture = new Capture<AmbariManagementController>();
+    Injector injector = createStrictMock(Injector.class);
+    Cluster cluster = createNiceMock(Cluster.class);
+    ActionManager actionManager = createNiceMock(ActionManager.class);
+    Clusters clusters = createNiceMock(Clusters.class);
+    ClusterRequest clusterRequest = createNiceMock(ClusterRequest.class);
+
+    // requests
+    Set<ClusterRequest> setRequests = Collections.singleton(clusterRequest);
+
+    // expectations
+    injector.injectMembers(capture(controllerCapture));
+    expect(injector.getInstance(Gson.class)).andReturn(null);
+    expect(injector.getInstance(MaintenanceStateHelper.class)).andReturn(null);
+    expect(clusterRequest.getClusterName()).andReturn("clusterNew").times(4);
+    expect(clusterRequest.getClusterId()).andReturn(1L).times(4);
+    expect(clusters.getClusterById(1L)).andReturn(cluster);
+    expect(cluster.getClusterName()).andReturn("clusterOld").times(2);
+    cluster.setClusterName("clusterNew");
+    expectLastCall().andThrow(new RollbackException());
+
+    // replay mocks
+    replay(actionManager, cluster, clusters, injector, clusterRequest);
+
+    // test
+    AmbariManagementController controller = new AmbariManagementControllerImpl(actionManager, clusters, injector);
+    try {
+      controller.updateClusters(setRequests, null);
+      fail("Expected RollbackException");
+    } catch (RollbackException e) {
+      //expected
+    }
+    // assert and verify
+    assertSame(controller, controllerCapture.getValue());
+    verify(actionManager, cluster, clusters, injector, clusterRequest);
   }
 
   @Test
@@ -1206,6 +1322,126 @@ public class AmbariManagementControllerImplTest {
     ServiceOsSpecific serviceOsSpecific = nestedTestClass.populateServicePackagesInfo(serviceInfo, hostParams, osFamily);
 
     assertEquals(serviceOsSpecific.getPackages().size(), 3);
+  }
+
+  @Test
+  public void testCreateDefaultHostParams() throws Exception {
+    String SOME_STACK_NAME = "SomeStackName";
+    String SOME_STACK_VERSION = "1.0";
+    String MYSQL_JAR = "MYSQL_JAR";
+    String JAVA_HOME = "javaHome";
+    String JDK_NAME = "jdkName";
+    String JCE_NAME = "jceName";
+    String OJDBC_JAR_NAME = "OjdbcJarName";
+    String SERVER_DB_NAME = "ServerDBName";
+
+    ActionManager manager = createNiceMock(ActionManager.class);
+    Clusters clusters = createNiceMock(Clusters.class);
+    StackId stackId = createNiceMock(StackId.class);
+    Cluster cluster = createNiceMock(Cluster.class);
+    Injector injector = createNiceMock(Injector.class);
+    Configuration configuration = createNiceMock(Configuration.class);
+
+    expect(cluster.getDesiredStackVersion()).andReturn(stackId);
+    expect(stackId.getStackName()).andReturn(SOME_STACK_NAME).anyTimes();
+    expect(stackId.getStackVersion()).andReturn(SOME_STACK_VERSION).anyTimes();
+    expect(configuration.getMySQLJarName()).andReturn(MYSQL_JAR);
+    expect(configuration.getJavaHome()).andReturn(JAVA_HOME);
+    expect(configuration.getJDKName()).andReturn(JDK_NAME);
+    expect(configuration.getJCEName()).andReturn(JCE_NAME);
+    expect(configuration.getOjdbcJarName()).andReturn(OJDBC_JAR_NAME);
+    expect(configuration.getServerDBName()).andReturn(SERVER_DB_NAME);
+
+    replay(manager, clusters, cluster, injector, stackId, configuration);
+
+    AmbariManagementControllerImpl ambariManagementControllerImpl =
+            createMockBuilder(AmbariManagementControllerImpl.class)
+            .addMockedMethod("getRcaParameters")
+            .withConstructor(manager, clusters, injector).createNiceMock();
+
+    expect(ambariManagementControllerImpl.
+            getRcaParameters()).andReturn(new HashMap<String, String>());
+    replay(ambariManagementControllerImpl);
+
+    // Inject configuration manually
+    Class<?> amciClass = AmbariManagementControllerImpl.class;
+    Field f = amciClass.getDeclaredField("configs");
+    f.setAccessible(true);
+    f.set(ambariManagementControllerImpl, configuration);
+
+    TreeMap<String, String> defaultHostParams =
+            ambariManagementControllerImpl.createDefaultHostParams(cluster);
+
+    assertEquals(defaultHostParams.size(), 10);
+    assertEquals(defaultHostParams.get(DB_DRIVER_FILENAME), MYSQL_JAR);
+    assertEquals(defaultHostParams.get(STACK_NAME), SOME_STACK_NAME);
+    assertEquals(defaultHostParams.get(STACK_VERSION), SOME_STACK_VERSION);
+  }
+
+  @Test
+  public void testSynchronizeLdapUsersAndGroups() throws Exception {
+
+    Set<String> userSet = new HashSet<String>();
+    userSet.add("user1");
+
+    Set<String> groupSet = new HashSet<String>();
+    groupSet.add("group1");
+
+    Injector injector = Guice.createInjector(Modules.override(new InMemoryDefaultTestModule()).with(new MockModule()));
+
+    // create mocks
+
+    LdapBatchDto ldapBatchDto = createNiceMock(LdapBatchDto.class);
+
+
+    Capture<LdapBatchDto> ldapBatchDtoCapture = new Capture<LdapBatchDto>();
+
+    // set expectations
+    expect(ldapDataPopulator.synchronizeAllLdapUsers(capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+    expect(ldapDataPopulator.synchronizeAllLdapGroups(capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+
+    expect(ldapDataPopulator.synchronizeExistingLdapUsers(capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+    expect(ldapDataPopulator.synchronizeExistingLdapGroups(capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+
+    expect(ldapDataPopulator.synchronizeLdapUsers(eq(userSet), capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+    expect(ldapDataPopulator.synchronizeLdapGroups(eq(groupSet), capture(ldapBatchDtoCapture))).andReturn(ldapBatchDto);
+
+    users.processLdapSync(capture(ldapBatchDtoCapture));
+    expectLastCall().anyTimes();
+
+    //replay
+    replay(ldapDataPopulator, clusters, actionDBAccessor, ambariMetaInfo, users, ldapBatchDto);
+
+    AmbariManagementControllerImpl controller = injector.getInstance(AmbariManagementControllerImpl.class);
+
+    LdapSyncRequest userRequest  = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.ALL);
+    LdapSyncRequest groupRequest = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.ALL);
+
+    controller.synchronizeLdapUsersAndGroups(userRequest, groupRequest);
+
+    userRequest  = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.EXISTING);
+    groupRequest = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.EXISTING);
+
+    controller.synchronizeLdapUsersAndGroups(userRequest, groupRequest);
+
+    userRequest  = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.SPECIFIC, userSet);
+    groupRequest = new LdapSyncRequest(LdapSyncSpecEntity.SyncType.SPECIFIC, groupSet);
+
+    controller.synchronizeLdapUsersAndGroups(userRequest, groupRequest);
+
+    verify(ldapDataPopulator, clusters, users, ldapBatchDto);
+  }
+
+  private class MockModule implements Module {
+
+    @Override
+    public void configure(Binder binder) {
+      binder.bind(AmbariLdapDataPopulator.class).toInstance(ldapDataPopulator);
+      binder.bind(Clusters.class).toInstance(clusters);
+      binder.bind(ActionDBAccessorImpl.class).toInstance(actionDBAccessor);
+      binder.bind(AmbariMetaInfo.class).toInstance(ambariMetaInfo);
+      binder.bind(Users.class).toInstance(users);
+    }
   }
 
   private class NestedTestClass extends AmbariManagementControllerImpl {

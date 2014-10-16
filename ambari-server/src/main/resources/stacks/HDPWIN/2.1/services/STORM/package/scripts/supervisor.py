@@ -48,4 +48,3 @@ class Supervisor(Script):
 
 if __name__ == "__main__":
   Supervisor().execute()
-

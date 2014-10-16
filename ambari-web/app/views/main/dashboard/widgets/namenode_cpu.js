@@ -25,15 +25,51 @@ App.NameNodeCpuPieChartView = App.PieChartDashboardWidgetView.extend({
 
   model_type: 'hdfs',
   widgetHtmlId: 'widget-nn-cpu',
-  modelFieldUsed: 'nameNodeCpu',
+  cpuWio: null,
+  nnHostName:"",
+  intervalId: null,
+
+  willDestroyElement: function() {
+    clearInterval(this.get("intervalId"));
+  },
 
   didInsertElement: function() {
     this._super();
+    var self = this,
+    intervalId;
+    if (App.get('isHaEnabled')) {
+      this.set('nnHostName', this.get('model').get('activeNameNode.hostName'));
+    }else{
+     this.set('nnHostName', this.get('model').get('nameNode.hostName'));
+    }
+    this.getValue();
+    intervalId = setInterval(function() {self.getValue()}, App.componentsUpdateInterval);
+    this.set('intervalId', intervalId);
+  },
+
+  getValue: function () {
+    App.ajax.send({
+      name: 'namenode.cpu_wio',
+      sender: this,
+      data: {
+        nnHost: this.get('nnHostName')
+      },
+      success: 'updateValueSuccess',
+      error: 'updateValueError'
+    });
+  },
+
+  updateValueError: function () {
+    this.calc();
+  },
+
+  updateValueSuccess: function (response) {
+    this.set('cpuWio', Em.get(response, 'metrics.cpu.cpu_wio'));
     this.calc();
   },
 
   calcHiddenInfo: function() {
-    var value = this.get('model').get(this.get('modelFieldUsed'));
+    var value = this.get('cpuWio');
     var obj1;
     if( value == null) {
       obj1 = Em.I18n.t('services.service.summary.notAvailable');
@@ -49,12 +85,12 @@ App.NameNodeCpuPieChartView = App.PieChartDashboardWidgetView.extend({
   },
 
   calcIsPieExists: function() {
-    return (this.get('model').get(this.get('modelFieldUsed')) != null);
+    return (!Em.isNone(this.get('cpuWio')));
   },
 
-  calcDataForPieChart: function() {
-    var value = this.get('model').get(this.get('modelFieldUsed'));
-    value = value >= 100 ? 100: value;
+  calcDataForPieChart: function () {
+    var value = this.get('cpuWio');
+    value = value >= 100 ? 100 : value;
     var percent = (value + 0).toFixed(1);
     var percent_precise = (value + 0).toFixed(2);
     return [ percent, percent_precise];

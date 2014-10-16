@@ -19,9 +19,9 @@ limitations under the License.
 """
 
 from resource_management import *
-import socket
 import sys
 import time
+from resource_management.core.shell import call
 
 def hive_service(
     name,
@@ -41,10 +41,15 @@ def hive_service(
   process_id_exists = format("ls {pid_file} >/dev/null 2>&1 && ps `cat {pid_file}` >/dev/null 2>&1")
   
   if action == 'start':
+    if name == 'hiveserver2':
+      check_fs_root()
+
     demon_cmd = format("{cmd}")
     
     Execute(demon_cmd,
             user=params.hive_user,
+            environment={'HADOOP_HOME': params.hadoop_home},
+            path=params.execute_path,
             not_if=process_id_exists
     )
 
@@ -53,7 +58,7 @@ def hive_service(
        params.hive_jdbc_driver == "oracle.jdbc.driver.OracleDriver":
       
       db_connection_check_command = format(
-        "{java64_home}/bin/java -cp {check_db_connection_jar}:/usr/share/java/{jdbc_jar_name} org.apache.ambari.server.DBConnectionVerification {hive_jdbc_connection_url} {hive_metastore_user_name} {hive_metastore_user_passwd!p} {hive_jdbc_driver}")
+        "{java64_home}/bin/java -cp {check_db_connection_jar}:/usr/share/java/{jdbc_jar_name} org.apache.ambari.server.DBConnectionVerification '{hive_jdbc_connection_url}' {hive_metastore_user_name} {hive_metastore_user_passwd!p} {hive_jdbc_driver}")
       
       Execute(db_connection_check_command,
               path='/usr/sbin:/sbin:/usr/local/bin:/bin:/usr/bin', tries=5, try_sleep=10)
@@ -66,23 +71,16 @@ def hive_service(
       
       start_time = time.time()
       end_time = start_time + SOCKET_WAIT_SECONDS
-      
-      s = socket.socket()
-      s.settimeout(5)
-            
+
       is_service_socket_valid = False
       print "Waiting for the Hive server to start..."
-      try:
-        while time.time() < end_time:
-          try:
-            s.connect((address, port))
-            is_service_socket_valid = True
-            break
-          except socket.error, e:          
-            time.sleep(5)
-      finally:
-        s.close()
-      
+      while time.time() < end_time:
+        if check_thrift_port_sasl(address, port, 2, security_enabled=params.security_enabled):
+          is_service_socket_valid = True
+          break
+        else:
+          time.sleep(2)
+
       elapsed_time = time.time() - start_time    
       
       if is_service_socket_valid == False: 
@@ -95,3 +93,14 @@ def hive_service(
     Execute(demon_cmd,
             not_if = format("! ({process_id_exists})")
     )
+
+def check_fs_root():
+  import params
+  fs_root_url = format("{fs_root}{hive_apps_whs_dir}")
+  cmd = format("metatool -listFSRoot 2>/dev/null | grep hdfs://")
+  code, out = call(cmd, user=params.hive_user)
+  if code == 0 and fs_root_url.strip() != out.strip():
+    cmd = format("metatool -updateLocation {fs_root}{hive_apps_whs_dir} {out}")
+    Execute(cmd,
+            environment= {'PATH' : params.execute_path },
+            user=params.hive_user)

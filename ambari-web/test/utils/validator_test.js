@@ -332,32 +332,50 @@ describe('validator', function () {
       })
     });
   });
+  describe('#isValidConfigGroupName(value)', function() {
+    var tests = [
+      {m:'"123" - valid',i:'123',e:true},
+      {m:'"abc" - valid',i:'abc',e:true},
+      {m:'"abc123" - valid',i:'abc123',e:true},
+      {m:'".abc." - invalid',i:'.abc.',e:false},
+      {m:'"_abc_" - valid',i:'_abc_',e:true},
+      {m:'"-abc-" - valid',i:'-abc-',e:true},
+      {m:'" abc  123 " - valid',i:' abc  123 ',e:true},
+      {m:'"a"b" - invalid',i:'a"b',e:false},
+      {m:'"a\'b" - invalid',i:'a\'b',e:false}
+    ];
+    tests.forEach(function(test) {
+      it(test.m + ' ', function () {
+        expect(validator.isValidConfigGroupName(test.i)).to.equal(test.e);
+      })
+    });
+  });
 
   describe('#isValidMatchesRegexp()', function() {
     var message = '`{0}` should be {1}',
-        tests = [
-          { value: '.*', expected: true },
-          { value: '..', expected: true },
-          { value: '.a1', expected: true },
-          { value: '.*a1', expected: true },
-          { value: '.*a1.*', expected: true },
-          { value: '.*a1.a2', expected: true },
-          { value: '.*a1.*.a2', expected: true },
-          { value: '.*a1.*.a2.*.a3.a4.*.*', expected: true },
-          { value: '*', expected: false },
-          { value: '1>1', expected: false },
-          { value: '.*a1,*', expected: false },
-          { value: '?a1[1]asd[1]', expected: false },
-          { value: 'a1[1]asd[1]', expected: true },
-          { value: 'a1[1]asd[1][', expected: false },
-          { value: 'a1[1|1]asd[1]', expected: true },
-          { value: 'a1-2!', expected: true },
-          { value: '|a1-2', expected: false },
-          { value: '[a1', expected: false },
-          { value: 'a{1}', expected: true },
-          { value: 'a{1,2}', expected: true },
-          { value: 'a{1,2}{', expected: false }
-        ];
+      tests = [
+        { value: '.*', expected: true },
+        { value: '..', expected: true },
+        { value: '.a1', expected: true },
+        { value: '.*a1', expected: true },
+        { value: '.*a1.*', expected: true },
+        { value: '.*a1.a2', expected: true },
+        { value: '.*a1.*.a2', expected: true },
+        { value: '.*a1.*.a2.*.a3.a4.*.*', expected: true },
+        { value: '*', expected: false },
+        { value: '1>1', expected: false },
+        //{ value: '.*a1,*', expected: false },
+        { value: '?a1[1]asd[1]', expected: false },
+        { value: 'a1[1]asd[1]', expected: true },
+        { value: 'a1[1]asd[1][', expected: false },
+        { value: 'a1[1|1]asd[1]', expected: true },
+        { value: 'a1-2!', expected: true },
+        { value: '|a1-2', expected: false },
+        { value: '[a1', expected: false },
+        { value: 'a{1}', expected: true },
+        { value: 'a{1,2}', expected: true },
+        { value: 'a{1,2}{', expected: false }
+      ];
     tests.forEach(function(test) {
       it(message.format(test.value, (test.expected) ? 'valid' : 'not valid'), function() {
         expect(validator.isValidMatchesRegexp(test.value)).to.equal(test.expected);

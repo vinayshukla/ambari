@@ -259,14 +259,29 @@ test('Hadoop_RegionServer_Down:OK',
     'OK: Hadoop: regionservers_down_ok# SERVICE MSG',
     'HARD', '1', 'OK', 'HBASE::Percent region servers down', 'SERVICE MSG')
 
+test('HBASE_RegionServer_live',
+     'Critical: Hadoop: regionservers_down# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'HBASE::Percent RegionServers live', 'SERVICE MSG')
+test('HBASE_RegionServer_live:OK',
+     'OK: Hadoop: regionservers_down_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'HBASE::Percent RegionServers live', 'SERVICE MSG')
+
 # Hadoop_Hive_Metastore_Process_Down
-test('Hadoop_Hive_Metastore_Process_Down',
+test('Hadoop_Hive_Metastore_Status_Check_Down',
      'Critical: Hadoop: hive_metastore_process_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'HIVE-METASTORE::HIVE-METASTORE status check', 'SERVICE MSG')
 
-test('Hadoop_Hive_Metastore_Process_Down:OK',
+test('Hadoop_Hive_Metastore_Status_Check_Down:OK',
     'OK: Hadoop: hive_metastore_process_down_ok# SERVICE MSG',
     'HARD', '1', 'OK', 'HIVE-METASTORE::HIVE-METASTORE status check', 'SERVICE MSG')
+
+test('Hadoop_Hive_Metastore_Process_Down',
+     'Critical: Hadoop: hive_metastore_process_down# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'HIVE-METASTORE::Hive Metastore process', 'SERVICE MSG')
+
+test('Hadoop_Hive_Metastore_Process_Down:OK',
+     'OK: Hadoop: hive_metastore_process_down_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'HIVE-METASTORE::Hive Metastore process', 'SERVICE MSG')
 
 # Hadoop_Zookeeper_Down
 test('Hadoop_Zookeeper_Down',
@@ -441,10 +456,10 @@ test('JournalNode_process:OK',
      'HARD', '1', 'OK', 'JOURNALNODE::JournalNode process', 'SERVICE MSG')
 
 test('ZooKeeper_Server_process',
-     'Critical: Hadoop: zookeeper_server_process# SERVICE MSG',
+     'Critical: Hadoop: zookeeper_process_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'ZOOKEEPER::ZooKeeper Server process', 'SERVICE MSG')
 test('ZooKeeper_Server_process:OK',
-     'OK: Hadoop: zookeeper_server_process_ok# SERVICE MSG',
+     'OK: Hadoop: zookeeper_process_down_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'ZOOKEEPER::ZooKeeper Server process', 'SERVICE MSG')
 
 test('JobTracker_process',
@@ -534,10 +549,10 @@ test('Flume_Agent_process:OK',
      'HARD', '1', 'OK', 'FLUME::Flume Agent process', 'SERVICE MSG')
 
 test('Oozie_Server_status',
-     'Critical: Hadoop: oozie_server_process# SERVICE MSG',
+     'Critical: Hadoop: oozie_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'OOZIE::Oozie Server status', 'SERVICE MSG')
 test('Oozie_Server_status:OK',
-     'OK: Hadoop: oozie_server_process_ok# SERVICE MSG',
+     'OK: Hadoop: oozie_down_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'OOZIE::Oozie Server status', 'SERVICE MSG')
 
 test('Hive_Metastore_status',
@@ -548,25 +563,47 @@ test('Hive_Metastore_status:OK',
      'HARD', '1', 'OK', 'HIVE-METASTORE::Hive Metastore status', 'SERVICE MSG')
 
 test('WebHCat_Server_status',
-     'Critical: Hadoop: webhcat_server_process# SERVICE MSG',
+     'Critical: Hadoop: webhcat_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'WEBHCAT::WebHCat Server status', 'SERVICE MSG')
 test('WebHCat_Server_status:OK',
-     'OK: Hadoop: webhcat_server_process_ok# SERVICE MSG',
+     'OK: Hadoop: webhcat_down_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'WEBHCAT::WebHCat Server status', 'SERVICE MSG')
 
 test('ResourceManager_process',
-     'Critical: Hadoop: resourcemanager_process# SERVICE MSG',
+     'Critical: Hadoop: resourcemanager_process_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'RESOURCEMANAGER::ResourceManager process', 'SERVICE MSG')
 test('ResourceManager_process:OK',
-     'OK: Hadoop: resourcemanager_process_ok# SERVICE MSG',
+     'OK: Hadoop: resourcemanager_process_down_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'RESOURCEMANAGER::ResourceManager process', 'SERVICE MSG')
 
+test('AppTimeline_process',
+     'Critical: Hadoop: timelineserver_process# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'APP_TIMELINE_SERVER::App Timeline Server process', 'SERVICE MSG')
+test('AppTimeline_process:OK',
+     'OK: Hadoop: timelineserver_process_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'APP_TIMELINE_SERVER::App Timeline Server process', 'SERVICE MSG')
+
 test('NodeManager_process',
-     'Critical: Hadoop: nodemanager_process# SERVICE MSG',
+     'Critical: Hadoop: nodemanager_process_down# SERVICE MSG',
      'HARD', '1', 'CRITICAL', 'NODEMANAGER::NodeManager process', 'SERVICE MSG')
 test('NodeManager_process:OK',
-     'OK: Hadoop: nodemanager_process_ok# SERVICE MSG',
+     'OK: Hadoop: nodemanager_process_down_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'NODEMANAGER::NodeManager process', 'SERVICE MSG')
+
+test('NodeManager_health',
+     'Critical: Hadoop: nodemanager_health# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'NODEMANAGER::NodeManager health', 'SERVICE MSG')
+test('NodeManager_health:OK',
+     'OK: Hadoop: nodemanager_health_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'NODEMANAGER::NodeManager health', 'SERVICE MSG')
+
+test('NodeManager_live',
+     'Critical: Hadoop: nodemanagers_down# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'NODEMANAGER::Percent NodeManagers live', 'SERVICE MSG')
+test('NodeManager_live:OK',
+     'OK: Hadoop: nodemanagers_down_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'NODEMANAGER::Percent NodeManagers live', 'SERVICE MSG')
+
 
 test('HistoryServer_process',
      'Critical: Hadoop: historyserver_process# SERVICE MSG',
@@ -574,6 +611,42 @@ test('HistoryServer_process',
 test('HistoryServer_process:OK',
      'OK: Hadoop: historyserver_process_ok# SERVICE MSG',
      'HARD', '1', 'OK', 'JOBHISTORY::HistoryServer process', 'SERVICE MSG')
+
+test('HistoryServer_RPC_latency',
+     'Critical: Hadoop: historyserver_rpc_latency# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'JOBHISTORY::HistoryServer RPC latency', 'SERVICE MSG')
+test('HistoryServer_RPC_latency:OK',
+     'OK: Hadoop: historyserver_rpc_latency_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'JOBHISTORY::HistoryServer RPC latency', 'SERVICE MSG')
+
+test('HistoryServer_CPU_utilization',
+     'Critical: Hadoop: historyserver_cpu_utilization# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'JOBHISTORY::HistoryServer CPU utilization', 'SERVICE MSG')
+test('HistoryServer_CPU_utilization:OK',
+     'OK: Hadoop: historyserver_cpu_utilization_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'JOBHISTORY::HistoryServer CPU utilization', 'SERVICE MSG')
+
+test('HistoryServer_Web_UI',
+     'Critical: Hadoop: historyserver_ui# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'JOBHISTORY::HistoryServer Web UI', 'SERVICE MSG')
+test('HistoryServer_Web_UI:OK',
+     'OK: Hadoop: historyserver_ui_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'JOBHISTORY::HistoryServer Web UI', 'SERVICE MSG')
+
+test('ResourceManager_rpc_latency',
+     'Critical: Hadoop: resourcemanager_rpc_latency# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'RESOURCEMANAGER::ResourceManager RPC latency', 'SERVICE MSG')
+test('ResourceManager_rpc_latency:OK',
+     'OK: Hadoop: resourcemanager_rpc_latency_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'RESOURCEMANAGER::ResourceManager RPC latency', 'SERVICE MSG')
+
+test('ResourceManager_cpu_utilization',
+     'Critical: Hadoop: resourcemanager_cpu_utilization# SERVICE MSG',
+     'HARD', '1', 'CRITICAL', 'RESOURCEMANAGER::ResourceManager CPU utilization', 'SERVICE MSG')
+test('ResourceManager_cpu_utilization:OK',
+     'OK: Hadoop: resourcemanager_cpu_utilization_ok# SERVICE MSG',
+     'HARD', '1', 'OK', 'RESOURCEMANAGER::ResourceManager CPU utilization', 'SERVICE MSG')
+
 
 summary()
 

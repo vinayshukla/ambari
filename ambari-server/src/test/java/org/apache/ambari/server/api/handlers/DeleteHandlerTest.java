@@ -22,15 +22,22 @@ import org.apache.ambari.server.api.query.Query;
 import org.apache.ambari.server.api.query.render.DefaultRenderer;
 import org.apache.ambari.server.api.query.render.Renderer;
 import org.apache.ambari.server.api.resources.ResourceInstance;
-import org.apache.ambari.server.api.services.*;
+import org.apache.ambari.server.api.services.Request;
+import org.apache.ambari.server.api.services.RequestBody;
+import org.apache.ambari.server.api.services.Result;
+import org.apache.ambari.server.api.services.ResultStatus;
 import org.apache.ambari.server.api.services.persistence.PersistenceManager;
 import org.apache.ambari.server.api.util.TreeNode;
 import org.apache.ambari.server.controller.spi.Predicate;
 import org.apache.ambari.server.controller.spi.RequestStatus;
 import org.apache.ambari.server.controller.spi.Resource;
+import org.apache.ambari.server.view.ViewRegistry;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.*;
+import org.apache.ambari.server.ConfigGroupNotFoundException;
+import org.apache.ambari.server.controller.spi.NoSuchResourceException;
 
 import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
@@ -40,6 +47,11 @@ import static org.junit.Assert.assertEquals;
  * Unit tests for DeleteHandler.
  */
 public class DeleteHandlerTest {
+
+  @Before
+  public void before() {
+    ViewRegistry.initInstance(new ViewRegistry());
+  }
 
   @Test
   public void testHandleRequest__Synchronous_NoPropsInBody() throws Exception {
@@ -224,6 +236,33 @@ public class DeleteHandlerTest {
     assertEquals(ResultStatus.STATUS.ACCEPTED, result.getStatus().getStatus());
 
     verify(request, body, resource, pm, status, resource1, resource2, requestResource, query);
+  }
+
+  @Test
+  public void testIdempotentPersist() throws Exception {
+    Request request = createNiceMock(Request.class);
+    RequestBody body = createNiceMock(RequestBody.class);
+    ResourceInstance resource = createNiceMock(ResourceInstance.class);
+    PersistenceManager pm = createNiceMock(PersistenceManager.class);
+    RequestStatus status = createNiceMock(RequestStatus.class);
+    Resource resource1 = createNiceMock(Resource.class);
+    Resource requestResource = createNiceMock(Resource.class);
+    ConfigGroupNotFoundException configGroupNotFoundException = createNiceMock(ConfigGroupNotFoundException.class);
+    Query query = createNiceMock(Query.class);
+
+    // expectations
+    expect(request.getResource()).andReturn(resource).anyTimes();
+    expect(request.getBody()).andReturn(body).atLeastOnce();
+
+    expect(pm.delete(resource, body)).andThrow(
+        new NoSuchResourceException("Configgroup not exist", configGroupNotFoundException));
+
+    replay(request, body, resource, pm, status, resource1, requestResource, query);
+
+    Result result = new TestDeleteHandler(pm).persist(resource, body);
+
+    assertNotNull(result);
+    assertEquals(ResultStatus.STATUS.ACCEPTED, result.getStatus().getStatus());
   }
 
   private class TestDeleteHandler extends DeleteHandler {

@@ -28,20 +28,19 @@ class TestOozieClient(RMFTestCase):
                        command = "configure",
                        config_file="default.json"
     )
-    # Hack for oozie.py changing conf on fly
-    oozie_site = self.getConfig()['configurations']['oozie-site'].copy()
-    oozie_site["oozie.services.ext"] = 'org.apache.oozie.service.JMSAccessorService,' + oozie_site["oozie.services.ext"]
+    self.assertResourceCalled('Directory', '/etc/oozie/conf',
+                              owner = 'oozie',
+                              group = 'hadoop',
+                              recursive = True
+    )
     self.assertResourceCalled('XmlConfig', 'oozie-site.xml',
                               owner = 'oozie',
                               group = 'hadoop',
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
-                              configurations = oozie_site,
+                              configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
-    self.assertResourceCalled('Directory', '/etc/oozie/conf',
-        owner = 'oozie',
-        group = 'hadoop',
-        )
     self.assertResourceCalled('File', '/etc/oozie/conf/oozie-env.sh',
                               owner = 'oozie',
                               content = InlineTemplate(self.getConfig()['configurations']['oozie-env']['content'])
@@ -81,19 +80,18 @@ class TestOozieClient(RMFTestCase):
                        command = "configure",
                        config_file="secured.json"
     )
-    # Hack for oozie.py changing conf on fly
-    oozie_site = self.getConfig()['configurations']['oozie-site'].copy()
-    oozie_site["oozie.services.ext"] = 'org.apache.oozie.service.JMSAccessorService,' + oozie_site["oozie.services.ext"]
+    self.assertResourceCalled('Directory', '/etc/oozie/conf',
+                              owner = 'oozie',
+                              group = 'hadoop',
+                              recursive = True
+    )
     self.assertResourceCalled('XmlConfig', 'oozie-site.xml',
                               owner = 'oozie',
                               group = 'hadoop',
                               mode = 0664,
                               conf_dir = '/etc/oozie/conf',
-                              configurations = oozie_site,
-                              )
-    self.assertResourceCalled('Directory', '/etc/oozie/conf',
-                              owner = 'oozie',
-                              group = 'hadoop',
+                              configurations = self.getConfig()['configurations']['oozie-site'],
+                              configuration_attributes = self.getConfig()['configuration_attributes']['oozie-site']
                               )
     self.assertResourceCalled('File', '/etc/oozie/conf/oozie-env.sh',
                               owner = 'oozie',

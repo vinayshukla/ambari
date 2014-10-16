@@ -52,7 +52,7 @@ class OozieServer(Script):
     env.set_params(params)
     self.configure(env)
     Service(service_mapping.oozie_server_win_service_name, action="start")
-    
+
   def stop(self, env):
     import params
     env.set_params(params)
@@ -61,6 +61,6 @@ class OozieServer(Script):
   def status(self, env):
     import params
     check_windows_service_status(service_mapping.oozie_server_win_service_name)
-    
+
 if __name__ == "__main__":
   OozieServer().execute()

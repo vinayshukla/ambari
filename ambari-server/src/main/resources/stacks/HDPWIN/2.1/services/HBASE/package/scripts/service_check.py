@@ -32,4 +32,3 @@ class HbaseServiceCheck(Script):
 
 if __name__ == "__main__":
   HbaseServiceCheck().execute()
-  

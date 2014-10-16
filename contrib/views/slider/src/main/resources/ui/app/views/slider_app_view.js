@@ -18,4 +18,13 @@
 
 App.SliderAppView = Ember.View.extend({
 
+  didInsertElement: function() {
+    // Breadcrumbs should be on the one line with Slider Title
+    // but title and breadcrumbs are in different templates
+    $('.apps-breadcrumbs').css({
+      'margin-top': -28,
+      'margin-left': $('.slider-app-title').width() + 10
+    });
+  }
+
 });

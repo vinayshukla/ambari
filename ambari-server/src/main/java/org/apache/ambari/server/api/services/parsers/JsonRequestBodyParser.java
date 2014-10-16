@@ -18,6 +18,15 @@
 
 package org.apache.ambari.server.api.services.parsers;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.ambari.server.api.services.NamedPropertySet;
 import org.apache.ambari.server.api.services.RequestBody;
 import org.apache.ambari.server.controller.utilities.PropertyHelper;
@@ -25,9 +34,6 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.*;
 
 /**
  * JSON parser which parses a JSON string into a map of properties and values.
@@ -113,13 +119,24 @@ public class JsonRequestBodyParser implements RequestBodyParser {
         //array
         Iterator<JsonNode>       arrayIter = child.getElements();
         Set<Map<String, Object>> arraySet  = new HashSet<Map<String, Object>>();
+        List<String> primitives = new ArrayList<String>();
 
         while (arrayIter.hasNext()) {
-          NamedPropertySet arrayPropertySet = new NamedPropertySet(name, new HashMap<String, Object>());
-          processNode(arrayIter.next(), "", arrayPropertySet, requestInfoProps);
-          arraySet.add(arrayPropertySet.getProperties());
+          JsonNode next = arrayIter.next();
+
+          if (next.isValueNode()) {
+            // All remain nodes will be also primitives
+            primitives.add(next.asText());
+          } else {
+            NamedPropertySet arrayPropertySet = new NamedPropertySet(name,
+                new HashMap<String, Object>());
+            processNode(next, "", arrayPropertySet, requestInfoProps);
+            arraySet.add(arrayPropertySet.getProperties());
+          }
         }
-        propertySet.getProperties().put(PropertyHelper.getPropertyId(path, name), arraySet);
+
+        Object properties = primitives.isEmpty() ? arraySet : primitives;
+        propertySet.getProperties().put(PropertyHelper.getPropertyId(path, name), properties);
       } else if (child.isContainerNode()) {
         // object
         if (name.equals(BODY_TITLE)) {

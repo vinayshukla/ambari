@@ -20,6 +20,7 @@
   <services>
     <service>
       <name>SQOOP</name>
+      <displayName>Sqoop</displayName>
       <comment>Tool for transferring bulk data between Apache Hadoop and
         structured data stores such as relational databases
       </comment>
@@ -28,8 +29,9 @@
       <components>
         <component>
           <name>SQOOP</name>
+          <displayName>Sqoop</displayName>
           <category>CLIENT</category>
-          <cardinality>0+</cardinality>
+          <cardinality>1+</cardinality>
           <dependencies>
             <dependency>
               <name>HDFS/HDFS_CLIENT</name>
@@ -50,6 +52,13 @@
             <script>scripts/sqoop_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
+          <configFiles>
+            <configFile>
+              <type>env</type>
+              <fileName>sqoop-env.sh</fileName>
+              <dictionaryName>sqoop-env</dictionaryName>
+            </configFile>
+          </configFiles>
         </component>
       </components>
       <osSpecifics>
@@ -70,6 +79,11 @@
         <scriptType>PYTHON</scriptType>
         <timeout>300</timeout>
       </commandScript>
+
+      <requiredServices>
+        <service>HDFS</service>
+      </requiredServices>
+
       <configuration-dependencies>
         <config-type>sqoop-env</config-type>
       </configuration-dependencies>
