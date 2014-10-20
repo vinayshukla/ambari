@@ -126,8 +126,13 @@ public class StackAdvisorRunner {
 
     // includes the original command plus the arguments for it
     List<String> builderParameters = new ArrayList<String>();
-    builderParameters.add("sh");
-    builderParameters.add("-c");
+    if (System.getProperty("os.name").contains("Windows")) {
+      builderParameters.add("cmd");
+      builderParameters.add("/c");
+    } else {
+      builderParameters.add("sh");
+      builderParameters.add("-c");
+    }
 
     // for the 3rd argument, build a single parameter since we use -c
     // ProcessBuilder doesn't support output redirection until JDK 1.7

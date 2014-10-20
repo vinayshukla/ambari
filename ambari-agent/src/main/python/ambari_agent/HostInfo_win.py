@@ -119,6 +119,10 @@ class HostInfo:
         result['status'] = "Available"
         results.append(result)
 
+  def createAlerts(self, alerts):
+    #TODO AMBARI-7849 Implement createAlerts for Windows
+    return alerts
+
   def javaProcs(self, list):
     try:
       runner = shellRunner()
