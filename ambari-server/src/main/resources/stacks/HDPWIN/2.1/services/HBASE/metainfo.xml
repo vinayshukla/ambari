@@ -20,6 +20,7 @@
   <services>
     <service>
       <name>HBASE</name>
+      <displayName>HBase</displayName>
       <comment>Non-relational distributed database and centralized service for configuration management &amp;
         synchronization
       </comment>
@@ -27,8 +28,9 @@
       <components>
         <component>
           <name>HBASE_MASTER</name>
+          <displayName>HBase Master</displayName>
           <category>MASTER</category>
-          <cardinality>1</cardinality>
+          <cardinality>1+</cardinality>
           <dependencies>
             <dependency>
               <name>HDFS/HDFS_CLIENT</name>
@@ -49,7 +51,7 @@
           <commandScript>
             <script>scripts/hbase_master.py</script>
             <scriptType>PYTHON</scriptType>
-            <timeout>1200</timeout>
+            <timeout>600</timeout>
           </commandScript>
           <customCommands>
             <customCommand>
@@ -57,7 +59,7 @@
               <commandScript>
                 <script>scripts/hbase_master.py</script>
                 <scriptType>PYTHON</scriptType>
-                <timeout>1200</timeout>
+                <timeout>600</timeout>
               </commandScript>
             </customCommand>
           </customCommands>
@@ -65,6 +67,7 @@
 
         <component>
           <name>HBASE_REGIONSERVER</name>
+          <displayName>RegionServer</displayName>
           <category>SLAVE</category>
           <cardinality>1+</cardinality>
           <commandScript>
@@ -75,26 +78,49 @@
 
         <component>
           <name>HBASE_CLIENT</name>
+          <displayName>HBase Client</displayName>
           <category>CLIENT</category>
-          <cardinality>0+</cardinality>
+          <cardinality>1+</cardinality>
           <commandScript>
             <script>scripts/hbase_client.py</script>
             <scriptType>PYTHON</scriptType>
           </commandScript>
+          <configFiles>
+            <configFile>
+              <type>xml</type>
+              <fileName>hbase-site.xml</fileName>
+              <dictionaryName>hbase-site</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>hbase-env.cmd</fileName>
+              <dictionaryName>hbase-env</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>log4j.properties</fileName>
+              <dictionaryName>hbase-log4j</dictionaryName>
+            </configFile>            
+          </configFiles>
         </component>
       </components>
 
       <commandScript>
         <script>scripts/service_check.py</script>
         <scriptType>PYTHON</scriptType>
-        <timeout>1200</timeout>
+        <timeout>300</timeout>
       </commandScript>
+      
+      <requiredServices>
+        <service>ZOOKEEPER</service>
+        <service>HDFS</service>
+      </requiredServices>
 
       <configuration-dependencies>
-        <!--<config-type>global</config-type>-->
         <config-type>hbase-policy</config-type>
         <config-type>hbase-site</config-type>
-        <!--<config-type>hbase-log4j</config-type>-->
+        <config-type>hbase-env</config-type>
+        <config-type>hbase-log4j</config-type>
       </configuration-dependencies>
 
     </service>
