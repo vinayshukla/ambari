@@ -23,6 +23,7 @@ import socket
 import sys
 
 from hcat_service_check import hcat_service_check
+from webhcat_service_check import webhcat_service_check
 
 class HiveServiceCheck(Script):
   def service_check(self, env):
@@ -31,6 +32,8 @@ class HiveServiceCheck(Script):
     smoke_cmd = os.path.join(params.hdp_root,"Run-SmokeTests.cmd")
     service = "HIVE"
     Execute(format("cmd /C {smoke_cmd} {service}"), user=params.hive_user, logoutput=True)
+
+    webhcat_service_check()
 
 if __name__ == "__main__":
   HiveServiceCheck().execute()

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 
-<configuration>
+<configuration supports_final="true">
 
   <!-- Hive Configuration can either be stored in this file or in the hadoop configuration files  -->
   <!-- that are implied by Hadoop setup variables.                                                -->

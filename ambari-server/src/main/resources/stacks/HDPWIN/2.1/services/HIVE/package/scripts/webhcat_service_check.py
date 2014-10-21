@@ -15,6 +15,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-"""
+Ambari Agent
 
-webhcat_server_win_service_name = "templeton"
+"""
+from resource_management import *
+
+def webhcat_service_check():
+  import params
+  smoke_cmd = os.path.join(params.hdp_root,"Run-SmokeTests.cmd")
+  service = "WEBHCAT"
+  Execute(format("cmd /C {smoke_cmd} {service}"), user=params.hcat_user, logoutput=True)

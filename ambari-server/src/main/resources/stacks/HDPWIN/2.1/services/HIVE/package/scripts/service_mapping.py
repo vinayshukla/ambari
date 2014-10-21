@@ -20,3 +20,4 @@ limitations under the License.
 hive_metastore_win_service_name = "metastore"
 hive_client_win_service_name = "hwi"
 hive_server_win_service_name = "hiveserver2"
+webhcat_server_win_service_name = "templeton"

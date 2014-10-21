@@ -30,8 +30,10 @@ hive_lib_dir = os.environ["HIVE_LIB_DIR"]
 hive_log_dir = os.environ["HIVE_LOG_DIR"]
 hive_opts = os.environ["HIVE_OPTS"]
 hcat_home = os.environ["HCAT_HOME"]
+hcat_config_dir = os.environ["WEBHCAT_CONF_DIR"]
 
 hive_env_sh_template = config['configurations']['hive-env']['content']
 hive_warehouse_dir = config['configurations']['hive-site']['hive.metastore.warehouse.dir']
 hive_user = "hadoop"
 hadoop_user = "hadoop"
+hcat_user = "hadoop"
