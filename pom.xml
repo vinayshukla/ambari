@@ -24,9 +24,6 @@
   <version>1.3.0-SNAPSHOT</version>
   <description>Ambari</description>
   <modules>
-    <module>ambari-metrics-hadoop-timelineservice</module>
-    <module>ambari-metrics</module>
-    <module>ambari-metrics</module>
     <module>ambari-metrics</module>
   </modules>
   <properties>
