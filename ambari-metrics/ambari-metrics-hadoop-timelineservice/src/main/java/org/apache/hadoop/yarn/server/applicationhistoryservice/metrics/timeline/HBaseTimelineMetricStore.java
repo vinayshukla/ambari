@@ -41,7 +41,7 @@ public class HBaseTimelineMetricStore extends AbstractService
 
   static final Log LOG = LogFactory.getLog(HBaseTimelineMetricStore.class);
   static final String HBASE_CONF = "hbase-site.xml";
-  static final String DEFAULT_CHECKPOINT_LOCATION = "/tmp";
+  static final String DEFAULT_CHECKPOINT_LOCATION = System.getProperty("java.io.tmpdir");
   static final String AGGREGATOR_CHECKPOINT_FILE =
     "timeline-metrics-aggregator-checkpoint";
   static final String MINUTE_AGGREGATE_ROLLUP_CHECKPOINT_FILE =

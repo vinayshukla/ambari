@@ -57,7 +57,7 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
     condition.setNoLimit();
     condition.setFetchSize(RESULTSET_FETCH_SIZE);
     condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
-      METRICS_RECORD_CACHE_TABLE_NAME));
+      METRICS_RECORD_TABLE_NAME));
     condition.addOrderByColumn("METRIC_NAME");
     condition.addOrderByColumn("HOSTNAME");
     condition.addOrderByColumn("APP_ID");

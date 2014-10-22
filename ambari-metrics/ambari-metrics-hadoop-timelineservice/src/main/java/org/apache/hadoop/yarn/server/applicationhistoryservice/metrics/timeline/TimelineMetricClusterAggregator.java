@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_SQL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.prepareGetMetricsSqlStmt;
 
 /**
@@ -66,7 +66,7 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     condition.setFetchSize(RESULTSET_FETCH_SIZE);
     condition.setNoLimit();
     condition.setStatement(String.format(GET_METRIC_SQL,
-      METRICS_RECORD_CACHE_TABLE_NAME));
+      METRICS_RECORD_TABLE_NAME));
     condition.addOrderByColumn("METRIC_NAME");
     condition.addOrderByColumn("APP_ID");
     condition.addOrderByColumn("INSTANCE_ID");
