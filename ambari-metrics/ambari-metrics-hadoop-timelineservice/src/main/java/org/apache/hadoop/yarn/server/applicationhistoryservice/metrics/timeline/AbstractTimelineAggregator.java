@@ -36,7 +36,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   protected final String CHECKPOINT_LOCATION;
   private final Log LOG;
   static final long checkpointDelay = 120000;
-  static final Integer RESULTSET_FETCH_SIZE = 5000;
+  static final Integer RESULTSET_FETCH_SIZE = 2000;
   private static final ObjectMapper mapper;
 
   static {
@@ -78,11 +78,30 @@ public abstract class AbstractTimelineAggregator implements Runnable {
       } catch (IOException io) {
         LOG.warn("Unable to write last checkpoint time. Resuming sleep.", io);
       }
+      long sleepTime = SLEEP_INTERVAL;
 
       if (lastCheckPointTime != -1) {
-        LOG.info("Last check point time: " + lastCheckPointTime + ", " +
-          "lagBy: " + ((System.currentTimeMillis() - lastCheckPointTime)) / 1000);
+        LOG.info("Last check point time: " + lastCheckPointTime + ", lagBy: "
+          + ((System.currentTimeMillis() - lastCheckPointTime) / 1000)
+          + " seconds." );
+
+        long startTime = System.currentTimeMillis();
         boolean success = doWork(lastCheckPointTime, lastCheckPointTime + SLEEP_INTERVAL);
+        long executionTime = System.currentTimeMillis() - startTime;
+        long delta = SLEEP_INTERVAL - executionTime;
+
+        if (delta > 0) {
+          // Sleep for (configured sleep - time to execute task)
+          sleepTime = delta;
+        } else {
+          // No sleep because last run took too long to execute
+          LOG.info("Aggregator execution took too long, " +
+            "cancelling sleep. executionTime = " + executionTime);
+          sleepTime = 1;
+        }
+
+        LOG.debug("Aggregator sleep interval = " + sleepTime);
+
         if (success) {
           try {
             saveCheckPoint(lastCheckPointTime + SLEEP_INTERVAL);
@@ -94,7 +113,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
       }
 
       try {
-        Thread.sleep(SLEEP_INTERVAL);
+        Thread.sleep(sleepTime);
       } catch (InterruptedException e) {
         LOG.info("Sleep interrupted, continuing with aggregation.");
       }
