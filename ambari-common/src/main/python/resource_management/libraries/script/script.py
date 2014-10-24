@@ -49,7 +49,7 @@ USAGE = """Usage: {0} <COMMAND> <JSON_CONFIG> <BASEDIR> <STROUTPUT> <LOGGING_LEV
 <TMP_DIR> temporary directory for executable scripts. Ex: /var/lib/ambari-agent/data/tmp
 """
 
-_PASSWORD_MAP = {"/configurations/hadoop-env/hadoop.user.name":"/configurations/hadoop-env/hadoop.user.password"}
+_PASSWORD_MAP = {"/configurations/cluster-env/hadoop.user.name":"/configurations/cluster-env/hadoop.user.password"}
 
 def get_path_form_configuration(name, configuration):
   subdicts = filter(None, name.split('/'))

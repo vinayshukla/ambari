@@ -55,7 +55,7 @@ module.exports =
       "isOverridable": false,
       "isVisible": App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "hadoop-env.xml",
+      "filename": "cluster-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["HDFS"],
       "index": 0
@@ -70,7 +70,7 @@ module.exports =
       "isOverridable": false,
       "isVisible": App.get('isHadoopWindowsStack'),
       "serviceName": "MISC",
-      "filename": "hadoop-env.xml",
+      "filename": "cluster-env.xml",
       "category": "Users and Groups",
       "belongsToService": ["HDFS"],
       "index": 1

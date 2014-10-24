@@ -50,10 +50,10 @@ if dfs_ha_enabled:
     if hostname in nn_host:
       namenode_id = nn_id
       namenode_rpc = nn_host
-dbserver = config['configurations']['hadoop-env']['sink.dbservername'].replace('\\', '\\\\')
-dblogin = config['configurations']['hadoop-env']['sink.dblogin']
-dbpassword = config['configurations']['hadoop-env']['sink.dbpassword']
-dburl = config['configurations']['hadoop-env']['sink.jdbc.url'].replace('\\', '\\\\')
+dbserver = config['configurations']['cluster-env']['sink.dbservername'].replace('\\', '\\\\')
+dblogin = config['configurations']['cluster-env']['sink.dblogin']
+dbpassword = config['configurations']['cluster-env']['sink.dbpassword']
+dburl = config['configurations']['cluster-env']['sink.jdbc.url'].replace('\\', '\\\\')
 
 if 'integratedSecurity=true' not in dburl:
   dburl = dburl + ';user=' + dblogin + ';password=' + dbpassword;

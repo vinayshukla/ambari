@@ -42,7 +42,7 @@ USAGE = """Usage: {0} <COMMAND> <JSON_CONFIG> <BASEDIR> <STROUTPUT> <LOGGING_LEV
 <LOGGING_LEVEL> log level for stdout. Ex:DEBUG,INFO
 """
 
-_PASSWORD_MAP = {"/configurations/hadoop-env/hadoop.user.name":"/configurations/hadoop-env/hadoop.user.password"}
+_PASSWORD_MAP = {"/configurations/cluster-env/hadoop.user.name":"/configurations/cluster-env/hadoop.user.password"}
 
 def get_path_form_configuration(name, configuration):
   subdicts = filter(None, name.split('/'))
