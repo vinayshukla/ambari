@@ -58,7 +58,7 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_HOUR_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_MINUTE_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.PRECISION_TABLE_TTL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.RESULTSET_FETCH_SIZE;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.GLOBAL_RESULT_LIMIT;
 
 /**
  * Provides a facade over the Phoenix API to access HBase schema
@@ -90,7 +90,7 @@ public class PhoenixHBaseAccessor {
   public PhoenixHBaseAccessor(Configuration hbaseConf, Configuration metricsConf) {
     this.hbaseConf = hbaseConf;
     this.metricsConf = metricsConf;
-    RESULTSET_LIMIT = metricsConf.getInt(RESULTSET_FETCH_SIZE, 5760);
+    RESULTSET_LIMIT = metricsConf.getInt(GLOBAL_RESULT_LIMIT, 5760);
     try {
       Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     } catch (ClassNotFoundException e) {
