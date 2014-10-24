@@ -1,7 +1,33 @@
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <!-- Put site-specific property overrides in this file. -->
-<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+<configuration supports_final="true" xmlns:xi="http://www.w3.org/2001/XInclude">
+  <property>
+    <name>yarn.nodemanager.resource.memory-mb</name>
+    <value>5120</value>
+    <description>Amount of physical memory, in MB, that can be allocated
+      for containers.</description>
+  </property>
+
+  <property>
+    <name>yarn.scheduler.minimum-allocation-mb</name>
+    <value>512</value>
+    <description>
+      The minimum allocation for every container request at the RM,
+      in MBs. Memory requests lower than this won't take effect,
+      and the specified value will get allocated at minimum.
+    </description>
+  </property>
+
+  <property>
+    <name>yarn.scheduler.maximum-allocation-mb</name>
+    <value>2048</value>
+    <description>
+      The maximum allocation for every container request at the RM,
+      in MBs. Memory requests higher than this won't take effect,
+      and will get capped to this value.
+    </description>
+  </property>
   <property>
     <name>yarn.nodemanager.pmem-check-enabled</name>
     <value>true</value>

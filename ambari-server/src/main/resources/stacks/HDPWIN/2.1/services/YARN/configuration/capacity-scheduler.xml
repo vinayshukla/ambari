@@ -11,7 +11,7 @@
   See the License for the specific language governing permissions and
   limitations under the License. See accompanying LICENSE file.
 -->
-<configuration>
+<configuration supports_final="false" supports_adding_forbidden="true">
   <property>
     <name>yarn.scheduler.capacity.maximum-applications</name>
     <value>10000</value>

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <!-- Put site-specific property overrides in this file. -->
-<configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+<configuration supports_final="true" xmlns:xi="http://www.w3.org/2001/XInclude">
   <!-- i/o properties -->
   <property>
     <name>io.file.buffer.size</name>
