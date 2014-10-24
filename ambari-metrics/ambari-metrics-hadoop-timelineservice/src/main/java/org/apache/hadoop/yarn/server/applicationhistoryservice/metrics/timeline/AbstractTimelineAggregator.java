@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.conf.Configuration;
 import org.codehaus.jackson.annotate.JsonCreator;
 import org.codehaus.jackson.annotate.JsonProperty;
 import org.codehaus.jackson.annotate.JsonSubTypes;
@@ -31,25 +32,27 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.AGGREGATOR_CHECKPOINT_DELAY;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.RESULTSET_FETCH_SIZE;
+
 public abstract class AbstractTimelineAggregator implements Runnable {
   protected final PhoenixHBaseAccessor hBaseAccessor;
-  protected final String CHECKPOINT_LOCATION;
   private final Log LOG;
-  static final long checkpointDelay = 120000;
-  static final Integer RESULTSET_FETCH_SIZE = 2000;
   private static final ObjectMapper mapper;
+  protected final long checkpointDelay;
+  protected final Integer resultsetFetchSize;
+  protected Configuration metricsConf;
 
   static {
-    //SimpleModule simpleModule = new SimpleModule("MetricAggregator", new Version(1, 0, 0, null));
-    //simpleModule.addSerializer(new MetricAggregateSerializer());
     mapper = new ObjectMapper();
-    //mapper.registerModule(simpleModule);
   }
 
   public AbstractTimelineAggregator(PhoenixHBaseAccessor hBaseAccessor,
-                                    String checkpointLocation) {
+                                    Configuration metricsConf) {
     this.hBaseAccessor = hBaseAccessor;
-    this.CHECKPOINT_LOCATION = checkpointLocation;
+    this.metricsConf = metricsConf;
+    this.checkpointDelay = metricsConf.getInt(AGGREGATOR_CHECKPOINT_DELAY, 120000);
+    this.resultsetFetchSize = metricsConf.getInt(RESULTSET_FETCH_SIZE, 2000);
     this.LOG = LogFactory.getLog(this.getClass());
   }
 
@@ -127,7 +130,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
   private long readCheckPoint() {
     try {
-      File checkpoint = new File(CHECKPOINT_LOCATION);
+      File checkpoint = new File(getCheckpointLocation());
       if (checkpoint.exists()) {
         String contents = FileUtils.readFileToString(checkpoint);
         if (contents != null && !contents.isEmpty()) {
@@ -141,12 +144,12 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   }
 
   private void saveCheckPoint(long checkpointTime) throws IOException {
-    File checkpoint = new File(CHECKPOINT_LOCATION);
+    File checkpoint = new File(getCheckpointLocation());
     if (!checkpoint.exists()) {
       boolean done = checkpoint.createNewFile();
       if (!done) {
         throw new IOException("Could not create checkpoint at location, " +
-          CHECKPOINT_LOCATION);
+          getCheckpointLocation());
       }
     }
     FileUtils.writeStringToFile(checkpoint, String.valueOf(checkpointTime));
@@ -157,7 +160,13 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
   protected abstract Long getSleepInterval();
 
-  protected abstract Long getCheckpointCutOffInterval();
+  protected abstract Integer getCheckpointCutOffMultiplier();
+
+  protected Long getCheckpointCutOffInterval() {
+    return getCheckpointCutOffMultiplier() * getSleepInterval();
+  }
+
+  protected abstract String getCheckpointLocation();
 
   @JsonSubTypes({ @JsonSubTypes.Type(value = MetricClusterAggregate.class),
                 @JsonSubTypes.Type(value = MetricHostAggregate.class) })

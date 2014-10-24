@@ -17,7 +17,6 @@
  */
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -25,7 +24,6 @@ import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
-import org.apache.hadoop.yarn.conf.YarnConfig;
 import java.io.IOException;
 import java.net.URL;
 import java.sql.SQLException;
@@ -37,19 +35,9 @@ import java.util.Map;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 
 public class HBaseTimelineMetricStore extends AbstractService
-  implements TimelineMetricStore {
+    implements TimelineMetricStore {
 
   static final Log LOG = LogFactory.getLog(HBaseTimelineMetricStore.class);
-  static final String HBASE_CONF = "hbase-site.xml";
-  static final String DEFAULT_CHECKPOINT_LOCATION = System.getProperty("java.io.tmpdir");
-  static final String AGGREGATOR_CHECKPOINT_FILE =
-    "timeline-metrics-aggregator-checkpoint";
-  static final String MINUTE_AGGREGATE_ROLLUP_CHECKPOINT_FILE =
-    "timeline-metrics-minute-aggregator-checkpoint";
-  static final String HOURLY_AGGREGATE_ROLLUP_CHECKPOINT_FILE =
-    "timeline-metrics-hourly-aggregator-checkpoint";
-  static final String HOURLY_ROLLUP_CHECKPOINT_FILE =
-    "timeline-metrics-hourly-checkpoint";
   private PhoenixHBaseAccessor hBaseAccessor;
 
   /**
@@ -62,60 +50,57 @@ public class HBaseTimelineMetricStore extends AbstractService
 
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
-    URL resUrl = getClass().getClassLoader().getResource(HBASE_CONF);
-    LOG.info("Found hbase site configuration: " + resUrl);
-    Configuration hbaseConf;
-    if (resUrl != null) {
-      hbaseConf = new Configuration(true);
-      hbaseConf.addResource(resUrl.toURI().toURL());
-      hBaseAccessor = new PhoenixHBaseAccessor(hbaseConf);
-      hBaseAccessor.initMetricSchema();
+    URL hbaseResUrl = getClass().getClassLoader().getResource
+      (TimelineMetricConfiguration.HBASE_SITE_CONFIGURATION_FILE);
+    URL amsResUrl = getClass().getClassLoader().getResource
+      (TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE);
+    LOG.info("Found hbase site configuration: " + hbaseResUrl);
+    LOG.info("Found metric service configuration: " + amsResUrl);
 
-      String checkpointLocation = FilenameUtils.concat(conf.get(
-        YarnConfig.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR,
-        DEFAULT_CHECKPOINT_LOCATION), AGGREGATOR_CHECKPOINT_FILE);
-
-      // Start the cluster aggregator
-      TimelineMetricClusterAggregator clusterAggregator =
-        new TimelineMetricClusterAggregator(hBaseAccessor, checkpointLocation);
-      Thread aggregatorThread = new Thread(clusterAggregator);
-      aggregatorThread.start();
-
-      // Start the hourly cluster aggregator
-      String clusterAggregatorHourlyCheckpoint = FilenameUtils.concat(conf.get(
-        YarnConfig.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR,
-        DEFAULT_CHECKPOINT_LOCATION), HOURLY_AGGREGATE_ROLLUP_CHECKPOINT_FILE);
-
-      TimelineMetricClusterAggregatorHourly clusterAggregatorHourly = new
-        TimelineMetricClusterAggregatorHourly(hBaseAccessor,
-        clusterAggregatorHourlyCheckpoint);
-      Thread rollupAggregatorThread = new Thread(clusterAggregatorHourly);
-      rollupAggregatorThread.start();
-
-      // Start the 5 minute aggregator
-      String minuteCheckpoint = FilenameUtils.concat(conf.get(
-        YarnConfig.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR,
-        DEFAULT_CHECKPOINT_LOCATION), MINUTE_AGGREGATE_ROLLUP_CHECKPOINT_FILE);
-      TimelineMetricAggregatorMinute minuteAggregator = new
-        TimelineMetricAggregatorMinute(hBaseAccessor, minuteCheckpoint);
-
-      Thread minuteAggregatorThread = new Thread(minuteAggregator);
-      minuteAggregatorThread.start();
-
-      // Start hourly host aggregator
-      String hostAggregatorHourlyCheckpoint = FilenameUtils.concat(conf.get(
-        YarnConfig.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR,
-        DEFAULT_CHECKPOINT_LOCATION), HOURLY_ROLLUP_CHECKPOINT_FILE);
-
-      TimelineMetricAggregatorHourly aggregatorHourly = new
-        TimelineMetricAggregatorHourly(hBaseAccessor, hostAggregatorHourlyCheckpoint);
-      Thread aggregatorHourlyThread = new Thread(aggregatorHourly);
-      aggregatorHourlyThread.start();
-
-    } else {
+    if (hbaseResUrl == null) {
       throw new IllegalStateException("Unable to initialize the metrics " +
         "subsystem. No hbase-site present in the classpath.");
     }
+
+    if (amsResUrl == null) {
+      throw new IllegalStateException("Unable to initialize the metrics " +
+        "subsystem. No ams-site present in the classpath.");
+    }
+
+    Configuration hbaseConf = new Configuration(true);
+    hbaseConf.addResource(hbaseResUrl.toURI().toURL());
+    Configuration metricsConf = new Configuration(true);
+    metricsConf.addResource(amsResUrl.toURI().toURL());
+
+    initializeSubsystem(hbaseConf, metricsConf);
+  }
+
+  private void initializeSubsystem(Configuration hbaseConf,
+                                   Configuration metricsConf) {
+    hBaseAccessor = new PhoenixHBaseAccessor(hbaseConf, metricsConf);
+    hBaseAccessor.initMetricSchema();
+
+    // Start the cluster aggregator
+    TimelineMetricClusterAggregator clusterAggregator =
+      new TimelineMetricClusterAggregator(hBaseAccessor, metricsConf);
+    Thread aggregatorThread = new Thread(clusterAggregator);
+    aggregatorThread.start();
+
+    // Start the cluster aggregator hourly
+    TimelineMetricClusterAggregatorHourly clusterAggregatorHourly =
+      new TimelineMetricClusterAggregatorHourly(hBaseAccessor, metricsConf);
+
+    // Start the 5 minute aggregator
+    TimelineMetricAggregatorMinute minuteAggregator =
+      new TimelineMetricAggregatorMinute(hBaseAccessor, metricsConf);
+    Thread minuteAggregatorThread = new Thread(minuteAggregator);
+    minuteAggregatorThread.start();
+
+    // Start hourly host aggregator
+    TimelineMetricAggregatorHourly aggregatorHourly =
+      new TimelineMetricAggregatorHourly(hBaseAccessor, metricsConf);
+    Thread aggregatorHourlyThread = new Thread(aggregatorHourly);
+    aggregatorHourlyThread.start();
   }
 
   @Override

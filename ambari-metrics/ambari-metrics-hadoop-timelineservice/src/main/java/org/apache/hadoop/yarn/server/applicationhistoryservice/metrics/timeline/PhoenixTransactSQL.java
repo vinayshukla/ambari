@@ -38,14 +38,14 @@ public class PhoenixTransactSQL {
   * Create table to store individual metric records.
   */
   public static final String CREATE_METRICS_TABLE_SQL = "CREATE TABLE IF NOT " +
-    "EXISTS %s (METRIC_NAME VARCHAR, " +
+    "EXISTS METRIC_RECORD (METRIC_NAME VARCHAR, " +
     "HOSTNAME VARCHAR, SERVER_TIME UNSIGNED_LONG NOT NULL, " +
     "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
     "START_TIME UNSIGNED_LONG, UNITS CHAR(20), " +
     "METRIC_AVG DOUBLE, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE, " +
     "METRICS VARCHAR CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, SERVER_TIME, APP_ID, " +
-    "INSTANCE_ID)) DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, " +
+    "INSTANCE_ID)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
     "TTL=%s, COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL =
@@ -56,8 +56,8 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, TTL=2592000, " +
-    "COMPRESSION='SNAPPY'";
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+    "TTL=%s, COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_MINUTE " +
@@ -67,8 +67,8 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
     "METRIC_MIN DOUBLE CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, TTL=604800, " +
-    "COMPRESSION='SNAPPY'";
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, TTL=%s," +
+    " COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE " +
@@ -77,8 +77,8 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_SUM DOUBLE, " +
     "HOSTS_COUNT UNSIGNED_INT, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
     "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, TTL=2592000, " +
-    "COMPRESSION='SNAPPY'";
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+    "TTL=%s, COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE_HOURLY " +
@@ -87,8 +87,8 @@ public class PhoenixTransactSQL {
     "UNITS CHAR(20), METRIC_AVG DOUBLE, " +
     "METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
     "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, TTL=31536000, " +
-    "COMPRESSION='SNAPPY'";
+    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+    "TTL=%s, COMPRESSION='%s'";
 
   /**
    * Insert into metric records table.
@@ -124,21 +124,14 @@ public class PhoenixTransactSQL {
     "INSTANCE_ID, SERVER_TIME, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, " +
     "METRIC_MIN FROM METRIC_AGGREGATE";
 
-  /**
-   * 4 metrics/min * 60 * 24: Retrieve data for 1 day.
-   */
-  public static final Integer DEFAULT_RESULT_LIMIT = 5760;
   public static final String METRICS_RECORD_TABLE_NAME =
     "METRIC_RECORD";
-  public static final int METRICS_RECORD_TABLE_TTL = 86400;
-  public static final String METRICS_RECORD_CACHE_TABLE_NAME =
-    "METRIC_RECORD_TEMP";
-  public static final int METRICS_RECORD_CACHE_TABLE_TTL = 900;
   public static final String METRICS_AGGREGATE_MINUTE_TABLE_NAME =
     "METRIC_RECORD_MINUTE";
   public static final String METRICS_AGGREGATE_HOURLY_TABLE_NAME =
     "METRIC_RECORD_HOURLY";
   public static final String DEFAULT_TABLE_COMPRESSION = "SNAPPY";
+  public static final String DEFAULT_ENCODING = "FAST_DIFF";
 
   public static PreparedStatement prepareGetMetricsSqlStmt(
       Connection connection, Condition condition) throws SQLException {
@@ -380,7 +373,7 @@ public class PhoenixTransactSQL {
       if (noLimit) {
         return null;
       }
-      return limit == null ? DEFAULT_RESULT_LIMIT : limit;
+      return limit == null ? PhoenixHBaseAccessor.RESULTSET_LIMIT : limit;
     }
 
     boolean isGrouped() {

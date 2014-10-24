@@ -17,8 +17,10 @@
  */
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 
 import java.io.IOException;
@@ -31,22 +33,48 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.prepareGetMetricsSqlStmt;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_MINUTE_CHECKPOINT_CUTOFF_MULTIPLIER;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_MINUTE_SLEEP_INTERVAL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_TIMESLICE_INTERVAL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.DEFAULT_CHECKPOINT_LOCATION;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
 
 /**
  * Aggregates a metric across all hosts in the cluster.
  */
 public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator {
-  public static final long WAKE_UP_INTERVAL = 120000;
-  public static final int TIME_SLICE_INTERVAL = 15000;
   private static final Log LOG = LogFactory.getLog(TimelineMetricClusterAggregator.class);
+  private static final String CLUSTER_AGGREGATOR_CHECKPOINT_FILE =
+    "timeline-metrics-cluster-aggregator-checkpoint";
+  private final String checkpointLocation;
+  private final Long sleepInterval;
+  public final int timeSliceInterval;
+  private final Integer checkpointCutOffMultiplier;
 
   public TimelineMetricClusterAggregator(PhoenixHBaseAccessor hBaseAccessor,
-                                         String checkpointLocation) {
-    super(hBaseAccessor, checkpointLocation);
+                                         Configuration metricsConf) {
+    super(hBaseAccessor, metricsConf);
+
+    String checkpointDir = metricsConf.get(
+      TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR, DEFAULT_CHECKPOINT_LOCATION);
+
+    checkpointLocation = FilenameUtils.concat(checkpointDir,
+      CLUSTER_AGGREGATOR_CHECKPOINT_FILE);
+
+    sleepInterval = metricsConf.getLong(CLUSTER_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 120000l);
+    timeSliceInterval = metricsConf.getInt(CLUSTER_AGGREGATOR_TIMESLICE_INTERVAL, 15000);
+    checkpointCutOffMultiplier =
+      metricsConf.getInt(CLUSTER_AGGREGATOR_MINUTE_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
+  }
+
+  @Override
+  protected String getCheckpointLocation() {
+    return checkpointLocation;
   }
 
   /**
@@ -63,7 +91,7 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     boolean success = true;
     Condition condition = new Condition(null, null, null, null, startTime,
                                         endTime, null, true);
-    condition.setFetchSize(RESULTSET_FETCH_SIZE);
+    condition.setFetchSize(resultsetFetchSize);
     condition.setNoLimit();
     condition.setStatement(String.format(GET_METRIC_SQL,
       METRICS_RECORD_TABLE_NAME));
@@ -87,8 +115,8 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
       // Create time slices
       long sliceStartTime = startTime;
       while (sliceStartTime < endTime) {
-        timeSlices.add(new Long[] { sliceStartTime, sliceStartTime + TIME_SLICE_INTERVAL });
-        sliceStartTime += TIME_SLICE_INTERVAL;
+        timeSlices.add(new Long[] { sliceStartTime, sliceStartTime + timeSliceInterval});
+        sliceStartTime += timeSliceInterval;
       }
 
       while (rs.next()) {
@@ -137,12 +165,12 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
 
   @Override
   protected Long getSleepInterval() {
-    return WAKE_UP_INTERVAL;
+    return sleepInterval;
   }
 
   @Override
-  protected Long getCheckpointCutOffInterval() {
-    return 600000l;
+  protected Integer getCheckpointCutOffMultiplier() {
+    return checkpointCutOffMultiplier;
   }
 
   private Map<TimelineClusterMetric, Double> sliceFromTimelineMetric(

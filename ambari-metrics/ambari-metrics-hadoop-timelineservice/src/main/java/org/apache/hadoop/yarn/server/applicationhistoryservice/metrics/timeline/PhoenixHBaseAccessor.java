@@ -23,7 +23,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
-import org.apache.hadoop.yarn.util.timeline.TimelineUtilsExt;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -43,38 +44,58 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.DEFAULT_ENCODING;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.DEFAULT_TABLE_COMPRESSION;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_NAME;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_CACHE_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_TTL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_AGGREGATE_RECORD_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_METRICS_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricClusterAggregator.TimelineClusterMetric;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_HOUR_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_MINUTE_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HBASE_COMPRESSION_SCHEME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HBASE_ENCODING_SCHEME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_HOUR_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_MINUTE_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.PRECISION_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.RESULTSET_FETCH_SIZE;
 
 /**
  * Provides a facade over the Phoenix API to access HBase schema
  */
 public class PhoenixHBaseAccessor {
 
-  private final Configuration conf;
+  private final Configuration hbaseConf;
+  private final Configuration metricsConf;
   static final Log LOG = LogFactory.getLog(PhoenixHBaseAccessor.class);
   private static final String connectionUrl = "jdbc:phoenix:%s:%s:%s";
-
   private static final String ZOOKEEPER_CLIENT_PORT =
     "hbase.zookeeper.property.clientPort";
   private static final String ZOOKEEPER_QUORUM = "hbase.zookeeper.quorum";
   private static final String ZNODE_PARENT = "zookeeper.znode.parent";
   static final int PHOENIX_MAX_MUTATION_STATE_SIZE = 50000;
+  /**
+   * 4 metrics/min * 60 * 24: Retrieve data for 1 day.
+   */
+  public static int RESULTSET_LIMIT = 5760;
+  private static ObjectMapper mapper;
 
-  public PhoenixHBaseAccessor(Configuration conf) {
-    this.conf = conf;
+  static {
+    mapper = new ObjectMapper();
+  }
+
+  private static TypeReference<Map<Long, Double>> metricValuesTypeRef =
+    new TypeReference<Map<Long, Double>>() {};
+
+  public PhoenixHBaseAccessor(Configuration hbaseConf, Configuration metricsConf) {
+    this.hbaseConf = hbaseConf;
+    this.metricsConf = metricsConf;
+    RESULTSET_LIMIT = metricsConf.getInt(RESULTSET_FETCH_SIZE, 5760);
     try {
       Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     } catch (ClassNotFoundException e) {
-      LOG.error("Phoenix client jar not found in the classpath.");
-      e.printStackTrace();
+      LOG.error("Phoenix client jar not found in the classpath.", e);
+      throw new IllegalStateException(e);
     }
   }
 
@@ -88,9 +109,9 @@ public class PhoenixHBaseAccessor {
    */
   protected Connection getConnection() {
     Connection connection = null;
-    String zookeeperClientPort = conf.getTrimmed(ZOOKEEPER_CLIENT_PORT, "2181");
-    String zookeeperQuorum = conf.getTrimmed(ZOOKEEPER_QUORUM);
-    String znodeParent = conf.getTrimmed(ZNODE_PARENT, "/hbase");
+    String zookeeperClientPort = hbaseConf.getTrimmed(ZOOKEEPER_CLIENT_PORT, "2181");
+    String zookeeperQuorum = hbaseConf.getTrimmed(ZOOKEEPER_QUORUM);
+    String znodeParent = hbaseConf.getTrimmed(ZNODE_PARENT, "/hbase");
 
     if (zookeeperQuorum == null || zookeeperQuorum.isEmpty()) {
       throw new IllegalStateException("Unable to find Zookeeper quorum to " +
@@ -111,6 +132,10 @@ public class PhoenixHBaseAccessor {
     return connection;
   }
 
+  public static Map readMetricFromJSON(String json) throws IOException {
+    return mapper.readValue(json, metricValuesTypeRef);
+  }
+
   @SuppressWarnings("unchecked")
   static TimelineMetric getTimelineMetricFromResultSet(ResultSet rs)
       throws SQLException, IOException {
@@ -123,8 +148,7 @@ public class PhoenixHBaseAccessor {
     metric.setStartTime(rs.getLong("START_TIME"));
     metric.setType(rs.getString("UNITS"));
     metric.setMetricValues(
-      (Map<Long, Double>) TimelineUtilsExt.readMetricFromJSON(
-        rs.getString("METRICS")));
+      (Map<Long, Double>) readMetricFromJSON(rs.getString("METRICS")));
     return metric;
   }
 
@@ -155,19 +179,27 @@ public class PhoenixHBaseAccessor {
     Connection conn = getConnection();
     Statement stmt = null;
 
+    String encoding = metricsConf.get(HBASE_ENCODING_SCHEME, DEFAULT_ENCODING);
+    String compression = metricsConf.get(HBASE_COMPRESSION_SCHEME, DEFAULT_TABLE_COMPRESSION);
+    String precisionTtl = metricsConf.get(PRECISION_TABLE_TTL, "86400");
+    String hostMinTtl = metricsConf.get(HOST_MINUTE_TABLE_TTL, "604800");
+    String hostHourTtl = metricsConf.get(HOST_HOUR_TABLE_TTL, "2592000");
+    String clusterMinTtl = metricsConf.get(CLUSTER_MINUTE_TABLE_TTL, "2592000");
+    String clusterHourTtl = metricsConf.get(CLUSTER_HOUR_TABLE_TTL, "31536000");
+
     try {
       LOG.info("Initializing metrics schema...");
       stmt = conn.createStatement();
       stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
-        METRICS_RECORD_TABLE_NAME, METRICS_RECORD_TABLE_TTL,
-        DEFAULT_TABLE_COMPRESSION));
-      /*stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
-        METRICS_RECORD_CACHE_TABLE_NAME, METRICS_RECORD_CACHE_TABLE_TTL,
-        "NONE"));*/
-      stmt.executeUpdate(CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL);
-      stmt.executeUpdate(CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL);
-      stmt.executeUpdate(CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL);
-      stmt.executeUpdate(CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL);
+        encoding, precisionTtl, compression));
+      stmt.executeUpdate(String.format(CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL,
+        encoding, hostHourTtl, compression));
+      stmt.executeUpdate(String.format(CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL,
+        encoding, hostMinTtl, compression));
+      stmt.executeUpdate(String.format(CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL,
+        encoding, clusterMinTtl, compression));
+      stmt.executeUpdate(String.format(CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL,
+          encoding, clusterHourTtl, compression));
       conn.commit();
     } catch (SQLException sql) {
       LOG.warn("Error creating Metrics Schema in HBase using Phoenix.", sql);

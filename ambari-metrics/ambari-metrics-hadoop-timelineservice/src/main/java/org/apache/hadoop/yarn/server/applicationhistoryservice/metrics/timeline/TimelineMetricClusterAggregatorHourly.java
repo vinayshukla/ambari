@@ -17,16 +17,42 @@
  */
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
+
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.DEFAULT_CHECKPOINT_LOCATION;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
 
 public class TimelineMetricClusterAggregatorHourly extends AbstractTimelineAggregator {
-  private static final Log LOG = LogFactory.getLog(TimelineMetricClusterAggregator.class);
-  public static final long SLEEP_INTERVAL = 3600000;
+  private static final Log LOG = LogFactory.getLog(TimelineMetricClusterAggregatorHourly.class);
+  private final long sleepInterval;
+  private static final String CLUSTER_AGGREGATOR_HOURLY_CHECKPOINT_FILE =
+    "timeline-metrics-cluster-aggregator-hourly-checkpoint";
+  private final String checkpointLocation;
+  private final Integer checkpointCutOffMultiplier;
 
   public TimelineMetricClusterAggregatorHourly(PhoenixHBaseAccessor hBaseAccessor,
-                                               String checkpointLocation) {
-    super(hBaseAccessor, checkpointLocation);
+                                               Configuration metricsConf) {
+    super(hBaseAccessor, metricsConf);
+
+    String checkpointDir = metricsConf.get(
+      TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR, DEFAULT_CHECKPOINT_LOCATION);
+
+    checkpointLocation = FilenameUtils.concat(checkpointDir,
+      CLUSTER_AGGREGATOR_HOURLY_CHECKPOINT_FILE);
+
+    sleepInterval = metricsConf.getLong(CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600000l);
+    checkpointCutOffMultiplier =
+      metricsConf.getInt(CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
+  }
+
+  @Override
+  protected String getCheckpointLocation() {
+    return checkpointLocation;
   }
 
   @Override
@@ -36,7 +62,12 @@ public class TimelineMetricClusterAggregatorHourly extends AbstractTimelineAggre
 
   @Override
   protected Long getSleepInterval() {
-    return SLEEP_INTERVAL;
+    return sleepInterval;
+  }
+
+  @Override
+  protected Integer getCheckpointCutOffMultiplier() {
+    return checkpointCutOffMultiplier;
   }
 
   @Override
