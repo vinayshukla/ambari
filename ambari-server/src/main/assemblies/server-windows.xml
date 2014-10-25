@@ -84,6 +84,10 @@
       <outputDirectory>/ambari-server-${project.version}/resources</outputDirectory>
     </file>
     <file>
+      <source>${basedir}/../ambari-admin/target/ambari-admin-${project.version}.jar</source>
+      <outputDirectory>/ambari-server-${project.version}/resources/views</outputDirectory>
+    </file>
+    <file>
       <source>${basedir}/src/main/package/msi/ambari-server.wxs</source>
       <outputDirectory>../../</outputDirectory>
       <filtered>true</filtered>
