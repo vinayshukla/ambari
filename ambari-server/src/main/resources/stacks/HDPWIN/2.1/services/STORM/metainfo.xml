@@ -48,18 +48,6 @@
         </component>
 
         <component>
-          <name>STORM_REST_API</name>
-          <displayName>Storm REST API Server</displayName>
-          <category>MASTER</category>
-          <cardinality>1</cardinality>
-          <commandScript>
-            <script>scripts/rest_api.py</script>
-            <scriptType>PYTHON</scriptType>
-            <timeout>600</timeout>
-          </commandScript>
-        </component>
-
-        <component>
           <name>SUPERVISOR</name>
           <displayName>Supervisor</displayName>
           <category>SLAVE</category>
@@ -83,17 +71,6 @@
           </commandScript>
         </component>
 
-        <component>
-          <name>DRPC_SERVER</name>
-          <displayName>DRPC Server</displayName>
-          <category>MASTER</category>
-          <cardinality>1</cardinality>
-          <commandScript>
-            <script>scripts/drpc_server.py</script>
-            <scriptType>PYTHON</scriptType>
-            <timeout>600</timeout>
-          </commandScript>
-        </component>
       </components>
 
       <commandScript>
