@@ -151,7 +151,7 @@ App.StackService = DS.Model.extend({
   }.property('configTypes'),
 
   customReviewHandler: function () {
-    return App.StackService.reviewPageHandlers[this.get('serviceName')];
+    return App.get('isHadoopWindowsStack')? App.StackService.reviewWindowsPageHandlers[this.get('serviceName')] : App.StackService.reviewPageHandlers[this.get('serviceName')];
   }.property('serviceName'),
   //TODO after moving validation/recommendation to BE defaultsProviders must be deleted
   defaultsProviders: function () {
@@ -223,6 +223,18 @@ App.StackService.reviewPageHandlers = {
   'HIVE': {
     'Database': 'loadHiveDbValue'
   },
+  'NAGIOS': {
+    'Administrator': 'loadNagiosAdminValue'
+  },
+  'OOZIE': {
+    'Database': 'loadOozieDbValue'
+  }
+};
+
+App.StackService.reviewWindowsPageHandlers = {
+  'HIVE': {
+    'Database': 'loadHiveDbValue'
+  },
   'HDFS': {
     'Database': 'loadSinkDbValue'
   },
@@ -247,8 +259,12 @@ App.StackService.configCategories = function () {
   var serviceConfigCategories = [];
   switch (this.get('serviceName')) {
     case 'HDFS':
+      if (App.get('isHadoopWindowsStack')) {
+        serviceConfigCategories.pushObjects([
+          App.ServiceConfigCategory.create({ name: 'MetricsSink', displayName: 'Metrics Sink'})
+        ]);
+      }
       serviceConfigCategories.pushObjects([
-        App.ServiceConfigCategory.create({ name: 'MetricsSink', displayName: 'Metrics Sink'}),
         App.ServiceConfigCategory.create({ name: 'NAMENODE', displayName: 'NameNode'}),
         App.ServiceConfigCategory.create({ name: 'SECONDARY_NAMENODE', displayName: 'Secondary NameNode'}),
         App.ServiceConfigCategory.create({ name: 'DATANODE', displayName: 'DataNode'}),

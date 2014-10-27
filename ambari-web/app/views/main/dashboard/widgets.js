@@ -100,6 +100,9 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
   setWidgetsDataModel: function () {
     var services = App.Service.find();
     var self = this;
+    if(App.get('services.hostMetrics').length > 0) {
+      self.set('host_metrics_model', App.get('services.hostMetrics'));
+    }
     services.forEach(function (item) {
       switch (item.get('serviceName')) {
         case "HDFS":
@@ -142,7 +145,7 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
     var hiddenFull = [['22','Region In Transition']];
 
     // Display widgets for host metrics if the stack definition has a host metrics service to display it.
-    if(App.get('services.hostMetrics').length == 0) {
+    if (this.get('host_metrics_model') == null) {
       var hostMetrics = ['11', '12', '13', '14'];
       hostMetrics.forEach ( function (item) {
         visibleFull = visibleFull.without(item);
@@ -190,6 +193,8 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
     obj.set('visible', visibleFull);
     obj.set('hidden', hiddenFull);
   },
+
+  host_metrics_model: null,
 
   hdfs_model: null,
 
@@ -394,7 +399,7 @@ App.MainDashboardWidgetsView = Em.View.extend(App.UserPref, App.LocalStorage, {
     }
 
     // Display widgets for host metrics if the stack definition has a host metrics service to display it.
-    if(App.get('services.hostMetrics').length) {
+    if (this.get('host_metrics_model') != null) {
       var hostMetrics = ['11', '12', '13', '14'];
       var flag = self.containsWidget(toDelete, hostMetrics[0]);
       if (flag) {

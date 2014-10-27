@@ -98,17 +98,12 @@
             <configuration>
               <target name="ambari-web-clean">
                 <exec dir="${basedir}" executable="${executable.rmdir}">
-                  <arg value="${args.rm.1}"/>
-                  <arg value="${args.rm.2}"/>
-                  <arg value="${args.rm.3}"/>
-                  <arg value="${args.rm.4}"/>
+                  <arg value="${args.rm.clean}"/>
                   <arg value="public"/>
                   <arg value="node_modules"/>
                 </exec>
                 <exec dir="${basedir}" executable="${executable.mkdir}">
-                  <arg value="${args.mkdir.1}"/>
-                  <arg value="${args.mkdir.2}"/>
-                  <arg value="public"/>
+                  <arg value="${args.mkdir.clean}"/>
                 </exec>
               </target>
             </configuration>
@@ -121,40 +116,27 @@
             </goals>
             <configuration>
               <target name="ambari-web-compile">
-                <exec dir="${basedir}" executable="${executable.npm}">
-                  <env key="PYTHON" value="python2.6" />
-                  <arg value="${args.npm.1}"/>
-                  <arg value="${args.npm.2}"/>
-                  <arg value="install"/>
+                <exec dir="${basedir}" executable="${executable.npm}" failonerror="true">
+                  <arg value="${args.npm.install}"/>
                 </exec>
-                <exec dir="${basedir}" executable="${executable.brunch}">
-                  <arg value="${args.brunch.1}"/>
-                  <arg value="${args.brunch.2}"/>
-                  <arg value="build"/>
+                <exec dir="${basedir}" executable="${executable.brunch}" failonerror="true">
+                  <arg value="${args.brunch.build}"/>
                 </exec>
                 <!-- sets Ambari version to make it accessible from code -->
-                <exec dir="${basedir}" executable="${executable.shell}">
+                <exec dir="${basedir}" executable="${executable.shell}" failonerror="true">
                   <arg value="${basedir}${dirsep}set-ambari-version.${fileextension.shell}"/>
                   <arg value="${ambariVersion}"/>
                 </exec>
                 <!-- sets default stack and version to use for install -->
-                <exec dir="${basedir}" executable="${executable.shell}">
+                <exec dir="${basedir}" executable="${executable.shell}" failonerror="true">
                   <arg value="${basedir}${dirsep}set-default-stack-version.${fileextension.shell}"/>
                   <arg value="${defaultStackVersion}"/>
                 </exec>
                 <!-- enables experimental features if enableExperimental is set to true -->
-                <exec dir="${basedir}" executable="${executable.shell}">
+                <exec dir="${basedir}" executable="${executable.shell}" failonerror="true">
                   <arg value="${basedir}${dirsep}toggle-experimental.${fileextension.shell}"/>
                   <arg value="${enableExperimental}"/>
                 </exec>
-                  <!--
-                <exec dir="${basedir}" executable="${executable.gzip}">
-                  <arg value="-f"/>
-                  <arg value="public/javascripts/app.js"/>
-                  <arg value="public/javascripts/vendor.js"/>
-                  <arg value="public/stylesheets/app.css"/>
-                </exec>
-                -->
               </target>
             </configuration>
           </execution>
@@ -166,15 +148,14 @@
             </goals>
             <configuration>
               <target name="ambari-web unit tests" unless="${skipTests}">
-                <exec dir="${basedir}" executable="npm" failonerror="true">
-                  <env key="PYTHON" value="${basedir}/../ambari-common/src/main/unix/ambari-python-wrap" />
-                  <arg value="test"/>
+                <exec dir="${basedir}" executable="${executable.npm}" failonerror="true">
+                  <arg value="${args.npm.test}"/>
                 </exec>
               </target>
             </configuration>
           </execution>
           <execution>
-            <id>gzip amabri-web content</id>
+            <id>gzip ambari-web content</id>
             <phase>prepare-package</phase>
             <goals>
               <goal>run</goal>
@@ -247,20 +228,15 @@
       <envClassifier>win</envClassifier>
       <dirsep>\</dirsep>
       <executable.brunch>cmd</executable.brunch>
-      <args.brunch.1>/C</args.brunch.1>
-      <args.brunch.2>brunch</args.brunch.2>
+      <args.brunch.build>/C brunch build</args.brunch.build>
       <executable.gzip>gzip</executable.gzip>
       <executable.mkdir>cmd</executable.mkdir>
-      <args.mkdir.1>/C</args.mkdir.1>
-      <args.mkdir.2>mkdir</args.mkdir.2>
+      <args.mkdir.clean>/C mkdir public</args.mkdir.clean>
       <executable.npm>cmd</executable.npm>
-      <args.npm.1>/C</args.npm.1>
-      <args.npm.2>npm</args.npm.2>
+      <args.npm.install>/C npm install</args.npm.install>
+      <args.npm.test>/C npm install</args.npm.test>
       <executable.rmdir>cmd</executable.rmdir>
-      <args.rm.1>/C</args.rm.1>
-      <args.rm.2>rmdir</args.rm.2>
-      <args.rm.3>/Q</args.rm.3>
-      <args.rm.4>/S</args.rm.4>
+      <args.rm.clean>/C rmdir /S /Q</args.rm.clean>
       <executable.shell>cmd</executable.shell>
       <fileextension.shell>cmd</fileextension.shell>
      </properties>
@@ -276,20 +252,15 @@
       <envClassifier>linux</envClassifier>
       <dirsep>/</dirsep>
       <executable.brunch>brunch</executable.brunch>
-      <args.brunch.1></args.brunch.1>
-      <args.brunch.2></args.brunch.2>
+      <args.brunch.build>build</args.brunch.build>
       <executable.gzip>gzip</executable.gzip>
       <executable.mkdir>mkdir</executable.mkdir>
-      <args.mkdir.1></args.mkdir.1>
-      <args.mkdir.2></args.mkdir.2>
+      <args.mkdir.clean>public</args.mkdir.clean>
       <executable.npm>npm</executable.npm>
-      <args.npm.1></args.npm.1>
-      <args.npm.2></args.npm.2>
+      <args.npm.install>install</args.npm.install>
+      <args.npm.test>test</args.npm.test>
       <executable.rmdir>rm</executable.rmdir>
-      <args.rm.1>-rf</args.rm.1>
-      <args.rm.2></args.rm.2>
-      <args.rm.3></args.rm.3>
-      <args.rm.4></args.rm.4>
+      <args.rm.clean>-rf</args.rm.clean>
       <executable.shell>sh</executable.shell>
       <fileextension.shell>sh</fileextension.shell>
      </properties>

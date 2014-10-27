@@ -990,15 +990,15 @@ App.WizardStep3Controller = Em.Controller.extend({
         }
       }
     });
-//    if (hostsContext.length > 0) { // repository warning exist
-//      repoWarnings.push({
-//        name: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.name'),
-//        hosts: hostsContext,
-//        hostsNames: hostsRepoNames,
-//        category: 'repositories',
-//        onSingleHost: false
-//      });
-//    }
+    if (hostsContext.length > 0) { // repository warning exist
+      repoWarnings.push({
+        name: Em.I18n.t('installer.step3.hostWarningsPopup.repositories.name'),
+        hosts: hostsContext,
+        hostsNames: hostsRepoNames,
+        category: 'repositories',
+        onSingleHost: false
+      });
+    }
     if (hostsDiskContext.length > 0) { // disk space warning exist
       diskWarnings.push({
         name: Em.I18n.t('installer.step3.hostWarningsPopup.disk.name'),
@@ -1018,7 +1018,7 @@ App.WizardStep3Controller = Em.Controller.extend({
       });
     }
 
-//    this.set('repoCategoryWarnings', repoWarnings);
+    this.set('repoCategoryWarnings', repoWarnings);
     this.set('diskCategoryWarnings', diskWarnings);
     this.set('thpCategoryWarnings', thpWarnings);
     this.stopRegistration();

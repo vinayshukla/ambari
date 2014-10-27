@@ -79,14 +79,14 @@ module.exports = Em.Application.create({
   currentStackVersion: '',
   currentStackName: function() {
     return Em.get((this.get('currentStackVersion') || this.get('defaultStackVersion')).match(/(.+)-\d.+/), '1');
-  }.property('currentStackVersion'),
+  }.property('currentStackVersion', 'defaultStackVersion'),
 
   allHostNames: [],
 
   currentStackVersionNumber: function () {
     var regExp = new RegExp(this.get('currentStackName') + '-');
     return (this.get('currentStackVersion') || this.get('defaultStackVersion')).replace(regExp, '');
-  }.property('currentStackVersion', 'currentStackName'),
+  }.property('currentStackVersion', 'defaultStackVersion', 'currentStackName'),
 
   isHadoop2Stack: function () {
     var result = true;
