@@ -47,8 +47,11 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
+// Timeline service client support is not enabled for AMS
+@Ignore
 public class TestApplicationHistoryClientService extends
     ApplicationHistoryStoreTestUtils {
 

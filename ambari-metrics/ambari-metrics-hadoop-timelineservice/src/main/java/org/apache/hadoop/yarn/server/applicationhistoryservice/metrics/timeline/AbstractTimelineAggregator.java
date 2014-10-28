@@ -166,6 +166,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
     return getCheckpointCutOffMultiplier() * getSleepInterval();
   }
 
+  protected abstract boolean isDisabled();
+
   protected abstract String getCheckpointLocation();
 
   @JsonSubTypes({ @JsonSubTypes.Type(value = MetricClusterAggregate.class),

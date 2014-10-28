@@ -23,9 +23,6 @@
   <name>Ambari Main</name>
   <version>1.3.0-SNAPSHOT</version>
   <description>Ambari</description>
-  <modules>
-    <module>ambari-metrics</module>
-  </modules>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <clover.license>${user.home}/clover.license</clover.license>

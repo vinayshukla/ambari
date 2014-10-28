@@ -31,8 +31,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HBASE_SITE_CONFIGURATION_FILE;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE;
 
 public class HBaseTimelineMetricStore extends AbstractService
     implements TimelineMetricStore {
@@ -50,10 +51,12 @@ public class HBaseTimelineMetricStore extends AbstractService
 
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
-    URL hbaseResUrl = getClass().getClassLoader().getResource
-      (TimelineMetricConfiguration.HBASE_SITE_CONFIGURATION_FILE);
-    URL amsResUrl = getClass().getClassLoader().getResource
-      (TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE);
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    if (classLoader == null) {
+      classLoader = getClass().getClassLoader();
+    }
+    URL hbaseResUrl = classLoader.getResource(HBASE_SITE_CONFIGURATION_FILE);
+    URL amsResUrl = classLoader.getResource(METRICS_SITE_CONFIGURATION_FILE);
     LOG.info("Found hbase site configuration: " + hbaseResUrl);
     LOG.info("Found metric service configuration: " + amsResUrl);
 
@@ -81,26 +84,36 @@ public class HBaseTimelineMetricStore extends AbstractService
     hBaseAccessor.initMetricSchema();
 
     // Start the cluster aggregator
-    TimelineMetricClusterAggregator clusterAggregator =
+    TimelineMetricClusterAggregator minuteClusterAggregator =
       new TimelineMetricClusterAggregator(hBaseAccessor, metricsConf);
-    Thread aggregatorThread = new Thread(clusterAggregator);
-    aggregatorThread.start();
+    if (!minuteClusterAggregator.isDisabled()) {
+      Thread aggregatorThread = new Thread(minuteClusterAggregator);
+      aggregatorThread.start();
+    }
 
     // Start the cluster aggregator hourly
-    TimelineMetricClusterAggregatorHourly clusterAggregatorHourly =
+    TimelineMetricClusterAggregatorHourly hourlyClusterAggregator =
       new TimelineMetricClusterAggregatorHourly(hBaseAccessor, metricsConf);
+    if (!hourlyClusterAggregator.isDisabled()) {
+      Thread aggregatorThread = new Thread(hourlyClusterAggregator);
+      aggregatorThread.start();
+    }
 
     // Start the 5 minute aggregator
-    TimelineMetricAggregatorMinute minuteAggregator =
+    TimelineMetricAggregatorMinute minuteHostAggregator =
       new TimelineMetricAggregatorMinute(hBaseAccessor, metricsConf);
-    Thread minuteAggregatorThread = new Thread(minuteAggregator);
-    minuteAggregatorThread.start();
+    if (!minuteHostAggregator.isDisabled()) {
+      Thread minuteAggregatorThread = new Thread(minuteHostAggregator);
+      minuteAggregatorThread.start();
+    }
 
     // Start hourly host aggregator
-    TimelineMetricAggregatorHourly aggregatorHourly =
+    TimelineMetricAggregatorHourly hourlyHostAggregator =
       new TimelineMetricAggregatorHourly(hBaseAccessor, metricsConf);
-    Thread aggregatorHourlyThread = new Thread(aggregatorHourly);
-    aggregatorHourlyThread.start();
+    if (!hourlyHostAggregator.isDisabled()) {
+      Thread aggregatorHourlyThread = new Thread(hourlyHostAggregator);
+      aggregatorHourlyThread.start();
+    }
   }
 
   @Override

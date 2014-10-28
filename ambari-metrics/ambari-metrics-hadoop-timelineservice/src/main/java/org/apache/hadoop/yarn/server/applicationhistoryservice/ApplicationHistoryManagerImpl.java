@@ -84,7 +84,7 @@ public class ApplicationHistoryManagerImpl extends AbstractService implements
       Configuration conf) {
     return ReflectionUtils.newInstance(conf.getClass(
       YarnConfiguration.APPLICATION_HISTORY_STORE,
-      FileSystemApplicationHistoryStore.class,
+      NullApplicationHistoryStore.class,
       ApplicationHistoryStore.class), conf);
   }
 

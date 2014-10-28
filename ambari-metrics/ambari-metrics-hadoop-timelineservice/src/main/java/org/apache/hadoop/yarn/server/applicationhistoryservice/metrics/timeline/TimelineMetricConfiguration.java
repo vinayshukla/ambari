@@ -87,4 +87,17 @@ public interface TimelineMetricConfiguration {
 
   public static final String GLOBAL_RESULT_LIMIT =
     "timeline.metrics.service.default.result.limit";
+
+  public static final String HOST_AGGREGATOR_MINUTE_DISABLED =
+    "timeline.metrics.host.aggregator.minute.disabled";
+
+  public static final String HOST_AGGREGATOR_HOUR_DISABLED =
+    "timeline.metrics.host.aggregator.hourly.disabled";
+
+  public static final String CLUSTER_AGGREGATOR_MINUTE_DISABLED =
+    "timeline.metrics.cluster.aggregator.minute.disabled";
+
+  public static final String CLUSTER_AGGREGATOR_HOUR_DISABLED =
+    "timeline.metrics.cluster.aggregator.hourly.disabled";
+
 }

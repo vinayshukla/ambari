@@ -107,7 +107,7 @@ public class PhoenixHBaseAccessor {
    * cluster.
    * @return @java.sql.Connection
    */
-  protected Connection getConnection() {
+  public Connection getConnection() {
     Connection connection = null;
     String zookeeperClientPort = hbaseConf.getTrimmed(ZOOKEEPER_CLIENT_PORT, "2181");
     String zookeeperQuorum = hbaseConf.getTrimmed(ZOOKEEPER_QUORUM);
