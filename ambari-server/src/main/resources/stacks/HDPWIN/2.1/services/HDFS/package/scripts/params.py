@@ -61,3 +61,5 @@ if 'integratedSecurity=true' not in dburl:
 hdfs_user = "hadoop"
 
 grep_exe = "findstr"
+
+name_node_params = default("/commandParams/namenode", None)

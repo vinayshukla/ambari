@@ -20,6 +20,14 @@ limitations under the License.
 from resource_management import *
 from hdfs import hdfs
 import service_mapping
+import hdfs_rebalance
+import time
+import json
+import subprocess
+import sys
+import os
+from datetime import datetime
+from ambari_commons.os_windows import *
 
 class NameNode(Script):
   def install(self, env):
@@ -69,6 +77,52 @@ class NameNode(Script):
     else:
       nn_refresh_cmd = format('cmd /c hadoop dfsadmin -refreshNodes')
     Execute(nn_refresh_cmd, user=hdfs_user)
+
+
+  def rebalancehdfs(self, env):
+    import params
+    env.set_params(params)
+
+    hdfs_user = params.hdfs_user
+
+    name_node_parameters = json.loads( params.name_node_params )
+    threshold = name_node_parameters['threshold']
+    _print("Starting balancer with threshold = %s\n" % threshold)
+
+    def calculateCompletePercent(first, current):
+      return 1.0 - current.bytesLeftToMove/first.bytesLeftToMove
+
+    def startRebalancingProcess(threshold):
+      rebalanceCommand = 'hdfs balancer -threshold %s' % threshold
+      return ['cmd', '/C', rebalanceCommand]
+
+    command = startRebalancingProcess(threshold)
+    basedir = os.path.join(env.config.basedir, 'scripts')
+
+    _print("Executing command %s\n" % command)
+
+    parser = hdfs_rebalance.HdfsParser()
+    returncode, stdout, err = run_os_command_impersonated(' '.join(command), hdfs_user, Script.get_password(hdfs_user))
+
+    for line in stdout.split('\n'):
+      _print('[balancer] %s %s' % (str(datetime.now()), line ))
+      pl = parser.parseLine(line)
+      if pl:
+        res = pl.toJson()
+        res['completePercent'] = calculateCompletePercent(parser.initialLine, pl)
+
+        self.put_structured_out(res)
+      elif parser.state == 'PROCESS_FINISED' :
+        _print('[balancer] %s %s' % (str(datetime.now()), 'Process is finished' ))
+        self.put_structured_out({'completePercent' : 1})
+        break
+
+    if returncode != None and returncode != 0:
+      raise Fail('Hdfs rebalance process exited with error. See the log output')
+
+def _print(line):
+  sys.stdout.write(line)
+  sys.stdout.flush()
 
 if __name__ == "__main__":
   NameNode().execute()
