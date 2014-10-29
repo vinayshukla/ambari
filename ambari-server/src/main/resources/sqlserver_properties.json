@@ -1651,6 +1651,11 @@
         "pointInTime": false,
         "temporal": true
       },
+      "metrics/dfs/FSNamesystem/CapacityTotal": {
+        "metric": "dfs.FSNamesystem.CapacityTotal",
+        "pointInTime": false,
+        "temporal": true
+      },
       "metrics/rpcdetailed/setOwner_num_ops": {
         "metric": "rpcdetailed.rpcdetailed.SetOwnerNumOps",
         "pointInTime": true,
@@ -1668,6 +1673,11 @@
       },
       "metrics/dfs/FSNamesystem/CapacityUsedGB": {
         "metric": "dfs.FSNamesystem.CapacityUsedGB",
+        "pointInTime": false,
+        "temporal": true
+      },
+      "metrics/dfs/FSNamesystem/CapacityUsed": {
+        "metric": "dfs.FSNamesystem.CapacityUsed",
         "pointInTime": false,
         "temporal": true
       },
@@ -2138,6 +2148,11 @@
       },
       "metrics/dfs/FSNamesystem/CapacityRemainingGB": {
         "metric": "dfs.FSNamesystem.CapacityRemainingGB",
+        "pointInTime": false,
+        "temporal": true
+      },
+      "metrics/dfs/FSNamesystem/CapacityRemaining": {
+        "metric": "dfs.FSNamesystem.CapacityRemaining",
         "pointInTime": false,
         "temporal": true
       },
@@ -11949,7 +11964,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsCompleted": {
+      "metrics/yarn/Queue/$1/AppsCompleted": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsCompleted",
         "pointInTime": false,
         "temporal": true
@@ -11979,7 +11994,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsSubmitted": {
+      "metrics/yarn/Queue/$1/AppsSubmitted": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsSubmitted",
         "pointInTime": false,
         "temporal": true
@@ -11999,7 +12014,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedContainers": {
+      "metrics/yarn/Queue/$1/AllocatedContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedContainers",
         "pointInTime": false,
         "temporal": true
@@ -12009,7 +12024,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsKilled": {
+      "metrics/yarn/Queue/$1/AppsKilled": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsKilled",
         "pointInTime": false,
         "temporal": true
@@ -12034,7 +12049,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsFailed": {
+      "metrics/yarn/Queue/$1/AppsFailed": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsFailed",
         "pointInTime": false,
         "temporal": true
@@ -12079,7 +12094,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsRunning": {
+      "metrics/yarn/Queue/$1/AppsRunning": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsRunning",
         "pointInTime": false,
         "temporal": true
@@ -12154,7 +12169,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingContainers": {
+      "metrics/yarn/Queue/$1/PendingContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.PendingContainers",
         "pointInTime": false,
         "temporal": true
@@ -12259,12 +12274,12 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AvailableMB": {
+      "metrics/yarn/Queue/$1/AvailableMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AvailableMB",
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingMB": {
+      "metrics/yarn/Queue/$1/PendingMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.PendingMB",
         "pointInTime": false,
         "temporal": true
@@ -12304,7 +12319,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsPending": {
+      "metrics/yarn/Queue/$1/AppsPending": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsPending",
         "pointInTime": false,
         "temporal": true
@@ -12354,7 +12369,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedMB": {
+      "metrics/yarn/Queue/$1/AllocatedMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedMB",
         "pointInTime": false,
         "temporal": true
@@ -12394,7 +12409,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/ReservedContainers": {
+      "metrics/yarn/Queue/$1/ReservedContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.ReservedContainers",
         "pointInTime": false,
         "temporal": true
@@ -12761,6 +12776,11 @@
         "pointInTime": false,
         "temporal": true
       },
+      "metrics/dfs/FSNamesystem/CapacityTotal": {
+        "metric": "dfs.FSNamesystem.CapacityTotal",
+        "pointInTime": false,
+        "temporal": true
+      },
       "metrics/rpcdetailed/setOwner_num_ops": {
         "metric": "rpcdetailed.rpcdetailed.SetOwnerNumOps",
         "pointInTime": true,
@@ -12778,6 +12798,11 @@
       },
       "metrics/dfs/FSNamesystem/CapacityUsedGB": {
         "metric": "dfs.FSNamesystem.CapacityUsedGB",
+        "pointInTime": false,
+        "temporal": true
+      },
+      "metrics/dfs/FSNamesystem/CapacityUsed": {
+        "metric": "dfs.FSNamesystem.CapacityUsed",
         "pointInTime": false,
         "temporal": true
       },
@@ -13250,6 +13275,16 @@
         "metric": "dfs.FSNamesystem.CapacityRemainingGB",
         "pointInTime": false,
         "temporal": true
+      },
+      "metrics/dfs/FSNamesystem/CapacityRemaining": {
+        "metric": "dfs.FSNamesystem.CapacityRemaining",
+        "pointInTime": false,
+        "temporal": true
+      },
+      "metrics/dfs/FSNamesystem/CapacityNonDFSUsed":{
+         "metric": "dfs.FSNamesystem.CapacityUsedNonDFS",
+         "pointInTime": false,
+         "temporal": true
       },
       "metrics/dfs/namenode/Transactions_avg_time": {
         "metric": "dfs.namenode.TransactionsAvgTime",
@@ -22686,7 +22721,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsCompleted": {
+      "metrics/yarn/Queue/$1/AppsCompleted": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsCompleted",
         "pointInTime": false,
         "temporal": true
@@ -22716,7 +22751,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsSubmitted": {
+      "metrics/yarn/Queue/$1/AppsSubmitted": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsSubmitted",
         "pointInTime": false,
         "temporal": true
@@ -22736,7 +22771,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedContainers": {
+      "metrics/yarn/Queue/$1/AllocatedContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedContainers",
         "pointInTime": false,
         "temporal": true
@@ -22746,7 +22781,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsKilled": {
+      "metrics/yarn/Queue/$1/AppsKilled": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsKilled",
         "pointInTime": false,
         "temporal": true
@@ -22771,7 +22806,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsFailed": {
+      "metrics/yarn/Queue/$1/AppsFailed": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsFailed",
         "pointInTime": false,
         "temporal": true
@@ -22816,7 +22851,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsRunning": {
+      "metrics/yarn/Queue/$1/AppsRunning": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsRunning",
         "pointInTime": false,
         "temporal": true
@@ -22891,7 +22926,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingContainers": {
+      "metrics/yarn/Queue/$1/PendingContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.PendingContainers",
         "pointInTime": false,
         "temporal": true
@@ -22996,12 +23031,12 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AvailableMB": {
+      "metrics/yarn/Queue/$1/AvailableMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AvailableMB",
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/PendingMB": {
+      "metrics/yarn/Queue/$1/PendingMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.PendingMB",
         "pointInTime": false,
         "temporal": true
@@ -23041,7 +23076,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AppsPending": {
+      "metrics/yarn/Queue/$1/AppsPending": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AppsPending",
         "pointInTime": false,
         "temporal": true
@@ -23091,7 +23126,7 @@
         "pointInTime": false,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/AllocatedMB": {
+      "metrics/yarn/Queue/$1/AllocatedMB": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.AllocatedMB",
         "pointInTime": false,
         "temporal": true
@@ -23131,7 +23166,7 @@
         "pointInTime": true,
         "temporal": true
       },
-      "metrics/yarn/Queue/$1.replaceAll(\"([.])\",\"/\")/ReservedContainers": {
+      "metrics/yarn/Queue/$1/ReservedContainers": {
         "metric": "yarn.QueueMetrics.Queue:(.+),.ReservedContainers",
         "pointInTime": false,
         "temporal": true
