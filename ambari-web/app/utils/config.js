@@ -883,8 +883,9 @@ App.config = Em.Object.create({
     params.callback(properties);
   },
 
-  loadClusterConfigError: function (request, ajaxOptions, error, opt) {
+  loadClusterConfigError: function (request, ajaxOptions, error, opt, params) {
     console.log('ERROR: Failed to load cluster-env configs');
+    params.callback([]);
   },
 
 
