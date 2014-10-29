@@ -37,7 +37,6 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import javax.security.auth.Subject;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -47,10 +46,6 @@ import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_HOUR_DISABLED;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_MINUTE_DISABLED;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_AGGREGATOR_HOUR_DISABLED;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_AGGREGATOR_MINUTE_DISABLED;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE;
 import static org.easymock.EasyMock.createNiceMock;
 import static org.easymock.EasyMock.expect;
@@ -82,10 +77,6 @@ public class TestApplicationHistoryServer {
     folder.create();
     File hbaseSite = folder.newFile("hbase-site.xml");
     File amsSite = folder.newFile("ams-site.xml");
-    File hadoopPolicy = folder.newFile("hadoop-policy.xml");
-
-    FileUtils.copyFile(new File("ambari-metrics/ambari-metrics-hadoop" +
-      "-timelineservice/src/test/conf/hadoop-policy.xml"), hadoopPolicy);
 
     FileUtils.writeStringToFile(hbaseSite, "<configuration>\n" +
       "  <property>\n" +
@@ -94,8 +85,8 @@ public class TestApplicationHistoryServer {
       "  </property>" +
       "  <property> " +
       "    <name>hbase.zookeeper.quorum</name>\n" +
-        "    <value>localhost</value>\n" +
-        "  </property>" +
+      "    <value>localhost</value>\n" +
+      "  </property>" +
       "</configuration>");
 
     FileUtils.writeStringToFile(amsSite, "<configuration>\n" +
@@ -139,10 +130,6 @@ public class TestApplicationHistoryServer {
     // Chain the current thread classloader
     URLClassLoader urlClassLoader = null;
     try {
-//      urlClassLoader = new URLClassLoader(new URL[] {
-//        new File("ambari-metrics/ambari-metrics-hadoop-timelineservice/src/test/conf").toURI().toURL()
-//      }, currentClassLoader);
-
       urlClassLoader = new URLClassLoader(new URL[] {
         folder.getRoot().toURI().toURL() }, currentClassLoader);
     } catch (MalformedURLException e) {
@@ -207,7 +194,7 @@ public class TestApplicationHistoryServer {
   public void testLaunch() throws Exception {
 
     UserGroupInformation ugi =
-      UserGroupInformation.createUserForTesting("ambari", new String[] {"ambari"});
+      UserGroupInformation.createUserForTesting("ambari", new String[]{"ambari"});
     mockStatic(UserGroupInformation.class);
     expect(UserGroupInformation.getCurrentUser()).andReturn(ugi).anyTimes();
     expect(UserGroupInformation.isSecurityEnabled()).andReturn(false).anyTimes();
