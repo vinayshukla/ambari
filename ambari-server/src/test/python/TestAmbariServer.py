@@ -34,7 +34,7 @@ import platform
 import shutil
 from pwd import getpwnam
 from ambari_server.resourceFilesKeeper import ResourceFilesKeeper, KeeperException
-
+ 
 # We have to use this import HACK because the filename contains a dash
 from ambari_commons import Firewall, OSCheck, OSConst, FirewallChecks
 
@@ -1285,7 +1285,7 @@ class TestAmbariServer(TestCase):
   @patch.object(ambari_server, "get_validated_string_input")
   @patch.object(ambari_server, "find_properties_file")
   @patch.object(ambari_server, "get_ambari_properties")
-  @patch.object(ambari_server, "is_server_running")
+  @patch.object(ambari_server, "is_server_runing")
   @patch.object(ambari_server, "import_cert_and_key_action")
   @patch.object(ambari_server, "get_YN_input")
   @patch("__builtin__.open")
@@ -1997,7 +1997,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
     #path_existsMock.return_value = True
     #get_JAVA_HOME_mock.return_value = True
     #try:
-    #  ambari_server.download_and_install_jdk(args)
+    #  ambari_server.download_jdk(args)
     #  self.fail("Should throw exception")
     #except FatalException as fe:
       # Expected
@@ -2357,7 +2357,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, 'verify_setup_allowed')
   @patch.object(ambari_server, "get_YN_input")
   @patch.object(ambari_server, "configure_os_settings")
-  @patch.object(ambari_server, "download_and_install_jdk")
+  @patch.object(ambari_server, "download_jdk")
   @patch.object(ambari_server, "configure_postgres")
   @patch.object(ambari_server, "setup_db")
   @patch.object(ambari_server, "check_postgre_up")
@@ -2369,10 +2369,12 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, "is_local_database")
   @patch.object(ambari_server, "store_local_properties")
   @patch.object(ambari_server, "is_root")
-  @patch.object(ambari_server, 'is_server_running')
+  @patch.object(ambari_server, 'is_server_runing')
   @patch.object(ambari_server, 'proceedJDBCProperties')
   @patch.object(ambari_server, "extract_views")
-  def test_setup(self, extract_views_mock, proceedJDBCProperties_mock, is_server_runing_mock, is_root_mock, store_local_properties_mock,
+  @patch.object(ambari_server, "adjust_directory_permissions")
+  @patch.object(ambari_server, 'read_ambari_user')
+  def test_setup(self, read_ambari_user_mock, adjust_dirs_mock, extract_views_mock, proceedJDBCProperties_mock, is_server_runing_mock, is_root_mock, store_local_properties_mock,
                  is_local_database_mock, store_remote_properties_mock,
                  setup_remote_db_mock, check_selinux_mock, check_jdbc_drivers_mock, check_ambari_user_mock,
                  check_postgre_up_mock, setup_db_mock, configure_postgres_mock,
@@ -2501,7 +2503,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
     self.assertFalse(check_ambari_user_mock.called)
 
   @patch.object(ambari_server, 'get_remote_script_line')
-  @patch.object(ambari_server, 'is_server_running')
+  @patch.object(ambari_server, 'is_server_runing')
   @patch.object(ambari_server, "get_YN_input")
   @patch.object(ambari_server, "setup_db")
   @patch.object(ambari_server, "print_info_msg")
@@ -2621,7 +2623,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, "parse_properties_file")
   @patch.object(ambari_server, "is_root")
   @patch.object(ambari_server, "check_database_name_property")
-  @patch.object(ambari_server, 'is_server_running')
+  @patch.object(ambari_server, 'is_server_runing')
   def test_silent_reset(self, is_server_runing_mock, check_database_name_property_mock, is_root_mock, parse_properties_file_mock,
                         run_os_command_mock, print_info_msg_mock,
                         setup_db_mock):
@@ -2650,7 +2652,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server.utils, 'check_exitcode')
   @patch('os.makedirs')
   @patch.object(ambari_server.utils, 'locate_file')
-  @patch.object(ambari_server, 'is_server_running')
+  @patch.object(ambari_server, 'is_server_runing')
   @patch("os.chown")
   @patch("pwd.getpwnam")
   @patch.object(ambari_server, 'get_master_key_location')
@@ -2927,7 +2929,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
      self.assertEquals(os_environ_mock.copy.return_value, popen_arg)
 
 
-  @patch.object(ambari_server, 'is_server_running')
+  @patch.object(ambari_server, 'is_server_runing')
   @patch("os.remove")
   @patch("os.killpg")
   @patch("os.getpgid")
@@ -3813,7 +3815,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, "check_jdbc_drivers")
   @patch.object(ambari_server, "is_root")
   @patch.object(ambari_server, "check_ambari_user")
-  @patch.object(ambari_server, "download_and_install_jdk")
+  @patch.object(ambari_server, "download_jdk")
   @patch.object(ambari_server, "configure_os_settings")
   @patch('__builtin__.raw_input')
   @patch.object(ambari_server, "check_selinux")
@@ -3861,7 +3863,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, "check_jdbc_drivers")
   @patch.object(ambari_server, "is_root")
   @patch.object(ambari_server, "check_ambari_user")
-  @patch.object(ambari_server, "download_and_install_jdk")
+  @patch.object(ambari_server, "download_jdk")
   @patch.object(ambari_server, "configure_os_settings")
   @patch('__builtin__.raw_input')
   def test_store_remote_properties(self, raw_input, configure_os_settings_mock,
@@ -5247,7 +5249,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, 'verify_setup_allowed')
   @patch.object(ambari_server, "get_YN_input")
   @patch.object(ambari_server, "configure_os_settings")
-  @patch.object(ambari_server, "download_and_install_jdk")
+  @patch.object(ambari_server, "download_jdk")
   @patch.object(ambari_server, "configure_postgres")
   @patch.object(ambari_server, "check_postgre_up")
   @patch.object(ambari_server, "check_ambari_user")
@@ -5259,9 +5261,10 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
   @patch.object(ambari_server, "get_is_secure")
   @patch.object(ambari_server, "store_password_file")
   @patch.object(ambari_server, "extract_views")
+  @patch.object(ambari_server, "adjust_directory_permissions")
   @patch("sys.exit")
   @patch('__builtin__.raw_input')
-  def test_ambariServerSetupWithCustomDbName(self, raw_input, exit_mock, extract_views_mock, store_password_file_mock,
+  def test_ambariServerSetupWithCustomDbName(self, raw_input, exit_mock, adjust_dirs_mock, extract_views_mock, store_password_file_mock,
                                              get_is_secure_mock, setup_db_mock, is_root_mock, is_local_database_mock,
                                              check_selinux_mock, check_jdbc_drivers_mock, check_ambari_user_mock,
                                              check_postgre_up_mock, configure_postgres_mock,
@@ -5312,7 +5315,7 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
 
     try:
       result = ambari_server.setup(args)
-    except FatalException:
+    except FatalException as ex:
       self.fail("Setup should be successful")
 
     properties = ambari_server.get_ambari_properties()
@@ -5482,3 +5485,4 @@ MIIFHjCCAwYCCQDpHKOBI+Lt0zANBgkqhkiG9w0BAQUFADBRMQswCQYDVQQGEwJV
     ambari_server.VERBOSE = True
     self.assertRaises(FatalException, ambari_server.change_objects_owner, args)
     print_error_msg_mock.assert_called_once_with("stderr")
+
