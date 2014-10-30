@@ -29,7 +29,7 @@ from _winreg import (OpenKey, EnumValue, HKEY_LOCAL_MACHINE, KEY_READ, CloseKey,
 from ambari_commons import os_utils
 
 from ambari_commons.exceptions import *
-from ambari_commons.logging import *
+from ambari_commons.logging_utils import *
 from ambari_commons.os_windows import run_os_command, UserHelper
 from ambari_server.dbConfiguration import DBMSConfig
 from ambari_server.serverConfiguration import *

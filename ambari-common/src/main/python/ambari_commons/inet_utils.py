@@ -23,7 +23,7 @@ import sys
 import urllib2
 
 from exceptions import *
-from logging import *
+from logging_utils import *
 
 def download_file(link, destination, chunk_size=16 * 1024):
   print_info_msg("Downloading {0} to {1}".format(link, destination))

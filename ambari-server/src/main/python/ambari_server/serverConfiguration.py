@@ -23,7 +23,7 @@ import glob
 import re
 
 from ambari_commons.os_utils import *
-from ambari_commons.logging import print_warning_msg, print_info_msg, print_error_msg
+from ambari_commons.logging_utils import print_warning_msg, print_info_msg, print_error_msg
 from properties import Properties
 
 if OSCheck.is_windows_os():

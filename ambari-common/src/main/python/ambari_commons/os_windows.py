@@ -41,11 +41,11 @@ from win32process import GetExitCodeProcess, STARTF_USESTDHANDLES, STARTUPINFO, 
 from win32event import WaitForSingleObject, INFINITE
 import msvcrt
 import tempfile
-import logging
 from win32event import *
 from win32api import CloseHandle
 
 from ambari_commons.exceptions import *
+from logging_utils import *
 
 from win32security import LsaOpenPolicy, POLICY_CREATE_ACCOUNT, POLICY_LOOKUP_NAMES, LookupAccountName, \
   LsaAddAccountRights, LsaRemoveAccountRights, SE_SERVICE_LOGON_NAME
@@ -203,7 +203,7 @@ def os_is_root():
   retcode, out, err = run_os_command(WHOAMI_GROUPS)
   if retcode != 0:
     err_msg = "Unable to check the current user's group memberships. Command {0} returned exit code {1} with message: {2}".format(WHOAMI_GROUPS, retcode, err)
-    logging.print_warning_msg(err_msg)
+    print_warning_msg(err_msg)
     raise FatalException(retcode, err_msg)
 
   #Check for Administrators group membership
@@ -427,7 +427,7 @@ class WinService(win32serviceutil.ServiceFramework):
     pass
 
   def DefCtrlCHandler(self):
-    logging.print_info_msg("Ctrl+C handler invoked. Stopping.")
+    print_info_msg("Ctrl+C handler invoked. Stopping.")
     win32event.SetEvent(self._heventSvcStop)
     pass
 
@@ -495,7 +495,7 @@ class WinService(win32serviceutil.ServiceFramework):
         #  Must brutally terminate the child process. Sorry Java.
         childProcess.terminate()
       except OSError, e:
-        logging.print_info_msg("Unable to stop Ambari Server - " + str(e))
+        print_info_msg("Unable to stop Ambari Server - " + str(e))
         return False
 
     return True

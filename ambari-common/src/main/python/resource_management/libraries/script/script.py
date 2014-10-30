@@ -36,8 +36,11 @@ from resource_management.core.environment import Environment
 from resource_management.core.exceptions import Fail, ClientComponentHasNoStatus, ComponentIsNotRunning
 from resource_management.core.resources.packaging import Package
 from resource_management.libraries.script.config_dictionary import ConfigDictionary, UnknownConfiguration
-from resource_management.libraries.functions.install_hdp_msi import install_windows_msi
-from resource_management.libraries.functions.reload_windows_env import reload_windows_env
+
+IS_WINDOWS = platform.system() == "Windows"
+if IS_WINDOWS:
+  from resource_management.libraries.functions.install_hdp_msi import install_windows_msi
+  from resource_management.libraries.functions.reload_windows_env import reload_windows_env
 
 USAGE = """Usage: {0} <COMMAND> <JSON_CONFIG> <BASEDIR> <STROUTPUT> <LOGGING_LEVEL> <TMP_DIR>
 
@@ -197,17 +200,14 @@ class Script(object):
     self.install_packages(env)
 
 
-  def install_packages(self, env, exclude_packages=[]):
-    """
-    List of packages that are required< by service is received from the server
-    as a command parameter. The method installs all packages
-    from this list
-    """
-    config = self.get_config()
-    if platform.system() == "Windows":
-      install_windows_msi(os.path.join(config['hostLevelParams']['jdk_location'], "hdp.msi"),
-                          config["hostLevelParams"]["agentCacheDir"], "hdp.msi", self.get_password("hadoop"))
-    else:
+  if not IS_WINDOWS:
+    def install_packages(self, env, exclude_packages=[]):
+      """
+      List of packages that are required< by service is received from the server
+      as a command parameter. The method installs all packages
+      from this list
+      """
+      config = self.get_config()
       try:
         package_list_str = config['hostLevelParams']['package_list']
         if isinstance(package_list_str, basestring) and len(package_list_str) > 0:
@@ -220,8 +220,19 @@ class Script(object):
         pass  # No reason to worry
 
         # RepoInstaller.remove_repos(config)
+      pass
+  else:
+    def install_packages(self, env, exclude_packages=[]):
+      """
+      List of packages that are required< by service is received from the server
+      as a command parameter. The method installs all packages
+      from this list
+      """
+      config = self.get_config()
 
-
+      install_windows_msi(os.path.join(config['hostLevelParams']['jdk_location'], "hdp.msi"),
+                          config["hostLevelParams"]["agentCacheDir"], "hdp.msi", self.get_password("hadoop"))
+      pass
 
   def fail_with_error(self, message):
     """

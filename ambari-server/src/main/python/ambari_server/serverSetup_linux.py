@@ -25,7 +25,7 @@ import re
 import socket
 
 from ambari_commons.exceptions import *
-from ambari_commons.logging import *
+from ambari_commons.logging_utils import *
 from ambari_commons.os_linux import run_os_command
 from ambari_server.dbConfiguration_linux import SERVICE_CMD, PG_HBA_CONF_FILE_BACKUP
 from ambari_server.serverConfiguration import *

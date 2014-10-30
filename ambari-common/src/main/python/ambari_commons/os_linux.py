@@ -24,7 +24,7 @@ import pwd
 import shlex
 import subprocess
 
-from logging import *
+from logging_utils import *
 
 
 NR_CHMOD_CMD = 'chmod {0} {1} {2}'

@@ -170,16 +170,22 @@ class FacterBase():
 
     return facterInfo
 
+  #Convert kB to GB
+  @staticmethod
+  def convertSizeKbToGb(size):
+    return "%0.2f GB" % round(float(size) / (1024.0 * 1024.0), 2)
+
+  #Convert MB to GB
+  @staticmethod
+  def convertSizeMbToGb(size):
+    return "%0.2f GB" % round(float(size) / (1024.0), 2)
+
 
 class FacterWindows(FacterBase):
   GET_SYSTEM_INFO_CMD = "systeminfo"
   GET_MEMORY_CMD = '$mem =(Get-WMIObject Win32_OperatingSystem -ComputerName "LocalHost" ); echo "$($mem.FreePhysicalMemory) $($mem.TotalVisibleMemorySize)"'
   GET_PAGE_FILE_INFO = '$pgo=(Get-WmiObject Win32_PageFileUsage); echo "$($pgo.AllocatedBaseSize) $($pgo.AllocatedBaseSize-$pgo.CurrentUsage)"'
   GET_UPTIME_CMD = 'echo $([int]((get-date)-[system.management.managementdatetimeconverter]::todatetime((get-wmiobject -class win32_operatingsystem).Lastbootuptime)).TotalSeconds)'
-
-  #Convert MB to GB
-  def convertSizeMbToGb(self, size):
-    return "%0.2f GB" % round(float(size) / (1024.0), 2)
 
   # Return first ip adress
   def getIpAddress(self):
@@ -269,8 +275,8 @@ class FacterWindows(FacterBase):
 
   def facterInfo(self):
     facterInfo = FacterBase.facterInfo(self)
-    facterInfo['swapsize'] = self.convertSizeMbToGb(self.getSwapSize())
-    facterInfo['swapfree'] = self.convertSizeMbToGb(self.getSwapFree())
+    facterInfo['swapsize'] = FacterBase.convertSizeMbToGb(self.getSwapSize())
+    facterInfo['swapfree'] = FacterBase.convertSizeMbToGb(self.getSwapFree())
     return facterInfo
 
 
@@ -438,8 +444,8 @@ class FacterLinux(FacterBase):
   def facterInfo(self):
     facterInfo = FacterBase.facterInfo(self)
     facterInfo['selinux'] = self.isSeLinux()
-    facterInfo['swapsize'] = self.convertSizeKbToGb(self.getSwapSize())
-    facterInfo['swapfree'] = self.convertSizeKbToGb(self.getSwapFree())
+    facterInfo['swapsize'] = FacterBase.convertSizeKbToGb(self.getSwapSize())
+    facterInfo['swapfree'] = FacterBase.convertSizeKbToGb(self.getSwapFree())
     return facterInfo
 
 

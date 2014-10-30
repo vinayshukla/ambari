@@ -38,7 +38,7 @@ def linux_distribution():
   if PYTHON_VER < 26:
     (distname, version, id)  = platform.dist()
   elif os.path.exists('/etc/redhat-release'):
-        (distname, version, id)  = platform.dist()
+    (distname, version, id)  = platform.dist()
   else:
     (distname, version, id) = platform.linux_distribution()
 
@@ -315,6 +315,7 @@ class OSCheck:
       pass
     return False
 
+  @staticmethod
   def is_redhat7():
     """
      Return true if it is so or false if not

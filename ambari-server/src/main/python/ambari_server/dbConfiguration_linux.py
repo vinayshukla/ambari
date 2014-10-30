@@ -20,7 +20,8 @@ limitations under the License.
 
 import shutil
 
-from common_functions import OSConst
+from ambari_commons import OSConst
+from ambari_commons.logging_utils import *
 from exceptions import *
 from dbConfiguration import *
 from utils import *

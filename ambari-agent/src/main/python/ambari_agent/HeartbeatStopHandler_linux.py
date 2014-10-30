@@ -19,11 +19,10 @@ limitations under the License.
 '''
 
 import os
+import logging
 import signal
 import threading
 import traceback
-
-from ambari_commons import logging
 
 
 logger = logging.getLogger()

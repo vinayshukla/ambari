@@ -26,7 +26,7 @@ import win32service
 
 from ambari_commons.ambari_service import AmbariService
 from ambari_commons.exceptions import *
-from ambari_commons.logging import *
+from ambari_commons.logging_utils import *
 from ambari_commons.os_windows import WinServiceController
 from ambari_agent.AmbariConfig import *
 from ambari_agent.HeartbeatHandlers_windows import HeartbeatStopHandler

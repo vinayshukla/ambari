@@ -21,6 +21,7 @@ limitations under the License.
 import optparse
 
 from ambari_commons.ambari_service import AmbariService
+from ambari_commons.logging_utils import *
 from ambari_commons.os_utils import remove_file
 from ambari_commons.os_windows import SvcStatusCallback
 
@@ -32,6 +33,7 @@ from ambari_server.serverSetup import setup, reset, is_server_running, upgrade
 from ambari_server.setupActions import *
 from ambari_server.setupSecurity import *
 from ambari_server.serverSetup_windows import SERVICE_PASSWORD_KEY, SERVICE_USERNAME_KEY
+
 # debug settings
 SERVER_START_DEBUG = False
 SUSPEND_START_MODE = False

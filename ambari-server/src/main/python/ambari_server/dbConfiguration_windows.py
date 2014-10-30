@@ -23,7 +23,7 @@ import string
 import win32api
 
 from ambari_commons.exceptions import *
-from ambari_commons.logging import print_warning_msg
+from ambari_commons.logging_utils import print_warning_msg
 from ambari_commons.os_utils import search_file
 from ambari_commons.os_windows import *
 from ambari_commons.str_utils import compress_backslashes, ensure_double_backslashes

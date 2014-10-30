@@ -22,7 +22,7 @@ import socket
 import sys
 import urllib2
 from ambari_commons.inet_utils import force_download_file
-from ambari_commons.logging import print_warning_msg, print_error_msg
+from ambari_commons.logging_utils import print_warning_msg, print_error_msg
 
 from serverConfiguration import *
 from setupSecurity import adjust_directory_permissions, get_is_secure, store_password_file, encrypt_password, \

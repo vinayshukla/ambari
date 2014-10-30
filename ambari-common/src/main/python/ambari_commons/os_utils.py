@@ -29,7 +29,7 @@ else:
   # MacOS not supported
   from os_linux import *
 
-from logging import *
+from logging_utils import *
 from exceptions import FatalException
 
 

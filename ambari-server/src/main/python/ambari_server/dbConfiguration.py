@@ -20,7 +20,7 @@ limitations under the License.
 
 from ambari_commons import OSCheck
 from ambari_commons.exceptions import FatalException
-from ambari_commons.logging import print_error_msg
+from ambari_commons.logging_utils import print_error_msg
 from ambari_server.setupSecurity import SECURITY_IS_ENCRYPTION_ENABLED
 from serverConfiguration import get_ambari_properties
 
