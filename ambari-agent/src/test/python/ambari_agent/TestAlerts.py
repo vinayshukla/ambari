@@ -18,6 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
+from stacks.utils.RMFTestCase import *
 import os
 import sys
 from ambari_agent.AlertSchedulerHandler import AlertSchedulerHandler
