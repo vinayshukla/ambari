@@ -57,6 +57,9 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.ServerValidatorM
   // note passed on configs save
   serviceConfigVersionNote: '',
   versionLoaded: false,
+  // current cluster-env version
+  clusterEnvTagVersion: '',
+
   isCurrentSelected: function () {
     return App.ServiceConfigVersion.find(this.get('content.serviceName') + "_" + this.get('selectedVersion')).get('isCurrent');
   }.property('selectedVersion'),
@@ -244,6 +247,26 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.ServerValidatorM
   loadStep: function () {
     console.log("TRACE: Loading configure for service");
     this.clearStep();
+    this.loadClusterEnvSite();
+  },
+
+  /**
+   * load all tag versions of cluster-env site
+   * @returns {$.ajax}
+   */
+  loadClusterEnvSite: function () {
+    var self = this;
+    return App.ajax.send({
+      name: 'config.cluster_env_site',
+      sender: self,
+      success: 'loadClusterEnvSiteSuccess'
+    });
+  },
+
+  loadClusterEnvSiteSuccess: function (data) {
+    // find the latest tag version
+    var maxVersion = Math.max.apply(this, data.items.mapProperty('version'));
+    this.set('clusterEnvTagVersion', data.items.findProperty('version', maxVersion).tag);
     this.loadServiceConfigs();
   },
 
@@ -389,6 +412,10 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.ServerValidatorM
     }, this);
 
     App.router.get('configurationController').saveToDB(configurations);
+
+    // add cluster-env tag
+    siteToTagMap['cluster-env'] = this.get('clusterEnvTagVersion');
+
     this.loadedClusterSiteToTagMap = siteToTagMap;
     this.set('selectedVersion', selectedVersion);
     //reset map if selected current version of default group

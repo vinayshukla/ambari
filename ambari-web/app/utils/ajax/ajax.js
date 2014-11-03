@@ -523,6 +523,11 @@ var urls = {
     'mock': '/data/configurations/host_level_overrides_configs.json?{params}'
   },
 
+  'config.cluster_env_site': {
+    'real': '/clusters/{clusterName}/configurations?type=cluster-env',
+    'mock': '/data/configuration/cluster_env_site.json'
+  },
+
   'host.host_component.add_new_component': {
     'real': '/clusters/{clusterName}/hosts?Hosts/host_name={hostName}',
     'mock': '/data/wizard/deploy/poll_1.json',
