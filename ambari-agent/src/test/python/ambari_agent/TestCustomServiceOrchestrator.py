@@ -95,7 +95,8 @@ class TestCustomServiceOrchestrator(TestCase):
       'clusterHostInfo':{'namenode_host' : ['1'],
                          'slave_hosts'   : ['0', '1'],
                          'all_hosts'     : ['h1.hortonworks.com', 'h2.hortonworks.com'],
-                         'all_ping_ports': ['8670:0,1']}
+                         'all_ping_ports': ['8670:0,1']},
+      'hostLevelParams':{}
     }
     
     decompress_cluster_host_info_mock.return_value = {'namenode_host' : ['h2.hortonworks.com'],

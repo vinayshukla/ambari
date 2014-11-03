@@ -49,6 +49,8 @@ if IS_WINDOWS:
   from HeartbeatHandlers_windows import bind_signal_handlers
 else:
   from HeartbeatStopHandler_linux import bind_signal_handlers
+  from HeartbeatStopHandler_linux import signal_handler
+  from HeartbeatStopHandler_linux import debug
 
 def setup_logging(verbose):
   formatter = logging.Formatter(formatstr)
@@ -115,10 +117,10 @@ def perform_prestart_checks(expected_hostname):
       logger.error(msg)
       sys.exit(1)
   # Check if there is another instance running
-  # if os.path.isfile(ProcessHelper.pidfile):
-  #   print("%s already exists, exiting" % ProcessHelper.pidfile)
-  #   sys.exit(1)
-  # # check if ambari prefix exists
+  if os.path.isfile(ProcessHelper.pidfile) and not IS_WINDOWS:
+    print("%s already exists, exiting" % ProcessHelper.pidfile)
+    sys.exit(1)
+  # check if ambari prefix exists
   elif config.has_option('agent', 'prefix') and not os.path.isdir(os.path.abspath(config.get('agent', 'prefix'))):
     msg = "Ambari prefix dir %s does not exists, can't continue" \
           % config.get("agent", "prefix")
@@ -166,7 +168,7 @@ def stop_agent():
 
 # event - event, that will be passed to Controller and NetUtil to make able to interrupt loops form outside process
 # we need this for windows os, where no sigterm available
-def main(heartbeat_stop_callback):
+def main(heartbeat_stop_callback=None):
   global config
   parser = OptionParser()
   parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="verbose log output", default=False)
@@ -230,7 +232,8 @@ def main(heartbeat_stop_callback):
     controller = Controller(config, heartbeat_stop_callback)
     controller.start()
     controller.join()
-  #stop_agent()
+  if not IS_WINDOWS:
+    stop_agent()
   logger.info("finished")
 
 if __name__ == "__main__":

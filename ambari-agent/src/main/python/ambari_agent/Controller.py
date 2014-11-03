@@ -60,7 +60,7 @@ class Controller(threading.Thread):
         from HeartbeatHandlers_windows import HeartbeatStopHandler
       else:
         from HeartbeatStopHandler_linux import HeartbeatStopHandler
-      heartbeat_stop_callback = HeartbeatStopHandler
+      heartbeat_stop_callback = HeartbeatStopHandler()
 
     self.lock = threading.Lock()
     self.safeMode = True

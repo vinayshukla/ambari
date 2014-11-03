@@ -172,6 +172,12 @@ def kill_process_with_children(parent_pid):
   else:
     _kill_process_with_children_linux(parent_pid)
 
+def changeUid():
+  if not platform.system() == "Windows":
+    try:
+      os.setuid(threadLocal.uid)
+    except Exception:
+      logger.warn("can not switch user for running command.")
 
 if platform.system() == "Windows":
   shellRunner = shellRunnerWindows

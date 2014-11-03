@@ -52,7 +52,7 @@ class NetUtil:
         from HeartbeatHandlers_windows import HeartbeatStopHandler
       else:
         from HeartbeatStopHandler_linux import HeartbeatStopHandler
-      stop_callback = HeartbeatStopHandler
+      stop_callback = HeartbeatStopHandler()
 
     self.stopCallback = stop_callback
 
@@ -113,6 +113,7 @@ class NetUtil:
 
       if 0 == self.stopCallback.wait(self.CONNECT_SERVER_RETRY_INTERVAL_SEC):
         #stop waiting
-        logger.info("Stop event received")
+        if logger is not None:
+          logger.info("Stop event received")
         self.DEBUG_STOP_RETRIES_FLAG = True
     return retries, connected
