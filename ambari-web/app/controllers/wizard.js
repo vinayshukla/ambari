@@ -526,7 +526,7 @@ App.WizardController = Em.Controller.extend(App.LocalStorage, {
     localRepo: false, //true, false
     sshKey: "", //string
     bootRequestId: null, //string
-    sshUser: "root" //string
+    sshUser: "" //string
   },
 
   loadedServiceComponents: null,

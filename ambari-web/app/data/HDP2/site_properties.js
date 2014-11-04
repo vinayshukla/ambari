@@ -2744,11 +2744,13 @@ module.exports =
         },
         {
           displayName: 'Existing MSSQL Server database with integrated authentication',
-          foreignKeys: ['hive_existing_mssql_server_database', 'hive_existing_mssql_server_host']
+          foreignKeys: ['hive_existing_mssql_server_database', 'hive_existing_mssql_server_host'],
+          hidden: !App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing MSSQL Server database with sql auth',
-          foreignKeys: ['hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host']
+          foreignKeys: ['hive_existing_mssql_server_2_database', 'hive_existing_mssql_server_2_host'],
+          hidden: !App.get('isHadoopWindowsStack')
         }
       ],
       "description": "MySQL will be installed by Ambari",
@@ -3184,11 +3186,13 @@ module.exports =
         },
         {
           displayName: 'Existing MSSQL Server database with integrated authentication',
-          foreignKeys: ['oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host']
+          foreignKeys: ['oozie_existing_mssql_server_database', 'oozie_existing_mssql_server_host'],
+          hidden: !App.get('isHadoopWindowsStack')
         },
         {
           displayName: 'Existing MSSQL Server database with sql auth',
-          foreignKeys: ['oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host']
+          foreignKeys: ['oozie_existing_mssql_server_2_database', 'oozie_existing_mssql_server_2_host'],
+          hidden: !App.get('isHadoopWindowsStack')
         }
       ],
       "description": "Current Derby Database will be installed by Ambari",

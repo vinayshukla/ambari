@@ -2575,10 +2575,12 @@ App.MainServiceInfoConfigsController = Em.Controller.extend(App.ServerValidatorM
         configs.findProperty('name', 'oozie_hostname').isVisible = true;
       }
     }
-    if (serviceName === 'HDFS') {
-      var sinkDB = configs.findProperty('name', 'sink_database').value;
-      if (['Existing MSSQL Server database with integrated authentication', 'Existing MSSQL Server database with sql auth'].contains(sinkDB)) {
-        configs.findProperty('name', 'sink.dbservername').isVisible = true;
+    if(App.get('isHadoopWindowsStack')) {
+      if (serviceName === 'HDFS') {
+        var sinkDB = configs.findProperty('name', 'sink_database').value;
+        if (['Existing MSSQL Server database with integrated authentication', 'Existing MSSQL Server database with sql auth'].contains(sinkDB)) {
+          configs.findProperty('name', 'sink.dbservername').isVisible = true;
+        }
       }
     }
   },
