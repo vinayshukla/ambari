@@ -38,6 +38,13 @@
     <hadoop.version>2.4.0</hadoop.version>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>phoenix-core-tests</id>
+      <name>Phoenix Unit tests</name>
+      <url>file://${project.basedir}/src/test/resources/lib</url>
+    </repository>
+  </repositories>
   <build>
     <plugins>
       <plugin>
@@ -257,12 +264,24 @@
       <version>3.2</version>
       <scope>test</scope>
     </dependency>
-
     <!-- for unit tests only -->
     <dependency>
       <groupId>org.apache.phoenix</groupId>
       <artifactId>phoenix-core</artifactId>
-      <version>4.0.0-incubating</version>
+      <version>4.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.phoenix</groupId>
+      <artifactId>phoenix-core-tests</artifactId>
+      <version>4.2.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-it</artifactId>
+      <version>0.98.4-hadoop2</version>
+      <scope>test</scope>
+      <classifier>tests</classifier>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
