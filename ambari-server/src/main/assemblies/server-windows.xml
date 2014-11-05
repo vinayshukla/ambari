@@ -84,10 +84,6 @@
       <outputDirectory>/ambari-server-${project.version}/resources</outputDirectory>
     </file>
     <file>
-      <source>${basedir}/../ambari-admin/target/ambari-admin-${project.version}.jar</source>
-      <outputDirectory>/ambari-server-${project.version}/resources/views</outputDirectory>
-    </file>
-    <file>
       <source>${basedir}/src/main/package/msi/ambari-server.wxs</source>
       <outputDirectory>../../</outputDirectory>
       <filtered>true</filtered>
@@ -95,6 +91,13 @@
   </files>
   <fileSets>
     <!-- Distro files, readme, licenses, etc -->
+    <fileSet>
+      <directory>${basedir}/../ambari-admin/target</directory>
+      <outputDirectory>/ambari-server-${project.version}/resources/views</outputDirectory>
+      <includes>
+        <include>*.jar</include>
+      </includes>
+    </fileSet>
     <fileSet>
       <directory>${basedir}/../</directory>
       <outputDirectory>ambari-server-${project.version}/</outputDirectory>
