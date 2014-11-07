@@ -117,6 +117,14 @@
       <directory>${basedir}/../ambari-common/src/main/python/ambari_commons</directory>
       <outputDirectory>ambari-server-${project.version}/sbin/ambari_commons</outputDirectory>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/../ambari-common/src/main/python/ambari_jinja2/ambari_jinja2</directory>
+      <outputDirectory>ambari-server-${project.version}/sbin/ambari_jinja2</outputDirectory>
+    </fileSet>
+    <fileSet>
+      <directory>${basedir}/../ambari-common/src/main/python/resource_management</directory>
+      <outputDirectory>ambari-server-${project.version}/sbin/resource_management</outputDirectory>
+    </fileSet>
      <!--
     <fileSet>
       <directory>${project.build.directory}/web/</directory>

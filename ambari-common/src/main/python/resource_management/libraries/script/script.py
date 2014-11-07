@@ -17,7 +17,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-import tarfile
 import tempfile
 
 __all__ = ["Script"]
@@ -27,7 +26,6 @@ import sys
 import json
 import logging
 import platform
-from contextlib import closing
 
 from resource_management.libraries.resources import XmlConfig
 from resource_management.core.resources import File, Directory
@@ -41,6 +39,9 @@ IS_WINDOWS = platform.system() == "Windows"
 if IS_WINDOWS:
   from resource_management.libraries.functions.install_hdp_msi import install_windows_msi
   from resource_management.libraries.functions.reload_windows_env import reload_windows_env
+  from resource_management.libraries.functions.zip_archive import archive_dir
+else:
+  from resource_management.libraries.functions.tar_archive import archive_dir
 
 USAGE = """Usage: {0} <COMMAND> <JSON_CONFIG> <BASEDIR> <STROUTPUT> <LOGGING_LEVEL> <TMP_DIR>
 
@@ -280,43 +281,45 @@ class Script(object):
     self.fail_with_error('configure method isn\'t implemented')
 
   def generate_configs_get_template_file_content(self, filename, dicts):
-    import params
+    config = self.get_config()
     content = ''
     for dict in dicts.split(','):
-      if dict.strip() in params.config['configurations']:
-        content += params.config['configurations'][dict.strip()]['content']
+      if dict.strip() in config['configurations']:
+        content += config['configurations'][dict.strip()]['content']
 
     return content
 
   def generate_configs_get_xml_file_content(self, filename, dict):
-    import params
-    return {'configurations':params.config['configurations'][dict],
-            'configuration_attributes':params.config['configuration_attributes'][dict]}
+    config = self.get_config()
+    return {'configurations':config['configurations'][dict],
+            'configuration_attributes':config['configuration_attributes'][dict]}
 
   def generate_configs(self, env):
     """
     Generates config files and stores them as an archive in tmp_dir
     based on xml_configs_list and env_configs_list from commandParams
     """
-    import params
-    env.set_params(params)
-    xml_configs_list = params.config['commandParams']['xml_configs_list']
-    env_configs_list = params.config['commandParams']['env_configs_list']
-    conf_tmp_dir = tempfile.mkdtemp()
-    output_filename = os.path.join(self.get_tmp_dir(),params.config['commandParams']['output_file'])
+    config = self.get_config()
+
+    xml_configs_list = config['commandParams']['xml_configs_list']
+    env_configs_list = config['commandParams']['env_configs_list']
 
     Directory(self.get_tmp_dir(), recursive=True)
-    for file_dict in xml_configs_list:
-      for filename, dict in file_dict.iteritems():
-        XmlConfig(filename,
-                  conf_dir=conf_tmp_dir,
-                  **self.generate_configs_get_xml_file_content(filename, dict)
-        )
-    for file_dict in env_configs_list:
-      for filename,dicts in file_dict.iteritems():
-        File(os.path.join(conf_tmp_dir, filename),
-             content=InlineTemplate(self.generate_configs_get_template_file_content(filename, dicts)))
-    with closing(tarfile.open(output_filename, "w:gz")) as tar:
-      tar.add(conf_tmp_dir, arcname=os.path.basename("."))
-      tar.close()
-    Directory(conf_tmp_dir, action="delete")
+
+    conf_tmp_dir = tempfile.mkdtemp(dir=self.get_tmp_dir())
+    output_filename = os.path.join(self.get_tmp_dir(), config['commandParams']['output_file'])
+
+    try:
+      for file_dict in xml_configs_list:
+        for filename, dict in file_dict.iteritems():
+          XmlConfig(filename,
+                    conf_dir=conf_tmp_dir,
+                    **self.generate_configs_get_xml_file_content(filename, dict)
+          )
+      for file_dict in env_configs_list:
+        for filename,dicts in file_dict.iteritems():
+          File(os.path.join(conf_tmp_dir, filename),
+               content=InlineTemplate(self.generate_configs_get_template_file_content(filename, dicts)))
+      archive_dir(output_filename, conf_tmp_dir)
+    finally:
+      Directory(conf_tmp_dir, action="delete")

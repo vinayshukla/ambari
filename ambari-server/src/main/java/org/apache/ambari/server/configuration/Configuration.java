@@ -71,6 +71,8 @@ public class Configuration {
   public static final String RECOMMENDATIONS_DIR_DEFAULT = "/var/run/ambari-server/stack-recommendations";
   public static final String STACK_ADVISOR_SCRIPT = "stackadvisor.script";
   public static final String STACK_ADVISOR_SCRIPT_DEFAULT = "/var/lib/ambari-server/resources/scripts/stack_advisor.py";
+  public static final String AMBARI_PYTHON_WRAP_KEY = "ambari.python.wrap";
+  public static final String AMBARI_PYTHON_WRAP_DEFAULT = "python";
   public static final String API_AUTHENTICATE = "api.authenticate";
   public static final String API_USE_SSL = "api.ssl";
   public static final String API_CSRF_PREVENTION_KEY = "api.csrfPrevention.enabled";
@@ -237,6 +239,10 @@ public class Configuration {
   public static final String DEFAULT_SCHEDULER_START_DELAY_SECONDS = "120";
   public static final String SERVER_TMP_DIR_KEY = "server.tmp.dir";
   public static final String SERVER_TMP_DIR_DEFAULT = "/var/lib/ambari-server/tmp";
+
+  public static final String DEF_ARCHIVE_EXTENSION;
+  public static final String DEF_ARCHIVE_CONTENT_TYPE;
+
   /**
    * This key defines whether stages of parallel requests are executed in
    * parallel or sequentally. Only stages from different requests
@@ -328,6 +334,17 @@ public class Configuration {
   private volatile boolean credentialProviderInitialized = false;
   private Map<String, String> customDbProperties = null;
 
+  static {
+    if (System.getProperty("os.name").contains("Windows")) {
+      DEF_ARCHIVE_EXTENSION = ".zip";
+      DEF_ARCHIVE_CONTENT_TYPE = "application/zip";
+    }
+    else {
+      DEF_ARCHIVE_EXTENSION = ".tar.gz";
+      DEF_ARCHIVE_CONTENT_TYPE = "application/x-ustar";
+    }
+  }
+
   public Configuration() {
     this(readConfigFile());
   }
@@ -342,6 +359,8 @@ public class Configuration {
     this.properties = properties;
 
     configsMap = new HashMap<String, String>();
+    configsMap.put(AMBARI_PYTHON_WRAP_KEY, properties.getProperty(
+        AMBARI_PYTHON_WRAP_KEY, AMBARI_PYTHON_WRAP_DEFAULT));
     configsMap.put(SRVR_TWO_WAY_SSL_KEY, properties.getProperty(
         SRVR_TWO_WAY_SSL_KEY, SRVR_TWO_WAY_SSL_DEFAULT));
     configsMap.put(SRVR_TWO_WAY_SSL_PORT_KEY, properties.getProperty(
