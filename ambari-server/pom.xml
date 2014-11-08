@@ -189,7 +189,7 @@
 
             <!-- Stack definitions -->
             <exclude>src/main/resources/stacks/HDP/2.0._/services/HBASE/package/templates/regionservers.j2</exclude>
-            <exclude>src/main/resources/stacks/HDPWIN/2.1/services/*/configuration/*</exclude>
+            <exclude>src/main/resources/stacks/HDPWIN/2.1/services/*/configuration*/*</exclude>
 
             <!--test samples -->
             <exclude>src/test/resources/TestAmbaryServer.samples/**</exclude>
