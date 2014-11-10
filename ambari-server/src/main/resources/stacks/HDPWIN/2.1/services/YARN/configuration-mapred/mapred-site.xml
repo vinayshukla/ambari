@@ -209,4 +209,31 @@
     <name>mapreduce.reduce.java.opts</name>
     <value>-Xmx756m</value>
   </property>
+
+  <property>
+    <name>mapreduce.task.io.sort.mb</name>
+    <value>200</value>
+    <description>
+      The total amount of buffer memory to use while sorting files, in megabytes.
+      By default, gives each merge stream 1MB, which should minimize seeks.
+    </description>
+  </property>
+
+  <property>
+    <name>yarn.app.mapreduce.am.resource.mb</name>
+    <value>512</value>
+    <description>The amount of memory the MR AppMaster needs.</description>
+  </property>
+
+  <property>
+    <name>mapreduce.map.memory.mb</name>
+    <value>1024</value>
+    <description>Virtual memory for single Map task</description>
+  </property>
+
+  <property>
+    <name>mapreduce.reduce.memory.mb</name>
+    <value>1024</value>
+    <description>Virtual memory for single Reduce task</description>
+  </property>
 </configuration>
