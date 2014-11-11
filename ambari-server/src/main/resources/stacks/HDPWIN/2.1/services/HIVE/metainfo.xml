@@ -82,40 +82,6 @@
             <scriptType>PYTHON</scriptType>
           </commandScript>
         </component>
-
-        <component>
-          <name>MYSQL_SERVER</name>
-          <displayName>MySQL Server</displayName>
-          <category>MASTER</category>
-          <cardinality>1</cardinality>
-          <commandScript>
-            <script>scripts/mysql_server.py</script>
-            <scriptType>PYTHON</scriptType>
-          </commandScript>
-        </component>
-
-        <component>
-          <name>HIVE_CLIENT</name>
-          <displayName>Hive Client</displayName>
-          <category>CLIENT</category>
-          <cardinality>0+</cardinality>
-          <commandScript>
-            <script>scripts/hive_client.py</script>
-            <scriptType>PYTHON</scriptType>
-          </commandScript>
-        </component>
-
-        <component>
-          <name>HCAT</name>
-          <displayName>HCat Client</displayName>
-          <category>CLIENT</category>
-          <cardinality>0+</cardinality>
-          <commandScript>
-            <script>scripts/hcat_client.py</script>
-            <scriptType>PYTHON</scriptType>
-          </commandScript>
-        </component>
-
         <component>
           <name>WEBHCAT_SERVER</name>
           <displayName>WebHCat Server</displayName>
@@ -168,6 +134,57 @@
             <timeout>1200</timeout>
           </commandScript>
         </component>
+        <component>
+          <name>MYSQL_SERVER</name>
+          <displayName>MySQL Server</displayName>
+          <category>MASTER</category>
+          <cardinality>1</cardinality>
+          <commandScript>
+            <script>scripts/mysql_server.py</script>
+            <scriptType>PYTHON</scriptType>
+          </commandScript>
+        </component>
+
+        <component>
+          <name>HIVE_CLIENT</name>
+          <displayName>Hive Client</displayName>
+          <category>CLIENT</category>
+          <cardinality>0+</cardinality>
+          <commandScript>
+            <script>scripts/hive_client.py</script>
+            <scriptType>PYTHON</scriptType>
+          </commandScript>
+          <configFiles>
+            <configFile>
+              <type>xml</type>
+              <fileName>hive-site.xml</fileName>
+              <dictionaryName>hive-site</dictionaryName>
+            </configFile>
+            <configFile>
+              <type>env</type>
+              <fileName>hive-env.cmd</fileName>
+              <dictionaryName>hive-env</dictionaryName>
+            </configFile>
+          </configFiles>
+        </component>
+        <component>
+          <name>HCAT</name>
+          <displayName>HCat Client</displayName>
+          <category>CLIENT</category>
+          <cardinality>0+</cardinality>
+          <commandScript>
+            <script>scripts/hcat_client.py</script>
+            <scriptType>PYTHON</scriptType>
+          </commandScript>
+          <configFiles>
+            <configFile>
+              <type>env</type>
+              <fileName>hcat-env.cmd</fileName>
+              <dictionaryName>hcat-env</dictionaryName>
+            </configFile>
+          </configFiles>
+        </component>
+
       </components>
 
       <commandScript>

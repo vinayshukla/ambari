@@ -285,7 +285,11 @@ class Script(object):
     content = ''
     for dict in dicts.split(','):
       if dict.strip() in config['configurations']:
-        content += config['configurations'][dict.strip()]['content']
+        try:
+          content += config['configurations'][dict.strip()]['content']
+        except Fail:
+          # 'content' section not available in the component client configuration
+          pass
 
     return content
 
