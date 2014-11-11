@@ -72,7 +72,7 @@ public class Configuration {
   public static final String STACK_ADVISOR_SCRIPT = "stackadvisor.script";
   public static final String STACK_ADVISOR_SCRIPT_DEFAULT = "/var/lib/ambari-server/resources/scripts/stack_advisor.py";
   public static final String AMBARI_PYTHON_WRAP_KEY = "ambari.python.wrap";
-  public static final String AMBARI_PYTHON_WRAP_DEFAULT = "python";
+  public static final String AMBARI_PYTHON_WRAP_DEFAULT = "ambari-python-wrap";
   public static final String API_AUTHENTICATE = "api.authenticate";
   public static final String API_USE_SSL = "api.ssl";
   public static final String API_CSRF_PREVENTION_KEY = "api.csrfPrevention.enabled";

@@ -21,6 +21,7 @@ Ambari Agent
 """
 
 import time
+import os
 from resource_management import *
 
 class XmlConfigProvider(Provider):
