@@ -28,7 +28,6 @@ import org.codehaus.jackson.type.TypeReference;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -37,7 +36,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricClusterAggregate;
+
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.AbstractTimelineAggregator.MetricClusterAggregate;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricHostAggregate;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL;
@@ -50,6 +51,7 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_AGGREGATE_RECORD_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_TIME_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.UPSERT_METRICS_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricClusterAggregator.TimelineClusterMetric;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.CLUSTER_HOUR_TABLE_TTL;
@@ -163,6 +165,32 @@ public class PhoenixHBaseAccessor {
     return metricHostAggregate;
   }
 
+  static TimelineClusterMetric
+  getTimelineMetricClusterKeyFromResultSet(ResultSet rs)
+    throws SQLException, IOException {
+    TimelineClusterMetric metric = new TimelineClusterMetric(
+      rs.getString("METRIC_NAME"),
+      rs.getString("APP_ID"),
+      rs.getString("INSTANCE_ID"),
+      rs.getLong("SERVER_TIME"),
+      rs.getString("UNITS"));
+
+    return metric;
+  }
+
+  static MetricClusterAggregate
+  getMetricClusterAggregateFromResultSet(ResultSet rs)
+    throws SQLException {
+    MetricClusterAggregate agg = new MetricClusterAggregate();
+    agg.setSum(rs.getDouble("METRIC_SUM"));
+    agg.setMax(rs.getDouble("METRIC_MAX"));
+    agg.setMin(rs.getDouble("METRIC_MIN"));
+    agg.setNumberOfHosts(rs.getInt("HOSTS_COUNT"));
+
+    agg.setDeviation(0.0);
+
+    return agg;
+  }
 
   protected void initMetricSchema() {
     Connection conn = getConnection();
@@ -429,8 +457,90 @@ public class PhoenixHBaseAccessor {
    *
    * @throws SQLException
    */
-  public void saveClusterAggregateRecords(Map<TimelineClusterMetric,
-    MetricClusterAggregate> records) throws SQLException {
+  public void saveClusterAggregateRecords(
+    Map<TimelineClusterMetric, MetricClusterAggregate> records)
+    throws SQLException {
+
+      if (records == null || records.isEmpty()) {
+        LOG.debug("Empty aggregate records.");
+        return;
+      }
+
+      long start = System.currentTimeMillis();
+
+      Connection conn = getConnection();
+      PreparedStatement stmt = null;
+      try {
+        stmt = conn.prepareStatement(UPSERT_CLUSTER_AGGREGATE_SQL);
+        int rowCount = 0;
+
+        for (Map.Entry<TimelineClusterMetric, MetricClusterAggregate>
+          aggregateEntry : records.entrySet()) {
+          TimelineClusterMetric clusterMetric = aggregateEntry.getKey();
+          MetricClusterAggregate aggregate = aggregateEntry.getValue();
+
+          LOG.trace("clusterMetric = " + clusterMetric + ", " +
+            "aggregate = " + aggregate);
+
+          rowCount++;
+          stmt.clearParameters();
+          stmt.setString(1, clusterMetric.getMetricName());
+          stmt.setString(2, clusterMetric.getAppId());
+          stmt.setString(3, clusterMetric.getInstanceId());
+          stmt.setLong(4, clusterMetric.getTimestamp());
+          stmt.setString(5, clusterMetric.getType());
+          stmt.setDouble(6, aggregate.getSum());
+          stmt.setInt(7, aggregate.getNumberOfHosts());
+          stmt.setDouble(8, aggregate.getMax());
+          stmt.setDouble(9, aggregate.getMin());
+
+          try {
+            stmt.executeUpdate();
+          } catch (SQLException sql) {
+            // TODO: Why this exception is swallowed
+            LOG.error(sql);
+          }
+
+          if (rowCount >= PHOENIX_MAX_MUTATION_STATE_SIZE - 1) {
+            conn.commit();
+            rowCount = 0;
+          }
+        }
+
+        conn.commit();
+
+      } finally {
+        if (stmt != null) {
+          try {
+            stmt.close();
+          } catch (SQLException e) {
+            // Ignore
+          }
+        }
+        if (conn != null) {
+          try {
+            conn.close();
+          } catch (SQLException sql) {
+            // Ignore
+          }
+        }
+      }
+      long end = System.currentTimeMillis();
+      if ((end - start) > 60000l) {
+        LOG.info("Time to save: " + (end - start) + ", " +
+          "thread = " + Thread.currentThread().getName());
+      }
+    }
+
+  /**
+   * Save Metric aggregate records.
+   *
+   * @throws SQLException
+   */
+  public void saveClusterAggregateHourlyRecords(
+    Map<TimelineClusterMetric, MetricHostAggregate> records,
+    String tableName)
+    throws SQLException {
     if (records == null || records.isEmpty()) {
       LOG.debug("Empty aggregate records.");
       return;
@@ -441,13 +551,14 @@ public class PhoenixHBaseAccessor {
     Connection conn = getConnection();
     PreparedStatement stmt = null;
     try {
-      stmt = conn.prepareStatement(UPSERT_CLUSTER_AGGREGATE_SQL);
+      stmt = conn.prepareStatement(String.format
+        (UPSERT_CLUSTER_AGGREGATE_TIME_SQL, tableName));
       int rowCount = 0;
 
-      for (Map.Entry<TimelineClusterMetric, MetricClusterAggregate>
+      for (Map.Entry<TimelineClusterMetric, MetricHostAggregate>
         aggregateEntry : records.entrySet()) {
         TimelineClusterMetric clusterMetric = aggregateEntry.getKey();
-        MetricClusterAggregate aggregate = aggregateEntry.getValue();
+        MetricHostAggregate aggregate = aggregateEntry.getValue();
 
         LOG.trace("clusterMetric = " + clusterMetric + ", " +
           "aggregate = " + aggregate);
@@ -460,13 +571,15 @@ public class PhoenixHBaseAccessor {
         stmt.setLong(4, clusterMetric.getTimestamp());
         stmt.setString(5, clusterMetric.getType());
         stmt.setDouble(6, aggregate.getSum());
-        stmt.setInt(7, aggregate.getNumberOfHosts());
+//        stmt.setInt(7, aggregate.getNumberOfHosts());
+        stmt.setLong(7, aggregate.getNumberOfSamples());
         stmt.setDouble(8, aggregate.getMax());
         stmt.setDouble(9, aggregate.getMin());
 
         try {
           stmt.executeUpdate();
         } catch (SQLException sql) {
+          // we have no way to verify it works!!!
           LOG.error(sql);
         }
 

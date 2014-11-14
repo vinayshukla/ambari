@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,18 +33,25 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_AGGREGATE_ONLY_SQL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_HOURLY_TABLE_NAME;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_MINUTE_TABLE_NAME;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.*;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.DEFAULT_CHECKPOINT_LOCATION;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
+
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.*;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.*;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.DEFAULT_CHECKPOINT_LOCATION;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration
+  .HOST_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration
+  .TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
 
 public class TimelineMetricAggregatorHourly extends AbstractTimelineAggregator {
-  private static final Log LOG = LogFactory.getLog(TimelineMetricAggregatorHourly.class);
+  private static final Log LOG = LogFactory.getLog
+    (TimelineMetricAggregatorHourly.class);
   private static final String MINUTE_AGGREGATE_HOURLY_CHECKPOINT_FILE =
     "timeline-metrics-host-aggregator-hourly-checkpoint";
   private final String checkpointLocation;
@@ -60,7 +69,8 @@ public class TimelineMetricAggregatorHourly extends AbstractTimelineAggregator {
     checkpointLocation = FilenameUtils.concat(checkpointDir,
       MINUTE_AGGREGATE_HOURLY_CHECKPOINT_FILE);
 
-    sleepInterval = metricsConf.getLong(HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600000l);
+    sleepInterval = metricsConf.getLong(HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL,
+      3600000l);
     checkpointCutOffMultiplier =
       metricsConf.getInt(HOST_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
   }
@@ -75,56 +85,18 @@ public class TimelineMetricAggregatorHourly extends AbstractTimelineAggregator {
     LOG.info("Start aggregation cycle @ " + new Date());
 
     boolean success = true;
-    Condition condition = new Condition(null, null, null, null, startTime,
-                                        endTime, null, true);
-    condition.setNoLimit();
-    condition.setFetchSize(resultsetFetchSize);
-    condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
-      METRICS_AGGREGATE_MINUTE_TABLE_NAME));
-    condition.addOrderByColumn("METRIC_NAME");
-    condition.addOrderByColumn("HOSTNAME");
-    condition.addOrderByColumn("APP_ID");
-    condition.addOrderByColumn("INSTANCE_ID");
-    condition.addOrderByColumn("SERVER_TIME");
+    Condition condition = prepareMetricQueryCondition(startTime, endTime);
 
     Connection conn = null;
     PreparedStatement stmt = null;
 
     try {
       conn = hBaseAccessor.getConnection();
-      stmt = PhoenixTransactSQL.prepareGetMetricsSqlStmt(conn, condition);
+      stmt = prepareGetMetricsSqlStmt(conn, condition);
 
       ResultSet rs = stmt.executeQuery();
-      TimelineMetric existingMetric = null;
-      MetricHostAggregate hostAggregate = null;
       Map<TimelineMetric, MetricHostAggregate> hostAggregateMap =
-        new HashMap<TimelineMetric, MetricHostAggregate>();
-
-      while (rs.next()) {
-        TimelineMetric currentMetric =
-          PhoenixHBaseAccessor.getTimelineMetricKeyFromResultSet(rs);
-        MetricHostAggregate currentHostAggregate =
-          PhoenixHBaseAccessor.getMetricHostAggregateFromResultSet(rs);
-
-        if (existingMetric == null) {
-          // First row
-          existingMetric = currentMetric;
-          hostAggregate = new MetricHostAggregate();
-          hostAggregateMap.put(currentMetric, hostAggregate);
-        }
-
-        if (existingMetric.equalsExceptTime(currentMetric)) {
-          // Recalculate totals with current metric
-          hostAggregate.updateAggregates(currentHostAggregate);
-
-        } else {
-          // Switched over to a new metric - save existing
-          hostAggregate = new MetricHostAggregate();
-          hostAggregate.updateAggregates(currentHostAggregate);
-          hostAggregateMap.put(currentMetric, hostAggregate);
-          existingMetric = currentMetric;
-        }
-      }
+        aggregateMetricsFromResultSet(rs);
 
       LOG.info("Saving " + hostAggregateMap.size() + " metric aggregates.");
 
@@ -156,6 +128,56 @@ public class TimelineMetricAggregatorHourly extends AbstractTimelineAggregator {
 
     LOG.info("End aggregation cycle @ " + new Date());
     return success;
+  }
+
+  private Condition prepareMetricQueryCondition(long startTime, long endTime) {
+    Condition condition = new Condition(null, null, null, null, startTime,
+      endTime, null, true);
+    condition.setNoLimit();
+    condition.setFetchSize(resultsetFetchSize);
+    condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
+      METRICS_AGGREGATE_MINUTE_TABLE_NAME));
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("HOSTNAME");
+    condition.addOrderByColumn("APP_ID");
+    condition.addOrderByColumn("INSTANCE_ID");
+    condition.addOrderByColumn("SERVER_TIME");
+    return condition;
+  }
+
+  private Map<TimelineMetric, MetricHostAggregate>
+  aggregateMetricsFromResultSet(ResultSet rs) throws SQLException, IOException {
+    TimelineMetric existingMetric = null;
+    MetricHostAggregate hostAggregate = null;
+    Map<TimelineMetric, MetricHostAggregate> hostAggregateMap =
+      new HashMap<TimelineMetric, MetricHostAggregate>();
+
+    while (rs.next()) {
+      TimelineMetric currentMetric =
+        PhoenixHBaseAccessor.getTimelineMetricKeyFromResultSet(rs);
+      MetricHostAggregate currentHostAggregate =
+        PhoenixHBaseAccessor.getMetricHostAggregateFromResultSet(rs);
+
+      if (existingMetric == null) {
+        // First row
+        existingMetric = currentMetric;
+        hostAggregate = new MetricHostAggregate();
+        hostAggregateMap.put(currentMetric, hostAggregate);
+      }
+
+      if (existingMetric.equalsExceptTime(currentMetric)) {
+        // Recalculate totals with current metric
+        hostAggregate.updateAggregates(currentHostAggregate);
+
+      } else {
+        // Switched over to a new metric - save existing
+        hostAggregate = new MetricHostAggregate();
+        hostAggregate.updateAggregates(currentHostAggregate);
+        hostAggregateMap.put(currentMetric, hostAggregate);
+        existingMetric = currentMetric;
+      }
+    }
+    return hostAggregateMap;
   }
 
   @Override

@@ -4,9 +4,7 @@ package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
-import org.junit.After;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.*;
 import java.util.*;
@@ -16,23 +14,37 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.PhoenixTransactSQL.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Ignore
 public class TestHBaseAccessor {
   private static String MY_LOCAL_URL =
     "jdbc:phoenix:c6503.ambari.apache.org:" + 2181 + ":/hbase";
+  private Connection conn;
+  private PhoenixHBaseAccessor hdb;
+
+
+  @Before
+  public void setUp() throws Exception {
+    hdb = createTestableHBaseAccessor();
+    conn = getConnection(getUrl());
+    Statement stmt = conn.createStatement();
+
+    hdb.initMetricSchema();
+  }
 
   @After
   public void tearDown() throws Exception {
     Connection conn = getConnection(getUrl());
     Statement stmt = conn.createStatement();
 
-    stmt.execute("DROP TABLE METRIC_AGGREGATE");
-    stmt.execute("DROP TABLE METRIC_AGGREGATE_HOURLY");
-    stmt.execute("DROP TABLE METRIC_RECORD");
-    stmt.execute("DROP TABLE METRIC_RECORD_HOURLY");
-    stmt.execute("DROP TABLE METRIC_RECORD_MINUTE");
-  }
+    stmt.execute("delete from METRIC_AGGREGATE");
+    stmt.execute("delete from METRIC_AGGREGATE_HOURLY");
+    stmt.execute("delete from METRIC_RECORD");
+    stmt.execute("delete from METRIC_RECORD_HOURLY");
+    stmt.execute("delete from METRIC_RECORD_MINUTE");
+    conn.commit();
 
+    stmt.close();
+    conn.close();
+  }
   /**
    * A canary test.
    *
@@ -58,19 +70,18 @@ public class TestHBaseAccessor {
     stmt.execute("DROP TABLE TEST_METRICS");
   }
 
-  @Test
+  //  @Test
   public void testShouldInsertMetrics() throws Exception {
     // GIVEN
-    PhoenixHBaseAccessor sut = createTestableHBaseAccessor();
 
     // WHEN
     long startTime = System.currentTimeMillis();
-    TimelineMetrics metricsSent = prepareTimelineMetrics(startTime);
-    sut.insertMetricRecords(metricsSent);
+    TimelineMetrics metricsSent = prepareTimelineMetrics(startTime, "local");
+    hdb.insertMetricRecords(metricsSent);
 
     Condition queryCondition = new Condition(null, "local", null, null,
       startTime, startTime + (15 * 60 * 1000), null, false);
-    TimelineMetrics recordRead = sut.getMetricRecords(queryCondition);
+    TimelineMetrics recordRead = hdb.getMetricRecords(queryCondition);
 
     // THEN
     assertThat(recordRead.getMetrics()).hasSize(2)
@@ -82,27 +93,24 @@ public class TestHBaseAccessor {
       .containsExactlyElementsOf(recordRead.getMetrics());
   }
 
-  @Test
+  //  @Test
   public void testShouldAggregateMinuteProperly() throws Exception {
     // GIVEN
-    PhoenixHBaseAccessor hdb = createTestableHBaseAccessor();
-    Connection conn = getConnection(getUrl());
-    hdb.initMetricSchema();
     TimelineMetricAggregatorMinute aggregatorMinute =
       new TimelineMetricAggregatorMinute(hdb, new Configuration());
 
     long startTime = System.currentTimeMillis();
-    TimelineMetrics metricsSent = prepareTimelineMetrics(startTime);
-    hdb.insertMetricRecords(metricsSent);
-    hdb.insertMetricRecords(prepareTimelineMetrics(startTime + 1 * 60 * 1000));
-    hdb.insertMetricRecords(prepareTimelineMetrics(startTime + 2 * 60 * 1000));
-    hdb.insertMetricRecords(prepareTimelineMetrics(startTime + 3 * 60 * 1000));
-    hdb.insertMetricRecords(prepareTimelineMetrics(startTime + 4 * 60 * 1000));
+    long ctime = startTime;
+    long minute = 60 * 1000;
+    hdb.insertMetricRecords(prepareTimelineMetrics(startTime, "local"));
+    hdb.insertMetricRecords(prepareTimelineMetrics(ctime += minute, "local"));
+    hdb.insertMetricRecords(prepareTimelineMetrics(ctime += minute, "local"));
+    hdb.insertMetricRecords(prepareTimelineMetrics(ctime += minute, "local"));
+    hdb.insertMetricRecords(prepareTimelineMetrics(ctime += minute, "local"));
 
     // WHEN
     long endTime = startTime + 1000 * 60 * 4;
-    boolean success = aggregatorMinute.doWork(startTime,
-      endTime);
+    boolean success = aggregatorMinute.doWork(startTime, endTime);
 
     //THEN
     Condition condition = new Condition(null, null, null, null, startTime,
@@ -129,12 +137,14 @@ public class TestHBaseAccessor {
         assertEquals(20, currentHostAggregate.getNumberOfSamples());
         assertEquals(15.0, currentHostAggregate.getSum());
         assertEquals(15.0 / 20, currentHostAggregate.getAvg());
+        count++;
       } else if ("mem_free".equals(currentMetric.getMetricName())) {
         assertEquals(2.0, currentHostAggregate.getMax());
         assertEquals(0.0, currentHostAggregate.getMin());
         assertEquals(20, currentHostAggregate.getNumberOfSamples());
         assertEquals(15.0, currentHostAggregate.getSum());
         assertEquals(15.0 / 20, currentHostAggregate.getAvg());
+        count++;
       } else {
         fail("Unexpected entry");
       }
@@ -142,12 +152,9 @@ public class TestHBaseAccessor {
     assertEquals("Two aggregated entries expected", 2, count);
   }
 
-  @Test
+  //  @Test
   public void testShouldAggregateHourProperly() throws Exception {
     // GIVEN
-    PhoenixHBaseAccessor hdb = createTestableHBaseAccessor();
-    Connection conn = getConnection(getUrl());
-    hdb.initMetricSchema();
     TimelineMetricAggregatorHourly aggregator =
       new TimelineMetricAggregatorHourly(hdb, new Configuration());
     long startTime = System.currentTimeMillis();
@@ -256,20 +263,51 @@ public class TestHBaseAccessor {
       }
     };
 
-  private TimelineMetrics prepareTimelineMetrics(long startTime) {
+  private TimelineMetrics prepareSingleTimelineMetric(long startTime,
+                                                      String host,
+                                                      double val) {
+    TimelineMetrics m = new TimelineMetrics();
+    m.setMetrics(Arrays.asList(
+      createTimelineMetric(startTime, "disk_free", host, val)));
+
+    return m;
+  }
+
+  private TimelineMetric createTimelineMetric(long startTime,
+                                              String metricName,
+                                              String host,
+                                              double val) {
+    TimelineMetric m = new TimelineMetric();
+    m.setAppId("host");
+    m.setHostName(host);
+    m.setMetricName(metricName);
+    m.setStartTime(startTime);
+    Map<Long, Double> vals = new HashMap<Long, Double>();
+    vals.put(startTime + 15000l, val);
+    vals.put(startTime + 30000l, val);
+    vals.put(startTime + 45000l, val);
+    vals.put(startTime + 60000l, val);
+
+    m.setMetricValues(vals);
+
+    return m;
+  }
+
+  private TimelineMetrics prepareTimelineMetrics(long startTime, String host) {
     TimelineMetrics metrics = new TimelineMetrics();
-    List<TimelineMetric> allMetrics = new ArrayList<TimelineMetric>();
-    allMetrics.add(createMetric(startTime, "disk_free"));
-    allMetrics.add(createMetric(startTime, "mem_free"));
-    metrics.setMetrics(allMetrics);
+    metrics.setMetrics(Arrays.asList(
+      createMetric(startTime, "disk_free", host),
+      createMetric(startTime, "mem_free", host)));
 
     return metrics;
   }
 
-  private TimelineMetric createMetric(long startTime, String metricName) {
+  private TimelineMetric createMetric(long startTime,
+                                      String metricName,
+                                      String host) {
     TimelineMetric m = new TimelineMetric();
     m.setAppId("host");
-    m.setHostName("local");
+    m.setHostName(host);
     m.setMetricName(metricName);
     m.setStartTime(startTime);
     Map<Long, Double> vals = new HashMap<Long, Double>();

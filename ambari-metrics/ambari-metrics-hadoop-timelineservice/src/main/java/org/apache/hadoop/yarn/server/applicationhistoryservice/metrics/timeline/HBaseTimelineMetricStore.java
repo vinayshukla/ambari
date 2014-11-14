@@ -121,6 +121,7 @@ public class HBaseTimelineMetricStore extends AbstractService
     super.serviceStop();
   }
 
+  //TODO: update to work with HOSTS_COUNT and METRIC_COUNT
   @Override
   public TimelineMetrics getTimelineMetrics(List<String> metricNames,
       String hostname, String applicationId, String instanceId,

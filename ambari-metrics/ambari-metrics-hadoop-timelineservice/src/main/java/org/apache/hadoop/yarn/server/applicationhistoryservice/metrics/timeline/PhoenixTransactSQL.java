@@ -109,7 +109,8 @@ public class PhoenixTransactSQL {
       "INSTANCE_ID VARCHAR, " +
       "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
       "UNITS CHAR(20), " +
-      "METRIC_AVG DOUBLE, " +
+      "METRIC_SUM DOUBLE, " +
+      "METRIC_COUNT UNSIGNED_INT, " +
       "METRIC_MAX DOUBLE, " +
       "METRIC_MIN DOUBLE " +
       "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
@@ -137,6 +138,16 @@ public class PhoenixTransactSQL {
     "METRIC_MAX, " +
     "METRIC_MIN) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+  public static final String UPSERT_CLUSTER_AGGREGATE_TIME_SQL = "UPSERT INTO" +
+    " %s (METRIC_NAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_COUNT, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
 
   public static final String UPSERT_AGGREGATE_RECORD_SQL = "UPSERT INTO " +
     "%s (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
@@ -172,17 +183,32 @@ public class PhoenixTransactSQL {
   public static final String GET_CLUSTER_AGGREGATE_SQL =
     "SELECT METRIC_NAME, APP_ID, " +
       "INSTANCE_ID, SERVER_TIME, " +
+      "UNITS, " +
       "METRIC_SUM, " +
       "HOSTS_COUNT, " +
       "METRIC_MAX, " +
       "METRIC_MIN " +
       "FROM METRIC_AGGREGATE";
 
+  public static final String GET_CLUSTER_AGGREGATE_TIME_SQL =
+  "SELECT METRIC_NAME, APP_ID, " +
+    "INSTANCE_ID, SERVER_TIME, " +
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_COUNT, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN " +
+    "FROM METRIC_AGGREGATE";
+
   public static final String METRICS_RECORD_TABLE_NAME = "METRIC_RECORD";
   public static final String METRICS_AGGREGATE_MINUTE_TABLE_NAME =
     "METRIC_RECORD_MINUTE";
   public static final String METRICS_AGGREGATE_HOURLY_TABLE_NAME =
     "METRIC_RECORD_HOURLY";
+  public static final String METRICS_CLUSTER_AGGREGATE_TABLE_NAME =
+    "METRIC_AGGREGATE";
+  public static final String METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_NAME =
+    "METRIC_AGGREGATE_HOURLY";
   public static final String DEFAULT_TABLE_COMPRESSION = "SNAPPY";
   public static final String DEFAULT_ENCODING = "FAST_DIFF";
 

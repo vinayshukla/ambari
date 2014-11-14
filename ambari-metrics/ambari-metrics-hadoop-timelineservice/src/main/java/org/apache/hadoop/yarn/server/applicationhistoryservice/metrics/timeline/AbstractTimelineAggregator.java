@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
@@ -32,8 +33,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.AGGREGATOR_CHECKPOINT_DELAY;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.RESULTSET_FETCH_SIZE;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.AGGREGATOR_CHECKPOINT_DELAY;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.RESULTSET_FETCH_SIZE;
 
 public abstract class AbstractTimelineAggregator implements Runnable {
   protected final PhoenixHBaseAccessor hBaseAccessor;
@@ -51,7 +54,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
                                     Configuration metricsConf) {
     this.hBaseAccessor = hBaseAccessor;
     this.metricsConf = metricsConf;
-    this.checkpointDelay = metricsConf.getInt(AGGREGATOR_CHECKPOINT_DELAY, 120000);
+    this.checkpointDelay = metricsConf.getInt(AGGREGATOR_CHECKPOINT_DELAY,
+      120000);
     this.resultsetFetchSize = metricsConf.getInt(RESULTSET_FETCH_SIZE, 2000);
     this.LOG = LogFactory.getLog(this.getClass());
   }
@@ -86,10 +90,11 @@ public abstract class AbstractTimelineAggregator implements Runnable {
       if (lastCheckPointTime != -1) {
         LOG.info("Last check point time: " + lastCheckPointTime + ", lagBy: "
           + ((System.currentTimeMillis() - lastCheckPointTime) / 1000)
-          + " seconds." );
+          + " seconds.");
 
         long startTime = System.currentTimeMillis();
-        boolean success = doWork(lastCheckPointTime, lastCheckPointTime + SLEEP_INTERVAL);
+        boolean success = doWork(lastCheckPointTime,
+          lastCheckPointTime + SLEEP_INTERVAL);
         long executionTime = System.currentTimeMillis() - startTime;
         long delta = SLEEP_INTERVAL - executionTime;
 
@@ -125,7 +130,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
   private boolean isLastCheckPointTooOld(long checkpoint) {
     return checkpoint != -1 &&
-      ((System.currentTimeMillis() - checkpoint) > getCheckpointCutOffInterval());
+      ((System.currentTimeMillis() - checkpoint) >
+        getCheckpointCutOffInterval());
   }
 
   private long readCheckPoint() {
@@ -170,8 +176,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
   protected abstract String getCheckpointLocation();
 
-  @JsonSubTypes({ @JsonSubTypes.Type(value = MetricClusterAggregate.class),
-                @JsonSubTypes.Type(value = MetricHostAggregate.class) })
+  @JsonSubTypes({@JsonSubTypes.Type(value = MetricClusterAggregate.class),
+    @JsonSubTypes.Type(value = MetricHostAggregate.class)})
   @InterfaceAudience.Public
   @InterfaceStability.Unstable
   public static class MetricAggregate {
@@ -180,9 +186,11 @@ public abstract class AbstractTimelineAggregator implements Runnable {
     protected Double max = Double.MIN_VALUE;
     protected Double min = Double.MAX_VALUE;
 
-    public MetricAggregate() {}
+    public MetricAggregate() {
+    }
 
-    protected MetricAggregate(Double sum, Double deviation, Double max, Double min) {
+    protected MetricAggregate(Double sum, Double deviation, Double max,
+                              Double min) {
       this.sum = sum;
       this.deviation = deviation;
       this.max = max;
@@ -250,7 +258,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
     private int numberOfHosts;
 
     @JsonCreator
-    public MetricClusterAggregate() {}
+    public MetricClusterAggregate() {
+    }
 
     MetricClusterAggregate(Double sum, int numberOfHosts, Double deviation,
                            Double max, Double min) {
@@ -269,6 +278,16 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
     public void setNumberOfHosts(int numberOfHosts) {
       this.numberOfHosts = numberOfHosts;
+    }
+
+    /**
+     * Find and update min, max and avg for a minute
+     */
+    void updateAggregates(MetricClusterAggregate hostAggregate) {
+      updateMax(hostAggregate.getMax());
+      updateMin(hostAggregate.getMin());
+      updateSum(hostAggregate.getSum());
+      updateNumberOfHosts(hostAggregate.getNumberOfHosts());
     }
 
     @Override
@@ -295,6 +314,13 @@ public abstract class AbstractTimelineAggregator implements Runnable {
     @JsonCreator
     public MetricHostAggregate() {
       super(0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE);
+    }
+
+    public MetricHostAggregate(Double sum, int numberOfSamples,
+                               Double deviation,
+                               Double max, Double min) {
+      super(sum, deviation, max, min);
+      this.numberOfSamples = numberOfSamples;
     }
 
     @JsonProperty("numberOfSamples")

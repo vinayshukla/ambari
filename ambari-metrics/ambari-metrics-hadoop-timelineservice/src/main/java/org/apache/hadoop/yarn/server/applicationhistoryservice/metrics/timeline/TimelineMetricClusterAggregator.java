@@ -46,7 +46,8 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
 
 /**
- * Aggregates a metric across all hosts in the cluster.
+ * Aggregates a metric across all hosts in the cluster. Reads metrics from
+ * the precision table and saves into the aggregate.
  */
 public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator {
   private static final Log LOG = LogFactory.getLog(TimelineMetricClusterAggregator.class);
@@ -90,16 +91,7 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
       "startTime = " + new Date(startTime) + ", endTime = " + new Date(endTime));
 
     boolean success = true;
-    Condition condition = new Condition(null, null, null, null, startTime,
-                                        endTime, null, true);
-    condition.setFetchSize(resultsetFetchSize);
-    condition.setNoLimit();
-    condition.setStatement(String.format(GET_METRIC_SQL,
-      METRICS_RECORD_TABLE_NAME));
-    condition.addOrderByColumn("METRIC_NAME");
-    condition.addOrderByColumn("APP_ID");
-    condition.addOrderByColumn("INSTANCE_ID");
-    condition.addOrderByColumn("SERVER_TIME");
+    Condition condition = prepareMetricQueryCondition(startTime, endTime);
 
     Connection conn;
     PreparedStatement stmt;
@@ -164,6 +156,21 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     return success;
   }
 
+  private Condition prepareMetricQueryCondition(long startTime, long endTime) {
+    Condition condition = new Condition(null, null, null, null, startTime,
+                                        endTime, null, true);
+    condition.setFetchSize(resultsetFetchSize);
+    condition.setNoLimit();
+    condition.setStatement(String.format(GET_METRIC_SQL,
+      METRICS_RECORD_TABLE_NAME));
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("APP_ID");
+    condition.addOrderByColumn("INSTANCE_ID");
+    condition.addOrderByColumn("SERVER_TIME");
+
+    return condition;
+  }
+
   @Override
   protected Long getSleepInterval() {
     return sleepInterval;
@@ -199,9 +206,11 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
       if (timestamp != -1) {
         // Metric is within desired time range
         TimelineClusterMetric clusterMetric = new TimelineClusterMetric(
-          timelineMetric.getMetricName(), timelineMetric.getAppId(),
-          timelineMetric.getInstanceId(), timestamp, timelineMetric.getType());
-
+          timelineMetric.getMetricName(),
+          timelineMetric.getAppId(),
+          timelineMetric.getInstanceId(),
+          timestamp,
+          timelineMetric.getType());
         if (!timelineClusterMetricMap.containsKey(clusterMetric)) {
           timelineClusterMetricMap.put(clusterMetric, metric.getValue());
         } else {
@@ -278,6 +287,14 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
       return true;
     }
 
+    public boolean equalsExceptTime(TimelineClusterMetric metric) {
+      if (!metricName.equals(metric.metricName)) return false;
+      if (!appId.equals(metric.appId)) return false;
+      if (instanceId != null ? !instanceId.equals(metric.instanceId) : metric.instanceId != null)
+        return false;
+
+      return true;
+    }
     @Override
     public int hashCode() {
       int result = metricName.hashCode();
