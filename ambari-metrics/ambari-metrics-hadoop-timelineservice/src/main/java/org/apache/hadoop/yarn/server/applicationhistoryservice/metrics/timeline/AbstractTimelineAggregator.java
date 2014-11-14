@@ -273,6 +273,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
     @Override
     public String toString() {
+//    MetricClusterAggregate
       return "MetricAggregate{" +
         "sum=" + sum +
         ", numberOfHosts=" + numberOfHosts +
@@ -289,9 +290,28 @@ public abstract class AbstractTimelineAggregator implements Runnable {
    */
   public static class MetricHostAggregate extends MetricAggregate {
 
+    private long numberOfSamples = 0;
+
     @JsonCreator
     public MetricHostAggregate() {
       super(0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE);
+    }
+
+    @JsonProperty("numberOfSamples")
+    long getNumberOfSamples() {
+      return numberOfSamples == 0 ? 1 : numberOfSamples;
+    }
+
+    void updateNumberOfSamples(long count) {
+      this.numberOfSamples += count;
+    }
+
+    public void setNumberOfSamples(long numberOfSamples) {
+      this.numberOfSamples = numberOfSamples;
+    }
+
+    public double getAvg() {
+      return sum / numberOfSamples;
     }
 
     /**
@@ -301,20 +321,14 @@ public abstract class AbstractTimelineAggregator implements Runnable {
       updateMax(hostAggregate.getMax());
       updateMin(hostAggregate.getMin());
       updateSum(hostAggregate.getSum());
-    }
-
-    /**
-     * Reuse sum to indicate average for a host for the hour
-     */
-    @Override
-    void updateSum(Double sum) {
-      this.sum = (this.sum + sum) / 2;
+      updateNumberOfSamples(hostAggregate.getNumberOfSamples());
     }
 
     @Override
     public String toString() {
       return "MetricHostAggregate{" +
         "sum=" + sum +
+        ", numberOfSamples=" + numberOfSamples +
         ", deviation=" + deviation +
         ", max=" + max +
         ", min=" + min +

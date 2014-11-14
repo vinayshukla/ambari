@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,14 +36,20 @@ public class PhoenixTransactSQL {
   static final Log LOG = LogFactory.getLog(PhoenixTransactSQL.class);
   // TODO: Configurable TTL values
   /**
-  * Create table to store individual metric records.
-  */
+   * Create table to store individual metric records.
+   */
   public static final String CREATE_METRICS_TABLE_SQL = "CREATE TABLE IF NOT " +
     "EXISTS METRIC_RECORD (METRIC_NAME VARCHAR, " +
-    "HOSTNAME VARCHAR, SERVER_TIME UNSIGNED_LONG NOT NULL, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "START_TIME UNSIGNED_LONG, UNITS CHAR(20), " +
-    "METRIC_AVG DOUBLE, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE, " +
+    "HOSTNAME VARCHAR, " +
+    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+    "APP_ID VARCHAR, " +
+    "INSTANCE_ID VARCHAR, " +
+    "START_TIME UNSIGNED_LONG, " +
+    "UNITS CHAR(20), " +
+    "METRIC_SUM DOUBLE, " +
+    "METRIC_COUNT UNSIGNED_INT, " +
+    "METRIC_MAX DOUBLE, " +
+    "METRIC_MIN DOUBLE, " +
     "METRICS VARCHAR CONSTRAINT pk " +
     "PRIMARY KEY (METRIC_NAME, HOSTNAME, SERVER_TIME, APP_ID, " +
     "INSTANCE_ID)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
@@ -50,82 +57,128 @@ public class PhoenixTransactSQL {
 
   public static final String CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_HOURLY " +
-    "(METRIC_NAME VARCHAR, HOSTNAME VARCHAR, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
-    "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
-    "METRIC_MIN DOUBLE CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
-    "TTL=%s, COMPRESSION='%s'";
+      "(METRIC_NAME VARCHAR, " +
+      "HOSTNAME VARCHAR, " +
+      "APP_ID VARCHAR, " +
+      "INSTANCE_ID VARCHAR, " +
+      "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+      "UNITS CHAR(20), " +
+      "METRIC_SUM DOUBLE," +
+      "METRIC_COUNT UNSIGNED_INT, " +
+      "METRIC_MAX DOUBLE," +
+      "METRIC_MIN DOUBLE CONSTRAINT pk " +
+      "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
+      "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+      "TTL=%s, COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_RECORD_MINUTE " +
-    "(METRIC_NAME VARCHAR, HOSTNAME VARCHAR, " +
-    "APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
-    "UNITS CHAR(20), METRIC_AVG DOUBLE, METRIC_MAX DOUBLE," +
-    "METRIC_MIN DOUBLE CONSTRAINT pk " +
-    "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, TTL=%s," +
-    " COMPRESSION='%s'";
+      "(METRIC_NAME VARCHAR, " +
+      "HOSTNAME VARCHAR, " +
+      "APP_ID VARCHAR, " +
+      "INSTANCE_ID VARCHAR, " +
+      "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+      "UNITS CHAR(20), " +
+      "METRIC_SUM DOUBLE," +
+      "METRIC_COUNT UNSIGNED_INT, " +
+      "METRIC_MAX DOUBLE," +
+      "METRIC_MIN DOUBLE CONSTRAINT pk " +
+      "PRIMARY KEY (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
+      "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, TTL=%s," +
+      " COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE " +
-    "(METRIC_NAME VARCHAR, APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
-    "UNITS CHAR(20), METRIC_SUM DOUBLE, " +
-    "HOSTS_COUNT UNSIGNED_INT, METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
-    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
-    "TTL=%s, COMPRESSION='%s'";
+      "(METRIC_NAME VARCHAR, " +
+      "APP_ID VARCHAR, " +
+      "INSTANCE_ID VARCHAR, " +
+      "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+      "UNITS CHAR(20), " +
+      "METRIC_SUM DOUBLE, " +
+      "HOSTS_COUNT UNSIGNED_INT, " +
+      "METRIC_MAX DOUBLE, " +
+      "METRIC_MIN DOUBLE " +
+      "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
+      "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+      "TTL=%s, COMPRESSION='%s'";
 
   public static final String CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL =
     "CREATE TABLE IF NOT EXISTS METRIC_AGGREGATE_HOURLY " +
-    "(METRIC_NAME VARCHAR, APP_ID VARCHAR, INSTANCE_ID VARCHAR, " +
-    "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
-    "UNITS CHAR(20), METRIC_AVG DOUBLE, " +
-    "METRIC_MAX DOUBLE, METRIC_MIN DOUBLE " +
-    "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
-    "TTL=%s, COMPRESSION='%s'";
+      "(METRIC_NAME VARCHAR, " +
+      "APP_ID VARCHAR, " +
+      "INSTANCE_ID VARCHAR, " +
+      "SERVER_TIME UNSIGNED_LONG NOT NULL, " +
+      "UNITS CHAR(20), " +
+      "METRIC_AVG DOUBLE, " +
+      "METRIC_MAX DOUBLE, " +
+      "METRIC_MIN DOUBLE " +
+      "CONSTRAINT pk PRIMARY KEY (METRIC_NAME, APP_ID, INSTANCE_ID, " +
+      "SERVER_TIME)) DATA_BLOCK_ENCODING='%s', IMMUTABLE_ROWS=true, " +
+      "TTL=%s, COMPRESSION='%s'";
 
   /**
    * Insert into metric records table.
    */
   public static final String UPSERT_METRICS_SQL = "UPSERT INTO %s " +
     "(METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, " +
-    "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN, METRICS) VALUES " +
-    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN, " +
+    "METRIC_COUNT, " +
+    "METRICS) VALUES " +
+    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   public static final String UPSERT_CLUSTER_AGGREGATE_SQL = "UPSERT INTO " +
     "METRIC_AGGREGATE (METRIC_NAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
-    "UNITS, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, METRIC_MIN) " +
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "HOSTS_COUNT, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN) " +
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   public static final String UPSERT_AGGREGATE_RECORD_SQL = "UPSERT INTO " +
     "%s (METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, " +
-    "SERVER_TIME, UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN) " +
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    "SERVER_TIME, " +
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN," +
+    "METRIC_COUNT) " +
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
   /**
    * Retrieve a set of rows from metrics records table.
    */
   public static final String GET_METRIC_SQL = "SELECT METRIC_NAME, " +
-    "HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, UNITS, METRIC_AVG, " +
-    "METRIC_MAX, METRIC_MIN, METRICS FROM %s";
+    "HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN, " +
+    "METRIC_COUNT, " +
+    "METRICS " +
+    "FROM %s";
 
   public static final String GET_METRIC_AGGREGATE_ONLY_SQL = "SELECT " +
     "METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
-    "UNITS, METRIC_AVG, METRIC_MAX, METRIC_MIN FROM %s";
+    "UNITS, " +
+    "METRIC_SUM, " +
+    "METRIC_MAX, " +
+    "METRIC_MIN, " +
+    "METRIC_COUNT " +
+    "FROM %s";
 
   public static final String GET_CLUSTER_AGGREGATE_SQL =
     "SELECT METRIC_NAME, APP_ID, " +
-    "INSTANCE_ID, SERVER_TIME, METRIC_SUM, HOSTS_COUNT, METRIC_MAX, " +
-    "METRIC_MIN FROM METRIC_AGGREGATE";
+      "INSTANCE_ID, SERVER_TIME, " +
+      "METRIC_SUM, " +
+      "HOSTS_COUNT, " +
+      "METRIC_MAX, " +
+      "METRIC_MIN " +
+      "FROM METRIC_AGGREGATE";
 
-  public static final String METRICS_RECORD_TABLE_NAME =
-    "METRIC_RECORD";
+  public static final String METRICS_RECORD_TABLE_NAME = "METRIC_RECORD";
   public static final String METRICS_AGGREGATE_MINUTE_TABLE_NAME =
     "METRIC_RECORD_MINUTE";
   public static final String METRICS_AGGREGATE_HOURLY_TABLE_NAME =
@@ -134,7 +187,7 @@ public class PhoenixTransactSQL {
   public static final String DEFAULT_ENCODING = "FAST_DIFF";
 
   public static PreparedStatement prepareGetMetricsSqlStmt(
-      Connection connection, Condition condition) throws SQLException {
+    Connection connection, Condition condition) throws SQLException {
 
     if (condition.isEmpty()) {
       throw new IllegalArgumentException("Condition is empty.");
@@ -162,7 +215,7 @@ public class PhoenixTransactSQL {
     PreparedStatement stmt = connection.prepareStatement(sb.toString());
     int pos = 1;
     if (condition.getMetricNames() != null) {
-      for ( ; pos <= condition.getMetricNames().size(); pos++) {
+      for (; pos <= condition.getMetricNames().size(); pos++) {
         stmt.setString(pos, condition.getMetricNames().get(pos - 1));
       }
     }
@@ -190,7 +243,7 @@ public class PhoenixTransactSQL {
   }
 
   public static PreparedStatement prepareGetAggregateSqlStmt(
-      Connection connection, Condition condition) throws SQLException {
+    Connection connection, Condition condition) throws SQLException {
 
     if (condition.isEmpty()) {
       throw new IllegalArgumentException("Condition is empty.");
@@ -208,7 +261,7 @@ public class PhoenixTransactSQL {
     PreparedStatement stmt = connection.prepareStatement(sb.toString());
     int pos = 1;
     if (condition.getMetricNames() != null) {
-      for ( ; pos <= condition.getMetricNames().size(); pos++) {
+      for (; pos <= condition.getMetricNames().size(); pos++) {
         stmt.setString(pos, condition.getMetricNames().get(pos - 1));
       }
     }

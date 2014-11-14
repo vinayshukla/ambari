@@ -22,8 +22,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.fest.assertions.Assertions.assertThat;
-import static org.fest.assertions.MapAssert.entry;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.junit.Assert.assertEquals;
 
 public class TestMetric {
@@ -71,7 +71,7 @@ public class TestMetric {
     assertEquals("disk_free", m.getMetricname());
     assertEquals("0", m.getStarttime());
 
-    assertThat(m.getMetrics()).isNotEmpty().hasSize(4).includes(
+    assertThat(m.getMetrics()).isNotEmpty().hasSize(4).contains(
       entry("0", "5.35"),
       entry("5000", "5.35"),
       entry("10000", "5.35"),

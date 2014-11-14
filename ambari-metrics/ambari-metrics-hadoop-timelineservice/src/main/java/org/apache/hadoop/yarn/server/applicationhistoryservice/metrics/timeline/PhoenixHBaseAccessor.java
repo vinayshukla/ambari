@@ -36,6 +36,7 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricClusterAggregate;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.AbstractTimelineAggregator.MetricHostAggregate;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL;
@@ -68,26 +69,31 @@ public class PhoenixHBaseAccessor {
   private final Configuration hbaseConf;
   private final Configuration metricsConf;
   static final Log LOG = LogFactory.getLog(PhoenixHBaseAccessor.class);
-  private static final String connectionUrl = "jdbc:phoenix:%s:%s:%s";
-  private static final String ZOOKEEPER_CLIENT_PORT =
-    "hbase.zookeeper.property.clientPort";
-  private static final String ZOOKEEPER_QUORUM = "hbase.zookeeper.quorum";
-  private static final String ZNODE_PARENT = "zookeeper.znode.parent";
+
   static final int PHOENIX_MAX_MUTATION_STATE_SIZE = 50000;
   /**
    * 4 metrics/min * 60 * 24: Retrieve data for 1 day.
    */
-  public static int RESULTSET_LIMIT = 5760;
+  private static final int METRICS_PER_MINUTE = 4;
+  public static int RESULTSET_LIMIT = (int)TimeUnit.DAYS.toMinutes(1) *
+    METRICS_PER_MINUTE;
   private static ObjectMapper mapper;
 
   static {
     mapper = new ObjectMapper();
   }
-
   private static TypeReference<Map<Long, Double>> metricValuesTypeRef =
     new TypeReference<Map<Long, Double>>() {};
+  private final ConnectionProvider dataSource;
 
-  public PhoenixHBaseAccessor(Configuration hbaseConf, Configuration metricsConf) {
+  public PhoenixHBaseAccessor(Configuration hbaseConf,
+                              Configuration metricsConf){
+    this(hbaseConf, metricsConf, new DefaultPhoenixDataSource(hbaseConf));
+  }
+
+  public PhoenixHBaseAccessor(Configuration hbaseConf,
+                              Configuration metricsConf,
+                              ConnectionProvider dataSource) {
     this.hbaseConf = hbaseConf;
     this.metricsConf = metricsConf;
     RESULTSET_LIMIT = metricsConf.getInt(GLOBAL_RESULT_LIMIT, 5760);
@@ -97,6 +103,7 @@ public class PhoenixHBaseAccessor {
       LOG.error("Phoenix client jar not found in the classpath.", e);
       throw new IllegalStateException(e);
     }
+    this.dataSource = dataSource;
   }
 
   /**
@@ -105,31 +112,11 @@ public class PhoenixHBaseAccessor {
    * the Configuration object.
    * Phoenix already caches the HConnection between the client and HBase
    * cluster.
+   *
    * @return @java.sql.Connection
    */
   public Connection getConnection() {
-    Connection connection = null;
-    String zookeeperClientPort = hbaseConf.getTrimmed(ZOOKEEPER_CLIENT_PORT, "2181");
-    String zookeeperQuorum = hbaseConf.getTrimmed(ZOOKEEPER_QUORUM);
-    String znodeParent = hbaseConf.getTrimmed(ZNODE_PARENT, "/hbase");
-
-    if (zookeeperQuorum == null || zookeeperQuorum.isEmpty()) {
-      throw new IllegalStateException("Unable to find Zookeeper quorum to " +
-        "access HBase store using Phoenix.");
-    }
-
-    String url = String.format(connectionUrl, zookeeperQuorum,
-      zookeeperClientPort, znodeParent);
-
-    LOG.debug("Metric store connection url: " + url);
-
-    try {
-      connection = DriverManager.getConnection(url);
-    } catch (SQLException e) {
-      LOG.warn("Unable to connect to HBase store using Phoenix.", e);
-    }
-
-    return connection;
+    return dataSource.getConnection();
   }
 
   public static Map readMetricFromJSON(String json) throws IOException {
@@ -138,7 +125,7 @@ public class PhoenixHBaseAccessor {
 
   @SuppressWarnings("unchecked")
   static TimelineMetric getTimelineMetricFromResultSet(ResultSet rs)
-      throws SQLException, IOException {
+    throws SQLException, IOException {
     TimelineMetric metric = new TimelineMetric();
     metric.setMetricName(rs.getString("METRIC_NAME"));
     metric.setAppId(rs.getString("APP_ID"));
@@ -153,7 +140,7 @@ public class PhoenixHBaseAccessor {
   }
 
   static TimelineMetric getTimelineMetricKeyFromResultSet(ResultSet rs)
-      throws SQLException, IOException {
+    throws SQLException, IOException {
     TimelineMetric metric = new TimelineMetric();
     metric.setMetricName(rs.getString("METRIC_NAME"));
     metric.setAppId(rs.getString("APP_ID"));
@@ -165,11 +152,13 @@ public class PhoenixHBaseAccessor {
   }
 
   static MetricHostAggregate getMetricHostAggregateFromResultSet(ResultSet rs)
-      throws SQLException {
+    throws SQLException {
     MetricHostAggregate metricHostAggregate = new MetricHostAggregate();
-    metricHostAggregate.setSum(rs.getDouble("METRIC_AVG"));
+    metricHostAggregate.setSum(rs.getDouble("METRIC_SUM"));
     metricHostAggregate.setMax(rs.getDouble("METRIC_MAX"));
     metricHostAggregate.setMin(rs.getDouble("METRIC_MIN"));
+    metricHostAggregate.setNumberOfSamples(rs.getLong("METRIC_COUNT"));
+
     metricHostAggregate.setDeviation(0.0);
     return metricHostAggregate;
   }
@@ -199,7 +188,7 @@ public class PhoenixHBaseAccessor {
       stmt.executeUpdate(String.format(CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL,
         encoding, clusterMinTtl, compression));
       stmt.executeUpdate(String.format(CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL,
-          encoding, clusterHourTtl, compression));
+        encoding, clusterHourTtl, compression));
       conn.commit();
     } catch (SQLException sql) {
       LOG.warn("Error creating Metrics Schema in HBase using Phoenix.", sql);
@@ -222,7 +211,7 @@ public class PhoenixHBaseAccessor {
   }
 
   public void insertMetricRecords(TimelineMetrics metrics)
-      throws SQLException, IOException {
+    throws SQLException, IOException {
 
     List<TimelineMetric> timelineMetrics = metrics.getMetrics();
     if (timelineMetrics == null || timelineMetrics.isEmpty()) {
@@ -247,7 +236,9 @@ public class PhoenixHBaseAccessor {
         LOG.trace("host: " + metric.getHostName() + ", " +
           "metricName = " + metric.getMetricName() + ", " +
           "values: " + metric.getMetricValues());
-        Double[] aggregates = calculateAggregates(metric.getMetricValues());
+        Aggregator agg = new Aggregator();
+        double[] aggregates =  agg.calculateAggregates(
+          metric.getMetricValues());
 
         metricRecordStmt.setString(1, metric.getMetricName());
         //metricRecordTmpStmt.setString(1, metric.getMetricName());
@@ -268,10 +259,11 @@ public class PhoenixHBaseAccessor {
         metricRecordStmt.setDouble(9, aggregates[1]);
         //metricRecordTmpStmt.setDouble(9, aggregates[1]);
         metricRecordStmt.setDouble(10, aggregates[2]);
+        metricRecordStmt.setLong(11, (long)aggregates[3]);
         //metricRecordTmpStmt.setDouble(10, aggregates[2]);
         String json =
           TimelineUtils.dumpTimelineRecordtoJSON(metric.getMetricValues());
-        metricRecordStmt.setString(11, json);
+        metricRecordStmt.setString(12, json);
         //metricRecordTmpStmt.setString(11, json);
 
         try {
@@ -309,35 +301,10 @@ public class PhoenixHBaseAccessor {
     }
   }
 
-  private Double[] calculateAggregates(Map<Long, Double> metricValues) {
-    Double[] values = new Double[3];
-    Double max = Double.MIN_VALUE;
-    Double min = Double.MAX_VALUE;
-    Double avg = 0.0;
-    if (metricValues != null && !metricValues.isEmpty()) {
-      for (Double value : metricValues.values()) {
-        // TODO: Some nulls in data - need to investigate null values from host
-        if (value != null) {
-          if (value > max) {
-            max  = value;
-          }
-          if (value < min) {
-            min = value;
-          }
-          avg += value;
-        }
-      }
-      avg /= metricValues.values().size();
-    }
-    values[0] = max != Double.MIN_VALUE ? max : 0.0;
-    values[1] = min != Double.MAX_VALUE ? min : 0.0;
-    values[2] = avg;
-    return values;
-  }
 
   @SuppressWarnings("unchecked")
   public TimelineMetrics getMetricRecords(final Condition condition)
-      throws SQLException, IOException {
+    throws SQLException, IOException {
 
     if (condition.isEmpty()) {
       throw new SQLException("No filter criteria specified.");
@@ -382,8 +349,8 @@ public class PhoenixHBaseAccessor {
   }
 
   public void saveHostAggregateRecords(Map<TimelineMetric,
-      MetricHostAggregate> hostAggregateMap, String phoenixTableName)
-      throws SQLException {
+    MetricHostAggregate> hostAggregateMap, String phoenixTableName)
+    throws SQLException {
 
     if (hostAggregateMap != null && !hostAggregateMap.isEmpty()) {
       Connection conn = getConnection();
@@ -397,7 +364,7 @@ public class PhoenixHBaseAccessor {
           String.format(UPSERT_AGGREGATE_RECORD_SQL, phoenixTableName));
 
         for (Map.Entry<TimelineMetric, MetricHostAggregate> metricAggregate :
-            hostAggregateMap.entrySet()) {
+          hostAggregateMap.entrySet()) {
 
           TimelineMetric metric = metricAggregate.getKey();
           MetricHostAggregate hostAggregate = metricAggregate.getValue();
@@ -413,8 +380,10 @@ public class PhoenixHBaseAccessor {
           stmt.setDouble(7, hostAggregate.getSum());
           stmt.setDouble(8, hostAggregate.getMax());
           stmt.setDouble(9, hostAggregate.getMin());
+          stmt.setDouble(10, hostAggregate.getNumberOfSamples());
 
           try {
+            // TODO: Why this exception is swallowed
             stmt.executeUpdate();
           } catch (SQLException sql) {
             LOG.error(sql);
@@ -457,10 +426,11 @@ public class PhoenixHBaseAccessor {
 
   /**
    * Save Metric aggregate records.
+   *
    * @throws SQLException
    */
   public void saveClusterAggregateRecords(Map<TimelineClusterMetric,
-      MetricClusterAggregate> records) throws SQLException {
+    MetricClusterAggregate> records) throws SQLException {
     if (records == null || records.isEmpty()) {
       LOG.debug("Empty aggregate records.");
       return;
@@ -475,7 +445,7 @@ public class PhoenixHBaseAccessor {
       int rowCount = 0;
 
       for (Map.Entry<TimelineClusterMetric, MetricClusterAggregate>
-          aggregateEntry : records.entrySet()) {
+        aggregateEntry : records.entrySet()) {
         TimelineClusterMetric clusterMetric = aggregateEntry.getKey();
         MetricClusterAggregate aggregate = aggregateEntry.getValue();
 
@@ -533,7 +503,7 @@ public class PhoenixHBaseAccessor {
 
 
   public TimelineMetrics getAggregateMetricRecords(final Condition condition)
-      throws SQLException {
+    throws SQLException {
 
     if (condition.isEmpty()) {
       throw new SQLException("No filter criteria specified.");
@@ -556,8 +526,8 @@ public class PhoenixHBaseAccessor {
         metric.setTimestamp(rs.getLong("SERVER_TIME"));
         metric.setStartTime(rs.getLong("SERVER_TIME"));
         Map<Long, Double> valueMap = new HashMap<Long, Double>();
-        valueMap.put(rs.getLong("SERVER_TIME"), rs.getDouble("METRIC_SUM") /
-                                              rs.getInt("HOSTS_COUNT"));
+        valueMap.put(rs.getLong("SERVER_TIME"),
+          rs.getDouble("METRIC_SUM") / rs.getInt("HOSTS_COUNT"));
         metric.setMetricValues(valueMap);
 
         if (condition.isGrouped()) {
