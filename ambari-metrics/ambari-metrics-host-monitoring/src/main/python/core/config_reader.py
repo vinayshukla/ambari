@@ -24,8 +24,8 @@ import json
 import os
 
 config = ConfigParser.RawConfigParser()
-CONFIG_FILE_PATH = "/etc/metric-monitor/conf/metric_monitor.ini"
-METRIC_FILE_PATH = "/etc/metric-monitor/conf/metric_groups.conf"
+CONFIG_FILE_PATH = "/etc/ambari-metrics-monitor/conf/metric_monitor.ini"
+METRIC_FILE_PATH = "/etc/ambari-metrics-monitor/conf/metric_groups.conf"
 
 config_content = """
 [default]

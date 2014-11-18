@@ -18,4 +18,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-from resource_monitoring.core import *
+from core import *

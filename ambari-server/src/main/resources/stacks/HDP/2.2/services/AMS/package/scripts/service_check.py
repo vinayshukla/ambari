@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-'''
+"""
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
 distributed with this work for additional information
@@ -16,34 +15,5 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-'''
 
-import core
-from core.controller import Controller, Configuration
-import logging
-import signal
-import sys
-
-logger = logging.getLogger()
-
-def main(argv=None):
-  # Allow Ctrl-C
-  signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-  config = Configuration()
-  collector = Controller(config)
-
-  logger.setLevel(logging.DEBUG)
-  formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d - %(message)s")
-  stream_handler = logging.StreamHandler()
-  stream_handler.setFormatter(formatter)
-  logger.addHandler(stream_handler)
-  logger.info('Starting Server RPC Thread: %s' % ' '.join(sys.argv))
-
-  collector.start()
-  collector.start_emitter()
-
-
-if __name__ == '__main__':
-  main()
-
+"""

@@ -23,7 +23,7 @@
 <configuration>
   <property>
     <name>hbase.rootdir</name>
-    <value>file:///var/lib/hbase</value>
+    <value>file:///var/lib/ambari-metrics-collector/hbase</value>
     <description>
       AMS service uses HBase as default storage backend. Set the rootdir for
       HBase to either local filesystem path if using AMS in embedded mode or
@@ -34,7 +34,7 @@
   </property>
   <property>
     <name>hbase.tmp.dir</name>
-    <value>/tmp</value>
+    <value>/var/lib/ambari-metrics-collector/hbase-tmp</value>
     <description>
       Temporary directory on the local filesystem.
       Change this setting to point to a location more permanent
@@ -50,7 +50,7 @@
   </property>
   <property>
     <name>hbase.cluster.distributed</name>
-    <value>true</value>
+    <value>false</value>
     <description>
       The mode the cluster will be in. Possible values are false for
       standalone mode and true for distributed mode. If false, startup will run
@@ -82,12 +82,12 @@
   </property>
   <property>
     <name>hbase.master.info.port</name>
-    <value>90010</value>
+    <value>61310</value>
     <description>The port for the HBase Master web UI.</description>
   </property>
   <property>
     <name>hbase.regionserver.info.port</name>
-    <value>90030</value>
+    <value>61330</value>
     <description>The port for the HBase RegionServer web UI.</description>
   </property>
   <property>
@@ -222,5 +222,9 @@
       number of bytes. Value is checked by a thread that runs every
       hbase.server.thread.wakefrequency.
     </description>
+  </property>
+  <property>
+    <name>phoenix.query.spoolThresholdBytes</name>
+    <value>12582912</value>
   </property>
 </configuration>

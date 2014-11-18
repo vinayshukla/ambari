@@ -18,7 +18,6 @@ limitations under the License.
 
 """
 
-from resource_monitoring.core import *
 import os, sys
 path = os.path.abspath(__file__)
 path = os.path.join(os.path.dirname(os.path.dirname(path)), "psutil/build/")

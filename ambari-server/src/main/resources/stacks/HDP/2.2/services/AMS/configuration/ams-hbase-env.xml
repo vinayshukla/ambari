@@ -23,22 +23,22 @@
 <configuration>
   <property>
     <name>hbase_log_dir</name>
-    <value>/var/log/hbase-ams/</value>
+    <value>/var/log/ams-hbase/</value>
     <description>Log Directories for HBase.</description>
   </property>
   <property>
     <name>hbase_pid_dir</name>
-    <value>/var/run/hbase-ams/</value>
+    <value>/var/run/ams-hbase/</value>
     <description>Pid Directory for HBase.</description>
   </property>
   <property>
     <name>hbase_regionserver_heapsize</name>
-    <value>1024</value>
+    <value>1024m</value>
     <description>HBase RegionServer Heap Size.</description>
   </property>
   <property>
     <name>hbase_regionserver_xmn_max</name>
-    <value>512</value>
+    <value>512m</value>
     <description>HBase RegionServer maximum value for minimum heap size.</description>
   </property>
   <property>
@@ -48,7 +48,7 @@
   </property>
   <property>
     <name>hbase_master_heapsize</name>
-    <value>1024</value>
+    <value>1024m</value>
     <description>HBase Master Heap Size</description>
   </property>
   <property>
@@ -81,7 +81,7 @@
       # Below are what we set by default. May only work with SUN JVM.
       # For more on why as well as other possible settings,
       # see http://wiki.apache.org/hadoop/PerformanceTuning
-      export HBASE_OPTS="-XX:+UseConcMarkSweepGC -XX:ErrorFile={{log_dir}}/hs_err_pid%p.log"
+      export HBASE_OPTS="-XX:+UseConcMarkSweepGC -XX:ErrorFile={{hbase_log_dir}}/hs_err_pid%p.log"
       export SERVER_GC_OPTS="-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:{{log_dir}}/gc.log-`date +'%Y%m%d%H%M'`"
       # Uncomment below to enable java garbage collection logging.
       # export HBASE_OPTS="$HBASE_OPTS -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:$HBASE_HOME/logs/gc-hbase.log"
@@ -103,7 +103,7 @@
       # export HBASE_SSH_OPTS="-o ConnectTimeout=1 -o SendEnv=HBASE_CONF_DIR"
 
       # Where log files are stored. $HBASE_HOME/logs by default.
-      export HBASE_LOG_DIR={{log_dir}}
+      export HBASE_LOG_DIR={{hbase_log_dir}}
 
       # A string representing this instance of hbase. $USER by default.
       # export HBASE_IDENT_STRING=$USER
@@ -112,7 +112,7 @@
       # export HBASE_NICENESS=10
 
       # The directory where pid files are stored. /tmp by default.
-      export HBASE_PID_DIR={{pid_dir}}
+      export HBASE_PID_DIR={{hbase_pid_dir}}
 
       # Seconds to sleep between slave commands. Unset by default. This
       # can be useful in large clusters, where, e.g., slave rsyncs can

@@ -32,7 +32,7 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
       recursive = True
   )
 
-  Directory (params.tmp_dir,
+  Directory (params.hbase_tmp_dir,
              owner = params.hbase_user,
              recursive = True
   )
@@ -46,33 +46,33 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
 
   XmlConfig( "hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
-            configurations = params.config['configurations']['hbase-site'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-site'],
+            configurations = params.config['configurations']['ams-hbase-site'],
+            configuration_attributes=params.config['configuration_attributes']['ams-hbase-site'],
             owner = params.hbase_user,
             group = params.user_group
   )
 
-  XmlConfig( "hdfs-site.xml",
-            conf_dir = params.hbase_conf_dir,
-            configurations = params.config['configurations']['hdfs-site'],
-            configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
-            owner = params.hbase_user,
-            group = params.user_group
-  )
+  # XmlConfig( "hdfs-site.xml",
+  #           conf_dir = params.hbase_conf_dir,
+  #           configurations = params.config['configurations']['hdfs-site'],
+  #           configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+  #           owner = params.hbase_user,
+  #           group = params.user_group
+  # )
+  #
+  # XmlConfig("hdfs-site.xml",
+  #           conf_dir=params.hadoop_conf_dir,
+  #           configurations=params.config['configurations']['hdfs-site'],
+  #           configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
+  #           owner=params.hdfs_user,
+  #           group=params.user_group
+  # )
 
-  XmlConfig("hdfs-site.xml",
-            conf_dir=params.hadoop_conf_dir,
-            configurations=params.config['configurations']['hdfs-site'],
-            configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
-            owner=params.hdfs_user,
-            group=params.user_group
-  )
-
-  if 'hbase-policy' in params.config['configurations']:
+  if 'ams-hbase-policy' in params.config['configurations']:
     XmlConfig( "hbase-policy.xml",
             conf_dir = params.hbase_conf_dir,
-            configurations = params.config['configurations']['hbase-policy'],
-            configuration_attributes=params.config['configuration_attributes']['hbase-policy'],
+            configurations = params.config['configurations']['ams-hbase-policy'],
+            configuration_attributes=params.config['configuration_attributes']['ams-hbase-policy'],
             owner = params.hbase_user,
             group = params.user_group
     )
@@ -88,9 +88,9 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
        content=InlineTemplate(params.hbase_env_sh_template)
   )     
        
-  hbase_TemplateConfig( params.metric_prop_file_name,
-    tag = 'GANGLIA-MASTER' if name == 'master' else 'GANGLIA-RS'
-  )
+  # hbase_TemplateConfig( params.metric_prop_file_name,
+  #   tag = 'GANGLIA-MASTER' if name == 'master' else 'GANGLIA-RS'
+  # )
 
   hbase_TemplateConfig( 'regionservers')
 
@@ -98,12 +98,12 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
     hbase_TemplateConfig( format("hbase_{name}_jaas.conf"))
   
   if name != "client":
-    Directory( params.pid_dir,
+    Directory( params.hbase_pid_dir,
       owner = params.hbase_user,
       recursive = True
     )
   
-    Directory (params.log_dir,
+    Directory (params.hbase_log_dir,
       owner = params.hbase_user,
       recursive = True
     )
@@ -121,17 +121,17 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
       group=params.user_group,
       owner=params.hbase_user
     )
-  if name in ["master","regionserver"]:
-    params.HdfsDirectory(params.hbase_hdfs_root_dir,
-                         action="create_delayed",
-                         owner=params.hbase_user
-    )
-    params.HdfsDirectory(params.hbase_staging_dir,
-                         action="create_delayed",
-                         owner=params.hbase_user,
-                         mode=0711
-    )
-    params.HdfsDirectory(None, action="create")
+  # if name in ["master","regionserver"]:
+  #   params.HdfsDirectory(params.hbase_hdfs_root_dir,
+  #                        action="create_delayed",
+  #                        owner=params.hbase_user
+  #   )
+  #   params.HdfsDirectory(params.hbase_staging_dir,
+  #                        action="create_delayed",
+  #                        owner=params.hbase_user,
+  #                        mode=0711
+  #   )
+  #   params.HdfsDirectory(None, action="create")
 
 def hbase_TemplateConfig(name, 
                          tag=None
