@@ -34,8 +34,6 @@
       # The java implementation to use. Java 1.6 required.
       export JAVA_HOME={{java64_home}}
 
-      export JAVA_LIBRARY_PATH=${JAVA_LIBRARY_PATH}:{{hadoop_native_lib}}
-
       #TODO
     </value>
   </property>

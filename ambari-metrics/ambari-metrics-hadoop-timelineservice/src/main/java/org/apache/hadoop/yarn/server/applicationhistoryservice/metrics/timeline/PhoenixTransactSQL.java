@@ -242,23 +242,34 @@ public class PhoenixTransactSQL {
     int pos = 1;
     if (condition.getMetricNames() != null) {
       for (; pos <= condition.getMetricNames().size(); pos++) {
+        LOG.debug("Setting pos: " + pos + ", value = " + condition.getMetricNames().get(pos - 1));
         stmt.setString(pos, condition.getMetricNames().get(pos - 1));
       }
     }
     if (condition.getHostname() != null) {
+      LOG.debug("Setting pos: " + pos + ", value: " + condition.getHostname());
       stmt.setString(pos++, condition.getHostname());
     }
     // TODO: Upper case all strings on POST
     if (condition.getAppId() != null) {
-      stmt.setString(pos++, condition.getAppId().toLowerCase());
+      // TODO: fix case of appId coming from host metrics
+      String appId = condition.getAppId();
+      if (!condition.getAppId().equals("HOST")) {
+        appId = appId.toLowerCase();
+      }
+      LOG.debug("Setting pos: " + pos + ", value: " + appId);
+      stmt.setString(pos++, appId);
     }
     if (condition.getInstanceId() != null) {
+      LOG.debug("Setting pos: " + pos + ", value: " + condition.getInstanceId());
       stmt.setString(pos++, condition.getInstanceId());
     }
     if (condition.getStartTime() != null) {
+      LOG.debug("Setting pos: " + pos + ", value: " + condition.getStartTime());
       stmt.setLong(pos++, condition.getStartTime());
     }
     if (condition.getEndTime() != null) {
+      LOG.debug("Setting pos: " + pos + ", value: " + condition.getEndTime());
       stmt.setLong(pos, condition.getEndTime());
     }
     if (condition.getFetchSize() != null) {
@@ -267,6 +278,7 @@ public class PhoenixTransactSQL {
 
     return stmt;
   }
+
 
   public static PreparedStatement prepareGetAggregateSqlStmt(
     Connection connection, Condition condition) throws SQLException {

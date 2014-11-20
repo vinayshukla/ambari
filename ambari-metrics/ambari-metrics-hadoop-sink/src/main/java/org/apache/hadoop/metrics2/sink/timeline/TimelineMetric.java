@@ -127,7 +127,8 @@ public class TimelineMetric implements Comparable<TimelineMetric> {
     if (!metricName.equals(metric.metricName)) return false;
     if (hostName != null ? !hostName.equals(metric.hostName) : metric.hostName != null)
       return false;
-    if (!appId.equals(metric.appId)) return false;
+    if (appId != null ? !appId.equals(metric.appId) : metric.appId != null)
+      return false;
     if (instanceId != null ? !instanceId.equals(metric.instanceId) : metric.instanceId != null)
       return false;
     if (timestamp != metric.timestamp) return false;
@@ -140,7 +141,8 @@ public class TimelineMetric implements Comparable<TimelineMetric> {
     if (!metricName.equals(metric.metricName)) return false;
     if (hostName != null ? !hostName.equals(metric.hostName) : metric.hostName != null)
       return false;
-    if (!appId.equals(metric.appId)) return false;
+    if (appId != null ? !appId.equals(metric.appId) : metric.appId != null)
+      return false;
     if (instanceId != null ? !instanceId.equals(metric.instanceId) : metric.instanceId != null)
       return false;
 
@@ -150,7 +152,7 @@ public class TimelineMetric implements Comparable<TimelineMetric> {
   @Override
   public int hashCode() {
     int result = metricName.hashCode();
-    result = 31 * result + appId.hashCode();
+    result = 31 * result + (appId != null ? appId.hashCode() : 0);
     result = 31 * result + (instanceId != null ? instanceId.hashCode() : 0);
     result = 31 * result + (hostName != null ? hostName.hashCode() : 0);
     result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));

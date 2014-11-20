@@ -18,26 +18,8 @@
 
 {
    "host_metric_groups": {
-      "cpu_info": {
-         "collect_every": "15",
-         "metrics": [
-            {
-               "name": "cpu_user",
-               "value_threshold": "1.0"
-            }
-         ]
-      },
-      "disk_info": {
-         "collect_every": "30",
-         "metrics": [
-            {
-               "name": "disk_free",
-               "value_threshold": "5.0"
-            }
-         ]
-      },
-      "network_info": {
-         "collect_every": "20",
+      "all": {
+         "collect_every": "10",
          "metrics": [
             {
                "name": "bytes_out",

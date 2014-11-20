@@ -56,6 +56,8 @@
             </goals>
             <configuration>
               <outputDirectory>${project.build.directory}/lib</outputDirectory>
+              <includeScope>compile</includeScope>
+              <excludeScope>test</excludeScope>
             </configuration>
           </execution>
         </executions>
@@ -150,7 +152,7 @@
                 <source>
                   <location>target/embedded/${hbase.folder}</location>
                   <excludes>
-                    <exclude>target/embedded/${hbase.folder}/bin/*</exclude>
+                    <exclude>bin/*</exclude>
                   </excludes>
                 </source>
               </sources>
@@ -220,7 +222,17 @@
     <dependency>
       <groupId>org.apache.phoenix</groupId>
       <artifactId>phoenix-core</artifactId>
-      <version>4.2.0.2.2.0.0-2038</version>
+      <version>4.2.0.2.2.0.0-2041</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-annotations</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -322,6 +334,11 @@
     <dependency>
       <groupId>com.sun.jersey.contribs</groupId>
       <artifactId>jersey-guice</artifactId>
+      <version>1.11</version>
+    </dependency>
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-server</artifactId>
       <version>1.11</version>
     </dependency>
     <!-- 'mvn dependency:analyze' fails to detect use of this dependency -->

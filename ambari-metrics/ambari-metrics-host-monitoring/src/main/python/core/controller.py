@@ -70,7 +70,7 @@ class Controller(threading.Thread):
   def enqueque_events(self):
     # Queue events for up to a minute
     for event in self.events_cache:
-      t = Timer(event.get_collect_interval(), self.metric_collector.process_event(event))
+      t = Timer(event.get_collect_interval(), self.metric_collector.process_event, args=(event,))
       t.start()
     pass
 

@@ -74,7 +74,8 @@ class HostInfo():
       'mem_cached' : mem_stats.cached if hasattr(mem_stats, 'cached') else '',
       'swap_free' : swap_stats.free if hasattr(mem_stats, 'free') else '',
       'disk_free' : disk_usage.get("disk_free"),
-      'part_max_used' : disk_usage.get("max_part_used")[0],
+      # todo: cannot send string
+      #'part_max_used' : disk_usage.get("max_part_used")[0],
       'disk_total' : disk_usage.get("disk_total")
     }
   pass
@@ -127,8 +128,10 @@ class HostInfo():
     return { "disk_total" : bytes2human(combined_disk_total),
              "disk_used"  : bytes2human(combined_disk_used),
              "disk_free"  : bytes2human(combined_disk_free),
-             "disk_percent" : bytes2human(combined_disk_percent),
-             "max_part_used" : max_percent_usage }
+             "disk_percent" : bytes2human(combined_disk_percent)
+            # todo: cannot send string
+             #"max_part_used" : max_percent_usage }
+           }
   pass
 
   def get_host_static_info(self):

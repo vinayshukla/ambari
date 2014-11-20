@@ -95,8 +95,8 @@ class ApplicationMetricMap:
         timeline_metric = {
           "hostname" : self.hostname,
           "metricname" : metricId,
-          "appid" : self.get_app_id(appId),
-          "instanceid" : self.get_instance_id(appId),
+          "appid" : "HOST",
+          "instanceid" : "",
           "starttime" : self.get_start_time(appId, metricId),
           "metrics" : metricData
         }
@@ -124,4 +124,8 @@ class ApplicationMetricMap:
   def get_instance_id(self, app_id):
     parts = app_id.split("_")
     return parts[1] if len(parts) > 1 else ''
+  pass
+
+  def clear(self):
+    self.app_metric_map.clear()
   pass

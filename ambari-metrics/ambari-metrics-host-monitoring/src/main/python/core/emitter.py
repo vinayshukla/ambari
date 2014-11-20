@@ -55,7 +55,7 @@ class Emitter(threading.Thread):
           pass
           response = self.push_metrics(json_data)
 
-          if response and response.getcode() == '200':
+          if response and response.getcode() == 200:
             retry_count = MAX_RETRY_COUNT
             self.application_metric_map.clear()
             self.application_metric_map.release_lock()
@@ -83,7 +83,7 @@ class Emitter(threading.Thread):
     response = urllib2.urlopen(req, timeout=int(self.send_interval - 10))
     if response:
       logger.debug("POST response from server: retcode = {0}".format(response.getcode()))
-      logger.debug(response.read())
+      logger.debug(str(response.read()))
     pass
     return response
 
