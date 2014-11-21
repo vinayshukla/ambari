@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.TimelineMetricConfiguration.AGGREGATOR_CHECKPOINT_DELAY;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
@@ -42,7 +43,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   protected final PhoenixHBaseAccessor hBaseAccessor;
   private final Log LOG;
   private static final ObjectMapper mapper;
-  protected final long checkpointDelay;
+  protected final long checkpointDelayMillis;
   protected final Integer resultsetFetchSize;
   protected Configuration metricsConf;
 
@@ -54,8 +55,8 @@ public abstract class AbstractTimelineAggregator implements Runnable {
                                     Configuration metricsConf) {
     this.hBaseAccessor = hBaseAccessor;
     this.metricsConf = metricsConf;
-    this.checkpointDelay = metricsConf.getInt(AGGREGATOR_CHECKPOINT_DELAY,
-      120000);
+    this.checkpointDelayMillis = SECONDS.toMillis(
+      metricsConf.getInt(AGGREGATOR_CHECKPOINT_DELAY, 120));
     this.resultsetFetchSize = metricsConf.getInt(RESULTSET_FETCH_SIZE, 2000);
     this.LOG = LogFactory.getLog(this.getClass());
   }
@@ -63,7 +64,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   @Override
   public void run() {
     LOG.info("Started Timeline aggregator thread @ " + new Date());
-    Long SLEEP_INTERVAL = getSleepInterval();
+    Long SLEEP_INTERVAL = getSleepIntervalMillis();
 
     while (true) {
       long currentTime = System.currentTimeMillis();
@@ -80,7 +81,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
           // Assuming first run, save checkpoint and sleep.
           // Set checkpoint to 2 minutes in the past to allow the
           // agents/collectors to catch up
-          saveCheckPoint(currentTime - checkpointDelay);
+          saveCheckPoint(currentTime - checkpointDelayMillis);
         }
       } catch (IOException io) {
         LOG.warn("Unable to write last checkpoint time. Resuming sleep.", io);
@@ -131,7 +132,7 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   private boolean isLastCheckPointTooOld(long checkpoint) {
     return checkpoint != -1 &&
       ((System.currentTimeMillis() - checkpoint) >
-        getCheckpointCutOffInterval());
+        getCheckpointCutOffIntervalMillis());
   }
 
   private long readCheckPoint() {
@@ -164,12 +165,12 @@ public abstract class AbstractTimelineAggregator implements Runnable {
   // TODO: Abstract out doWork implementation for cluster and host levels
   protected abstract boolean doWork(long startTime, long endTime);
 
-  protected abstract Long getSleepInterval();
+  protected abstract Long getSleepIntervalMillis();
 
   protected abstract Integer getCheckpointCutOffMultiplier();
 
-  protected Long getCheckpointCutOffInterval() {
-    return getCheckpointCutOffMultiplier() * getSleepInterval();
+  protected Long getCheckpointCutOffIntervalMillis() {
+    return getCheckpointCutOffMultiplier() * getSleepIntervalMillis();
   }
 
   protected abstract boolean isDisabled();

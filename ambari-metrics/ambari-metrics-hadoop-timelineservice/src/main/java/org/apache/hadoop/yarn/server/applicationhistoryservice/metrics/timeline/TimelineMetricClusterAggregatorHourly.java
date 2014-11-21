@@ -32,6 +32,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.PhoenixHBaseAccessor.getMetricClusterAggregateFromResultSet;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
@@ -60,9 +61,9 @@ public class TimelineMetricClusterAggregatorHourly extends
   private static final String CLUSTER_AGGREGATOR_HOURLY_CHECKPOINT_FILE =
     "timeline-metrics-cluster-aggregator-hourly-checkpoint";
   private final String checkpointLocation;
-  private final long sleepInterval;
+  private final long sleepIntervalMillis;
   private final Integer checkpointCutOffMultiplier;
-  private long checkpointCutOffInterval;
+  private long checkpointCutOffIntervalMillis;
 
   public TimelineMetricClusterAggregatorHourly(
     PhoenixHBaseAccessor hBaseAccessor, Configuration metricsConf) {
@@ -74,9 +75,9 @@ public class TimelineMetricClusterAggregatorHourly extends
     checkpointLocation = FilenameUtils.concat(checkpointDir,
       CLUSTER_AGGREGATOR_HOURLY_CHECKPOINT_FILE);
 
-    sleepInterval = metricsConf.getLong
-      (CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600000l);
-    checkpointCutOffInterval = 7200000l;
+    sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
+      (CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600l));
+    checkpointCutOffIntervalMillis = 7200000l;
     checkpointCutOffMultiplier = metricsConf.getInt
       (CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
   }
@@ -202,8 +203,8 @@ public class TimelineMetricClusterAggregatorHourly extends
   }
 
   @Override
-  protected Long getSleepInterval() {
-    return sleepInterval;
+  protected Long getSleepIntervalMillis() {
+    return sleepIntervalMillis;
   }
 
   @Override
@@ -212,8 +213,8 @@ public class TimelineMetricClusterAggregatorHourly extends
   }
 
   @Override
-  protected Long getCheckpointCutOffInterval() {
-    return checkpointCutOffInterval;
+  protected Long getCheckpointCutOffIntervalMillis() {
+    return checkpointCutOffIntervalMillis;
   }
 
   @Override

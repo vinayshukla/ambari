@@ -21,7 +21,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
 /**
- * Configuration class that reads properties from ams-site.xml
+ * Configuration class that reads properties from ams-site.xml. All values
+ * for time or intervals are given in seconds.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving

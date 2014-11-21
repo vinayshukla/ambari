@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
@@ -54,8 +55,8 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
   private static final String CLUSTER_AGGREGATOR_CHECKPOINT_FILE =
     "timeline-metrics-cluster-aggregator-checkpoint";
   private final String checkpointLocation;
-  private final Long sleepInterval;
-  public final int timeSliceInterval;
+  private final Long sleepIntervalMillis;
+  public final int timeSliceIntervalMillis;
   private final Integer checkpointCutOffMultiplier;
 
   public TimelineMetricClusterAggregator(PhoenixHBaseAccessor hBaseAccessor,
@@ -68,8 +69,10 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
     checkpointLocation = FilenameUtils.concat(checkpointDir,
       CLUSTER_AGGREGATOR_CHECKPOINT_FILE);
 
-    sleepInterval = metricsConf.getLong(CLUSTER_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 120000l);
-    timeSliceInterval = metricsConf.getInt(CLUSTER_AGGREGATOR_TIMESLICE_INTERVAL, 15000);
+    sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
+      (CLUSTER_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 120l));
+    timeSliceIntervalMillis = (int)SECONDS.toMillis(metricsConf.getInt
+      (CLUSTER_AGGREGATOR_TIMESLICE_INTERVAL, 15));
     checkpointCutOffMultiplier =
       metricsConf.getInt(CLUSTER_AGGREGATOR_MINUTE_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
   }
@@ -108,8 +111,8 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
       // Create time slices
       long sliceStartTime = startTime;
       while (sliceStartTime < endTime) {
-        timeSlices.add(new Long[] { sliceStartTime, sliceStartTime + timeSliceInterval});
-        sliceStartTime += timeSliceInterval;
+        timeSlices.add(new Long[] { sliceStartTime, sliceStartTime + timeSliceIntervalMillis});
+        sliceStartTime += timeSliceIntervalMillis;
       }
 
       while (rs.next()) {
@@ -172,8 +175,8 @@ public class TimelineMetricClusterAggregator extends AbstractTimelineAggregator 
   }
 
   @Override
-  protected Long getSleepInterval() {
-    return sleepInterval;
+  protected Long getSleepIntervalMillis() {
+    return sleepIntervalMillis;
   }
 
   @Override

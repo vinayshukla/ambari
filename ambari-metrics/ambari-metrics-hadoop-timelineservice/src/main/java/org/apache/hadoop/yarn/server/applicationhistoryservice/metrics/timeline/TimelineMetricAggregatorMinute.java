@@ -32,6 +32,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.GET_METRIC_AGGREGATE_ONLY_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_MINUTE_TABLE_NAME;
@@ -48,7 +49,7 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
   private static final String MINUTE_AGGREGATE_CHECKPOINT_FILE =
     "timeline-metrics-host-aggregator-checkpoint";
   private final String checkpointLocation;
-  private final Long sleepInterval;
+  private final Long sleepIntervalMillis;
   private final Integer checkpointCutOffMultiplier;
 
   public TimelineMetricAggregatorMinute(PhoenixHBaseAccessor hBaseAccessor,
@@ -61,7 +62,8 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
     checkpointLocation = FilenameUtils.concat(checkpointDir,
       MINUTE_AGGREGATE_CHECKPOINT_FILE);
 
-    sleepInterval = metricsConf.getLong(HOST_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 300000l);  // 5 mins
+    sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
+      (HOST_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 300l));  // 5 mins
     checkpointCutOffMultiplier =
       metricsConf.getInt(HOST_AGGREGATOR_MINUTE_CHECKPOINT_CUTOFF_MULTIPLIER, 3);
   }
@@ -163,8 +165,8 @@ public class TimelineMetricAggregatorMinute extends AbstractTimelineAggregator {
   }
 
   @Override
-  protected Long getSleepInterval() {
-    return sleepInterval;
+  protected Long getSleepIntervalMillis() {
+    return sleepIntervalMillis;
   }
 
   @Override
