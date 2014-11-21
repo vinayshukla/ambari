@@ -52,9 +52,9 @@ class HostInfo():
       'cpu_wio' : cpu_times.iowait if hasattr(cpu_times, 'iowait') else '',
       'cpu_intr' : cpu_times.irq if hasattr(cpu_times, 'irq') else '',
       'cpu_sintr' : cpu_times.softirq if hasattr(cpu_times, 'softirq') else '',
-      'load_one' : load_avg[0] if hasattr(cpu_times, 'load_avg') else '',
-      'load_five' : load_avg[1] if hasattr(cpu_times, 'load_avg') else '',
-      'load_fifteen' : load_avg[2] if hasattr(cpu_times, 'load_avg') else ''
+      'load_one' : load_avg[0] if len(load_avg) > 0 else '',
+      'load_five' : load_avg[1] if len(load_avg) > 1 else '',
+      'load_fifteen' : load_avg[2] if len(load_avg) > 2 else ''
     }
   pass
 
