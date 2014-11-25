@@ -43,6 +43,7 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.ti
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.LOG;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_HOURLY_TABLE_NAME;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_MINUTE_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.NATIVE_TIME_RANGE_DELTA;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class ITMetricAggregator extends AbstractMiniHBaseClusterTest {
@@ -122,6 +123,7 @@ public class ITMetricAggregator extends AbstractMiniHBaseClusterTest {
     Condition condition = new Condition(null, null, null, null, startTime,
       endTime, null, true);
     condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
+      PhoenixTransactSQL.getNaiveTimeRangeHint(startTime, NATIVE_TIME_RANGE_DELTA),
       METRICS_AGGREGATE_MINUTE_TABLE_NAME));
 
     PreparedStatement pstmt = PhoenixTransactSQL.prepareGetMetricsSqlStmt
@@ -200,6 +202,7 @@ public class ITMetricAggregator extends AbstractMiniHBaseClusterTest {
     Condition condition = new Condition(null, null, null, null, startTime,
       endTime, null, true);
     condition.setStatement(String.format(GET_METRIC_AGGREGATE_ONLY_SQL,
+      PhoenixTransactSQL.getNaiveTimeRangeHint(startTime, NATIVE_TIME_RANGE_DELTA),
       METRICS_AGGREGATE_HOURLY_TABLE_NAME));
 
     PreparedStatement pstmt = PhoenixTransactSQL.prepareGetMetricsSqlStmt
