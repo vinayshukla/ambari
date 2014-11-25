@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
 
 import org.junit.runner.RunWith;
@@ -27,6 +26,5 @@ import static org.junit.runners.Suite.SuiteClasses;
 @RunWith(Suite.class)
 @SuiteClasses({ITMetricAggregator.class, ITClusterAggregator.class})
 public class TestClusterSuite {
-
 
 }

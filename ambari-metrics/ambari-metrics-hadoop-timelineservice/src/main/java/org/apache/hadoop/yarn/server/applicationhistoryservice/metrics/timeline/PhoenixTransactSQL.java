@@ -15,12 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -162,7 +160,7 @@ public class PhoenixTransactSQL {
   /**
    * Retrieve a set of rows from metrics records table.
    */
-  public static final String GET_METRIC_SQL = "SELECT METRIC_NAME, " +
+  public static final String GET_METRIC_SQL = "SELECT %s METRIC_NAME, " +
     "HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, START_TIME, UNITS, " +
     "METRIC_SUM, " +
     "METRIC_MAX, " +
@@ -171,7 +169,7 @@ public class PhoenixTransactSQL {
     "METRICS " +
     "FROM %s";
 
-  public static final String GET_METRIC_AGGREGATE_ONLY_SQL = "SELECT " +
+  public static final String GET_METRIC_AGGREGATE_ONLY_SQL = "SELECT %s " +
     "METRIC_NAME, HOSTNAME, APP_ID, INSTANCE_ID, SERVER_TIME, " +
     "UNITS, " +
     "METRIC_SUM, " +
@@ -180,22 +178,12 @@ public class PhoenixTransactSQL {
     "METRIC_COUNT " +
     "FROM %s";
 
-  public static final String GET_CLUSTER_AGGREGATE_SQL =
-    "SELECT METRIC_NAME, APP_ID, " +
-      "INSTANCE_ID, SERVER_TIME, " +
-      "UNITS, " +
-      "METRIC_SUM, " +
-      "HOSTS_COUNT, " +
-      "METRIC_MAX, " +
-      "METRIC_MIN " +
-      "FROM METRIC_AGGREGATE";
-
-  public static final String GET_CLUSTER_AGGREGATE_TIME_SQL =
-  "SELECT METRIC_NAME, APP_ID, " +
+  public static final String GET_CLUSTER_AGGREGATE_SQL = "SELECT %s " +
+    "METRIC_NAME, APP_ID, " +
     "INSTANCE_ID, SERVER_TIME, " +
     "UNITS, " +
     "METRIC_SUM, " +
-    "METRIC_COUNT, " +
+    "HOSTS_COUNT, " +
     "METRIC_MAX, " +
     "METRIC_MIN " +
     "FROM METRIC_AGGREGATE";
@@ -211,6 +199,15 @@ public class PhoenixTransactSQL {
     "METRIC_AGGREGATE_HOURLY";
   public static final String DEFAULT_TABLE_COMPRESSION = "SNAPPY";
   public static final String DEFAULT_ENCODING = "FAST_DIFF";
+  public static final long NATIVE_TIME_RANGE_DELTA = 120000; // 2 minutes
+
+  /** Filter to optimize HBase scan by using file timestamps. This prevents
+   * a full table scan of metric records.
+   * @return Phoenix Hint String
+   */
+  public static String getNaiveTimeRangeHint(Long startTime, Long delta) {
+    return String.format("/*+ NATIVE_TIME_RANGE(%s) */", (startTime - delta));
+  }
 
   public static PreparedStatement prepareGetMetricsSqlStmt(
     Connection connection, Condition condition) throws SQLException {
@@ -218,9 +215,13 @@ public class PhoenixTransactSQL {
     if (condition.isEmpty()) {
       throw new IllegalArgumentException("Condition is empty.");
     }
-    String stmtStr = String.format(GET_METRIC_SQL, METRICS_RECORD_TABLE_NAME);
+    String stmtStr;
     if (condition.getStatement() != null) {
       stmtStr = condition.getStatement();
+    } else {
+      stmtStr = String.format(GET_METRIC_SQL,
+        getNaiveTimeRangeHint(condition.getStartTime(), NATIVE_TIME_RANGE_DELTA),
+        METRICS_RECORD_TABLE_NAME);
     }
 
     StringBuilder sb = new StringBuilder(stmtStr);

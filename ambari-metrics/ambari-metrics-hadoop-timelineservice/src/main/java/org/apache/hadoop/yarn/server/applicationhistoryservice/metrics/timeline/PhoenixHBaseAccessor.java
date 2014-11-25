@@ -225,14 +225,11 @@ public class PhoenixHBaseAccessor {
 
     Connection conn = getConnection();
     PreparedStatement metricRecordStmt = null;
-    PreparedStatement metricRecordTmpStmt = null;
     long currentTime = System.currentTimeMillis();
 
     try {
       metricRecordStmt = conn.prepareStatement(String.format(
         UPSERT_METRICS_SQL, METRICS_RECORD_TABLE_NAME));
-      /*metricRecordTmpStmt = conn.prepareStatement(String.format
-        (UPSERT_METRICS_SQL, METRICS_RECORD_CACHE_TABLE_NAME));*/
 
       for (TimelineMetric metric : timelineMetrics) {
         metricRecordStmt.clearParameters();
@@ -245,34 +242,22 @@ public class PhoenixHBaseAccessor {
           metric.getMetricValues());
 
         metricRecordStmt.setString(1, metric.getMetricName());
-        //metricRecordTmpStmt.setString(1, metric.getMetricName());
         metricRecordStmt.setString(2, metric.getHostName());
-        //metricRecordTmpStmt.setString(2, metric.getHostName());
         metricRecordStmt.setString(3, metric.getAppId());
-        //metricRecordTmpStmt.setString(3, metric.getAppId());
         metricRecordStmt.setString(4, metric.getInstanceId());
-        //metricRecordTmpStmt.setString(4, metric.getInstanceId());
         metricRecordStmt.setLong(5, currentTime);
-        //metricRecordTmpStmt.setLong(5, currentTime);
         metricRecordStmt.setLong(6, metric.getStartTime());
-        //metricRecordTmpStmt.setLong(6, metric.getStartTime());
         metricRecordStmt.setString(7, metric.getType());
-        //metricRecordTmpStmt.setString(7, metric.getType());
         metricRecordStmt.setDouble(8, aggregates[0]);
-        //metricRecordTmpStmt.setDouble(8, aggregates[0]);
         metricRecordStmt.setDouble(9, aggregates[1]);
-        //metricRecordTmpStmt.setDouble(9, aggregates[1]);
         metricRecordStmt.setDouble(10, aggregates[2]);
         metricRecordStmt.setLong(11, (long)aggregates[3]);
-        //metricRecordTmpStmt.setDouble(10, aggregates[2]);
         String json =
           TimelineUtils.dumpTimelineRecordtoJSON(metric.getMetricValues());
         metricRecordStmt.setString(12, json);
-        //metricRecordTmpStmt.setString(11, json);
 
         try {
           metricRecordStmt.executeUpdate();
-          //metricRecordTmpStmt.executeUpdate();
         } catch (SQLException sql) {
           LOG.error(sql);
         }
@@ -284,13 +269,6 @@ public class PhoenixHBaseAccessor {
       if (metricRecordStmt != null) {
         try {
           metricRecordStmt.close();
-        } catch (SQLException e) {
-          // Ignore
-        }
-      }
-      if (metricRecordTmpStmt != null) {
-        try {
-          metricRecordTmpStmt.close();
         } catch (SQLException e) {
           // Ignore
         }

@@ -15,9 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline;
-
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
 import com.google.common.collect.Maps;
 import org.apache.hadoop.hbase.HConstants;
@@ -30,15 +28,18 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-
 import static org.apache.phoenix.util.TestUtil.TEST_PROPERTIES;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class AbstractMiniHbaseClusterTest extends BaseTest {
+public abstract class AbstractMiniHBaseClusterTest extends BaseTest {
 
   protected static final long BATCH_SIZE = 3;
 
@@ -65,10 +66,12 @@ public abstract class AbstractMiniHbaseClusterTest extends BaseTest {
   }
 
   public static Map<String, String> getDefaultProps() {
-    Map<String, String> props = Maps.newHashMapWithExpectedSize(5);
+    Map<String, String> props = new HashMap<String, String>();
     // Must update config before starting server
     props.put(QueryServices.STATS_USE_CURRENT_TIME_ATTRIB,
       Boolean.FALSE.toString());
+    props.put("java.security.krb5.realm", "");
+    props.put("java.security.krb5.kdc", "");
     return props;
   }
 

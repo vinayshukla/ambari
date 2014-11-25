@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestApplicationHistoryManagerImpl extends
@@ -52,6 +53,7 @@ public class TestApplicationHistoryManagerImpl extends
   }
 
   @Test
+  @Ignore
   public void testApplicationReport() throws IOException, YarnException {
     ApplicationId appId = null;
     appId = ApplicationId.newInstance(0, 1);
