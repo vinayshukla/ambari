@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -24,6 +25,7 @@ import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
+
 import java.io.IOException;
 import java.net.URL;
 import java.sql.SQLException;
@@ -31,9 +33,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.HBASE_SITE_CONFIGURATION_FILE;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE;
+
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.Condition;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HBASE_SITE_CONFIGURATION_FILE;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.METRICS_SITE_CONFIGURATION_FILE;
 
 public class HBaseTimelineMetricStore extends AbstractService
     implements TimelineMetricStore {
@@ -82,7 +88,7 @@ public class HBaseTimelineMetricStore extends AbstractService
                                    Configuration metricsConf) {
     hBaseAccessor = new PhoenixHBaseAccessor(hbaseConf, metricsConf);
     hBaseAccessor.initMetricSchema();
-
+//...BUG...
     // Start the cluster aggregator
     TimelineMetricClusterAggregator minuteClusterAggregator =
       new TimelineMetricClusterAggregator(hBaseAccessor, metricsConf);
@@ -100,16 +106,18 @@ public class HBaseTimelineMetricStore extends AbstractService
     }
 
     // Start the 5 minute aggregator
-    TimelineMetricAggregatorMinute minuteHostAggregator =
-      new TimelineMetricAggregatorMinute(hBaseAccessor, metricsConf);
+    TimelineMetricAggregator minuteHostAggregator =
+      TimelineMetricAggregatorFactory.createTimelineMetricAggregatorMinute
+        (hBaseAccessor, metricsConf);
     if (!minuteHostAggregator.isDisabled()) {
       Thread minuteAggregatorThread = new Thread(minuteHostAggregator);
       minuteAggregatorThread.start();
     }
 
     // Start hourly host aggregator
-    TimelineMetricAggregatorHourly hourlyHostAggregator =
-      new TimelineMetricAggregatorHourly(hBaseAccessor, metricsConf);
+    TimelineMetricAggregator hourlyHostAggregator =
+      TimelineMetricAggregatorFactory.createTimelineMetricAggregatorHourly
+        (hBaseAccessor, metricsConf);
     if (!hourlyHostAggregator.isDisabled()) {
       Thread aggregatorHourlyThread = new Thread(hourlyHostAggregator);
       aggregatorHourlyThread.start();

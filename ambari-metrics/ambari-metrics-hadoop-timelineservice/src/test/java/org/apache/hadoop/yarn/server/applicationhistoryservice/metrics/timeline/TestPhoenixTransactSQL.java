@@ -24,7 +24,7 @@ import java.util.Arrays;
 
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.Condition;
 
-public class TestPhoenixTransactSQL extends AbstractMiniHBaseClusterTest {
+public class TestPhoenixTransactSQL {
   @Test
   public void testConditionClause() throws Exception {
     Condition condition = new Condition(

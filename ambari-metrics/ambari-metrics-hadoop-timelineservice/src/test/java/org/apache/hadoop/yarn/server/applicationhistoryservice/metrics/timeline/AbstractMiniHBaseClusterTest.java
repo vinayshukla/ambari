@@ -15,99 +15,96 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline;
 
-import org.apache.phoenix.jdbc.PhoenixEmbeddedDriver;
-import org.apache.phoenix.jdbc.PhoenixTestDriver;
+
+import com.google.common.collect.Maps;
+import org.apache.hadoop.hbase.HConstants;
+import org.apache.phoenix.hbase.index.write.IndexWriterUtils;
 import org.apache.phoenix.query.BaseTest;
+import org.apache.phoenix.query.QueryServices;
 import org.apache.phoenix.util.PropertiesUtil;
 import org.apache.phoenix.util.ReadOnlyProps;
-import org.apache.phoenix.util.TestUtil;
 import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
+import java.sql.*;
+import java.util.Map;
+import java.util.Properties;
 
-import static org.apache.phoenix.util.PhoenixRuntime.TENANT_ID_ATTRIB;
 import static org.apache.phoenix.util.TestUtil.TEST_PROPERTIES;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class AbstractMiniHBaseClusterTest extends BaseTest {
+public abstract class AbstractMiniHbaseClusterTest extends BaseTest {
 
-  protected static String getUrl() {
-    return TestUtil.PHOENIX_CONNECTIONLESS_JDBC_URL;
+  protected static final long BATCH_SIZE = 3;
+
+  @BeforeClass
+  public static void doSetup() throws Exception {
+    Map<String, String> props = getDefaultProps();
+    props.put(QueryServices.QUEUE_SIZE_ATTRIB, Integer.toString(5000));
+    props.put(IndexWriterUtils.HTABLE_THREAD_KEY, Integer.toString(100));
+    // Make a small batch size to test multiple calls to reserve sequences
+    props.put(QueryServices.SEQUENCE_CACHE_SIZE_ATTRIB,
+      Long.toString(BATCH_SIZE));
+    // Must update config before starting server
+    setUpTestDriver(new ReadOnlyProps(props.entrySet().iterator()));
   }
 
-  protected static String getUrl(String tenantId) {
-    return getUrl() + ';' + TENANT_ID_ATTRIB + '=' + tenantId;
-  }
-
-  protected static PhoenixTestDriver driver;
-
-  private static void startServer(String url) throws Exception {
-    assertNull(driver);
-    // only load the test driver if we are testing locally - for integration tests, we want to
-    // test on a wider scale
-    if (PhoenixEmbeddedDriver.isTestUrl(url)) {
-      driver = initDriver(ReadOnlyProps.EMPTY_PROPS);
-      assertTrue(DriverManager.getDriver(url) == driver);
-      driver.connect(url, PropertiesUtil.deepCopy(TEST_PROPERTIES));
-    }
-  }
-
-  protected static synchronized PhoenixTestDriver initDriver(ReadOnlyProps props) throws Exception {
-    if (driver == null) {
-      driver = new PhoenixTestDriver(props);
-      DriverManager.registerDriver(driver);
-    }
-    return driver;
-  }
-
-  private String connUrl;
-
-  @Before
-  public void setup() throws Exception {
-    connUrl = getUrl();
-    startServer(connUrl);
-  }
-
-  @Test
-  public void testStorageSystemInitialized() throws Exception {
-    String sampleDDL = "CREATE TABLE TEST_METRICS (TEST_COLUMN VARCHAR " +
-      "CONSTRAINT pk PRIMARY KEY (TEST_COLUMN)) DATA_BLOCK_ENCODING='FAST_DIFF', " +
-      "IMMUTABLE_ROWS=true, TTL=86400, COMPRESSION='SNAPPY'";
-
-    Connection conn = null;
-    PreparedStatement stmt = null;
-    try {
-      conn = DriverManager.getConnection(connUrl);
-      stmt = conn.prepareStatement(sampleDDL);
-      stmt.execute();
-      conn.commit();
-    } finally {
-      if (stmt != null) {
-        stmt.close();
-      }
-      if (conn != null) {
-        conn.close();
-      }
-    }
+  @AfterClass
+  public static void doTeardown() throws Exception {
+    dropNonSystemTables();
   }
 
   @After
-  public void tearDown() throws Exception {
-    if (driver != null) {
-      try {
-        driver.close();
-      } finally {
-        PhoenixTestDriver phoenixTestDriver = driver;
-        driver = null;
-        DriverManager.deregisterDriver(phoenixTestDriver);
-      }
-    }
+  public void cleanUpAfterTest() throws Exception {
+    deletePriorTables(HConstants.LATEST_TIMESTAMP, getUrl());
   }
+
+  public static Map<String, String> getDefaultProps() {
+    Map<String, String> props = Maps.newHashMapWithExpectedSize(5);
+    // Must update config before starting server
+    props.put(QueryServices.STATS_USE_CURRENT_TIME_ATTRIB,
+      Boolean.FALSE.toString());
+    return props;
+  }
+
+  protected Connection getConnection(String url) throws SQLException {
+    Properties props = PropertiesUtil.deepCopy(TEST_PROPERTIES);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
+    return conn;
+  }
+
+  /**
+   * A canary test. Will show if the infrastructure is set-up correctly.
+   */
+  @Test
+  public void testClusterOK() throws Exception {
+    Connection conn = getConnection(getUrl());
+    conn.setAutoCommit(true);
+
+    String sampleDDL = "CREATE TABLE TEST_METRICS " +
+      "(TEST_COLUMN VARCHAR " +
+      "CONSTRAINT pk PRIMARY KEY (TEST_COLUMN)) " +
+      "DATA_BLOCK_ENCODING='FAST_DIFF', IMMUTABLE_ROWS=true, " +
+      "TTL=86400, COMPRESSION='NONE' ";
+
+    Statement stmt = conn.createStatement();
+    stmt.executeUpdate(sampleDDL);
+    conn.commit();
+
+    ResultSet rs = stmt.executeQuery(
+      "SELECT COUNT(TEST_COLUMN) FROM TEST_METRICS");
+
+    rs.next();
+    long l = rs.getLong(1);
+    assertThat(l).isGreaterThanOrEqualTo(0);
+
+    stmt.execute("DROP TABLE TEST_METRICS");
+    conn.close();
+  }
+
 }

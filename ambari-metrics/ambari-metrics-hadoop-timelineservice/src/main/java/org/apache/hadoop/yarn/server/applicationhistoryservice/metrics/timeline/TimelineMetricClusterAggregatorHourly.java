@@ -24,11 +24,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,19 +37,7 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.PhoenixTransactSQL.*;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricClusterAggregator.TimelineClusterMetric;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.TimelineMetricConfiguration.*;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricConfiguration
-  .CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricConfiguration.CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricConfiguration.DEFAULT_CHECKPOINT_LOCATION;
-import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricConfiguration
-  .TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR;
 
 public class TimelineMetricClusterAggregatorHourly extends
   AbstractTimelineAggregator {
@@ -77,7 +62,8 @@ public class TimelineMetricClusterAggregatorHourly extends
 
     sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
       (CLUSTER_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600l));
-    checkpointCutOffIntervalMillis = 7200000l;
+    checkpointCutOffIntervalMillis =  SECONDS.toMillis(metricsConf.getLong
+      (CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_INTERVAL, 7200l));
     checkpointCutOffMultiplier = metricsConf.getInt
       (CLUSTER_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
   }
@@ -88,60 +74,31 @@ public class TimelineMetricClusterAggregatorHourly extends
   }
 
   @Override
-  protected boolean doWork(long startTime, long endTime) {
-    LOG.info("Start aggregation cycle @ " + new Date() + ", " +
-      "startTime = " + new Date(startTime) + ", endTime = " + new Date
-      (endTime));
-
-    boolean success = true;
-    Condition condition = prepareMetricQueryCondition(startTime, endTime);
-
-    Connection conn = null;
-    PreparedStatement stmt = null;
-
-    try {
-      conn = hBaseAccessor.getConnection();
-      stmt = prepareGetMetricsSqlStmt(conn, condition);
-
-      ResultSet rs = stmt.executeQuery();
+  protected void aggregate(ResultSet rs, long startTime, long endTime)
+    throws SQLException, IOException {
       Map<TimelineClusterMetric, MetricHostAggregate> hostAggregateMap =
         aggregateMetricsFromResultSet(rs);
 
-      LOG.info("Saving " + hostAggregateMap.size() + " metric aggregates.");
-
-      hBaseAccessor.saveClusterAggregateHourlyRecords(
-        hostAggregateMap,
-        METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_NAME);
-
-    } catch (SQLException e) {
-      LOG.error("Exception during aggregating metrics.", e);
-      success = false;
-    } catch (IOException e) {
-      LOG.error("Exception during aggregating metrics.", e);
-      success = false;
-    } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException e) {
-          // Ignore
-        }
-      }
-      if (conn != null) {
-        try {
-          conn.close();
-        } catch (SQLException sql) {
-          // Ignore
-        }
-      }
-    }
-
-    LOG.info("End aggregation cycle @ " + new Date());
-    return success;
+    LOG.info("Saving " + hostAggregateMap.size() + " metric aggregates.");
+    hBaseAccessor.saveClusterAggregateHourlyRecords(hostAggregateMap,
+      METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_NAME);
   }
 
-  // should rewrite from host agg to cluster agg
-  //
+  @Override
+  protected Condition prepareMetricQueryCondition(long startTime,
+                                                  long endTime) {
+    Condition condition = new Condition(null, null, null, null, startTime,
+      endTime, null, true);
+    condition.setNoLimit();
+    condition.setFetchSize(resultsetFetchSize);
+    condition.setStatement(GET_CLUSTER_AGGREGATE_SQL);
+    condition.addOrderByColumn("METRIC_NAME");
+    condition.addOrderByColumn("APP_ID");
+    condition.addOrderByColumn("INSTANCE_ID");
+    condition.addOrderByColumn("SERVER_TIME");
+    return condition;
+  }
+
   private Map<TimelineClusterMetric, MetricHostAggregate>
   aggregateMetricsFromResultSet(ResultSet rs) throws IOException, SQLException {
 
@@ -187,19 +144,6 @@ public class TimelineMetricClusterAggregatorHourly extends
     agg.updateMin(currentClusterAggregate.getMin());
     agg.updateSum(currentClusterAggregate.getSum());
     agg.updateNumberOfSamples(currentClusterAggregate.getNumberOfHosts());
-  }
-
-  private Condition prepareMetricQueryCondition(long startTime, long endTime) {
-    Condition condition = new Condition
-      (null, null, null, null, startTime, endTime, null, true);
-    condition.setNoLimit();
-    condition.setFetchSize(resultsetFetchSize);
-    condition.setStatement(GET_CLUSTER_AGGREGATE_SQL);
-    condition.addOrderByColumn("METRIC_NAME");
-    condition.addOrderByColumn("APP_ID");
-    condition.addOrderByColumn("INSTANCE_ID");
-    condition.addOrderByColumn("SERVER_TIME");
-    return condition;
   }
 
   @Override

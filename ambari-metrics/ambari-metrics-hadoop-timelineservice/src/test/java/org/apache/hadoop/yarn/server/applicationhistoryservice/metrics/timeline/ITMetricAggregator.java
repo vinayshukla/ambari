@@ -1,31 +1,50 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.sql.*;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
 import static junit.framework.Assert.*;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline.PhoenixTransactSQL.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestHBaseAccessor {
-  private static String MY_LOCAL_URL =
-    "jdbc:phoenix:c6503.ambari.apache.org:" + 2181 + ":/hbase";
+public class ITMetricAggregator extends AbstractMiniHbaseClusterTest {
   private Connection conn;
   private PhoenixHBaseAccessor hdb;
-
 
   @Before
   public void setUp() throws Exception {
     hdb = createTestableHBaseAccessor();
+    // inits connection, starts mini cluster
     conn = getConnection(getUrl());
-    Statement stmt = conn.createStatement();
 
     hdb.initMetricSchema();
   }
@@ -45,32 +64,8 @@ public class TestHBaseAccessor {
     stmt.close();
     conn.close();
   }
-  /**
-   * A canary test.
-   *
-   * @throws Exception
-   */
+
   @Test
-  public void testClusterOK() throws Exception {
-    Connection conn = getConnection(getUrl());
-    Statement stmt = conn.createStatement();
-    String sampleDDL = "CREATE TABLE TEST_METRICS (TEST_COLUMN VARCHAR " +
-      "CONSTRAINT pk PRIMARY KEY (TEST_COLUMN)) " +
-      "DATA_BLOCK_ENCODING='FAST_DIFF', " +
-      "IMMUTABLE_ROWS=true, TTL=86400, COMPRESSION='SNAPPY'";
-
-    stmt.executeUpdate(sampleDDL);
-    ResultSet rs = stmt.executeQuery(
-      "SELECT COUNT(TEST_COLUMN) FROM TEST_METRICS");
-
-    rs.next();
-    long l = rs.getLong(1);
-    assertThat(l).isGreaterThanOrEqualTo(0);
-
-    stmt.execute("DROP TABLE TEST_METRICS");
-  }
-
-  //  @Test
   public void testShouldInsertMetrics() throws Exception {
     // GIVEN
 
@@ -93,11 +88,13 @@ public class TestHBaseAccessor {
       .containsExactlyElementsOf(recordRead.getMetrics());
   }
 
-  //  @Test
+  @Test
   public void testShouldAggregateMinuteProperly() throws Exception {
     // GIVEN
-    TimelineMetricAggregatorMinute aggregatorMinute =
-      new TimelineMetricAggregatorMinute(hdb, new Configuration());
+//    TimelineMetricAggregatorMinute aggregatorMinute =
+//      new TimelineMetricAggregatorMinute(hdb, new Configuration());
+    TimelineMetricAggregator aggregatorMinute = TimelineMetricAggregatorFactory
+      .createTimelineMetricAggregatorMinute(hdb, new Configuration());
 
     long startTime = System.currentTimeMillis();
     long ctime = startTime;
@@ -121,14 +118,14 @@ public class TestHBaseAccessor {
     PreparedStatement pstmt = PhoenixTransactSQL.prepareGetMetricsSqlStmt
       (conn, condition);
     ResultSet rs = pstmt.executeQuery();
-    AbstractTimelineAggregator.MetricHostAggregate expectedAggregate =
+    MetricHostAggregate expectedAggregate =
       createMetricHostAggregate(2.0, 0.0, 20, 15.0);
 
     int count = 0;
     while (rs.next()) {
       TimelineMetric currentMetric =
         PhoenixHBaseAccessor.getTimelineMetricKeyFromResultSet(rs);
-      AbstractTimelineAggregator.MetricHostAggregate currentHostAggregate =
+      MetricHostAggregate currentHostAggregate =
         PhoenixHBaseAccessor.getMetricHostAggregateFromResultSet(rs);
 
       if ("disk_free".equals(currentMetric.getMetricName())) {
@@ -152,18 +149,21 @@ public class TestHBaseAccessor {
     assertEquals("Two aggregated entries expected", 2, count);
   }
 
-  //  @Test
+  @Test
   public void testShouldAggregateHourProperly() throws Exception {
     // GIVEN
-    TimelineMetricAggregatorHourly aggregator =
-      new TimelineMetricAggregatorHourly(hdb, new Configuration());
+//    TimelineMetricAggregatorHourly aggregator =
+//      new TimelineMetricAggregatorHourly(hdb, new Configuration());
+
+    TimelineMetricAggregator aggregator = TimelineMetricAggregatorFactory
+      .createTimelineMetricAggregatorHourly(hdb, new Configuration());
     long startTime = System.currentTimeMillis();
 
-    AbstractTimelineAggregator.MetricHostAggregate expectedAggregate =
+    MetricHostAggregate expectedAggregate =
       createMetricHostAggregate(2.0, 0.0, 20, 15.0);
-    Map<TimelineMetric, AbstractTimelineAggregator.MetricHostAggregate>
+    Map<TimelineMetric, MetricHostAggregate>
       aggMap = new HashMap<TimelineMetric,
-      AbstractTimelineAggregator.MetricHostAggregate>();
+      MetricHostAggregate>();
 
     int min_5 = 5 * 60 * 1000;
     long ctime = startTime - min_5;
@@ -200,7 +200,7 @@ public class TestHBaseAccessor {
     while (rs.next()) {
       TimelineMetric currentMetric =
         PhoenixHBaseAccessor.getTimelineMetricKeyFromResultSet(rs);
-      AbstractTimelineAggregator.MetricHostAggregate currentHostAggregate =
+      MetricHostAggregate currentHostAggregate =
         PhoenixHBaseAccessor.getMetricHostAggregateFromResultSet(rs);
 
       if ("disk_used".equals(currentMetric.getMetricName())) {
@@ -223,11 +223,11 @@ public class TestHBaseAccessor {
     return metric;
   }
 
-  private AbstractTimelineAggregator.MetricHostAggregate
+  private MetricHostAggregate
   createMetricHostAggregate(double max, double min, int numberOfSamples,
                             double sum) {
-    AbstractTimelineAggregator.MetricHostAggregate expectedAggregate =
-      new AbstractTimelineAggregator.MetricHostAggregate();
+    MetricHostAggregate expectedAggregate =
+      new MetricHostAggregate();
     expectedAggregate.setMax(max);
     expectedAggregate.setMin(min);
     expectedAggregate.setNumberOfSamples(numberOfSamples);
@@ -237,10 +237,14 @@ public class TestHBaseAccessor {
   }
 
   private PhoenixHBaseAccessor createTestableHBaseAccessor() {
+    Configuration metricsConf = new Configuration();
+    metricsConf.set(
+      TimelineMetricConfiguration.HBASE_COMPRESSION_SCHEME, "NONE");
+
     return
       new PhoenixHBaseAccessor(
         new Configuration(),
-        new Configuration(),
+        metricsConf,
         new ConnectionProvider() {
           @Override
           public Connection getConnection() {
@@ -262,36 +266,6 @@ public class TestHBaseAccessor {
         return o1.equalsExceptTime(o2) ? 0 : 1;
       }
     };
-
-  private TimelineMetrics prepareSingleTimelineMetric(long startTime,
-                                                      String host,
-                                                      double val) {
-    TimelineMetrics m = new TimelineMetrics();
-    m.setMetrics(Arrays.asList(
-      createTimelineMetric(startTime, "disk_free", host, val)));
-
-    return m;
-  }
-
-  private TimelineMetric createTimelineMetric(long startTime,
-                                              String metricName,
-                                              String host,
-                                              double val) {
-    TimelineMetric m = new TimelineMetric();
-    m.setAppId("host");
-    m.setHostName(host);
-    m.setMetricName(metricName);
-    m.setStartTime(startTime);
-    Map<Long, Double> vals = new HashMap<Long, Double>();
-    vals.put(startTime + 15000l, val);
-    vals.put(startTime + 30000l, val);
-    vals.put(startTime + 45000l, val);
-    vals.put(startTime + 60000l, val);
-
-    m.setMetricValues(vals);
-
-    return m;
-  }
 
   private TimelineMetrics prepareTimelineMetrics(long startTime, String host) {
     TimelineMetrics metrics = new TimelineMetrics();
@@ -321,12 +295,4 @@ public class TestHBaseAccessor {
     return m;
   }
 
-  protected static String getUrl() {
-    return MY_LOCAL_URL;
-//    return  TestUtil.PHOENIX_CONNECTIONLESS_JDBC_URL;
-  }
-
-  private static Connection getConnection(String url) throws SQLException {
-    return DriverManager.getConnection(url);
-  }
 }

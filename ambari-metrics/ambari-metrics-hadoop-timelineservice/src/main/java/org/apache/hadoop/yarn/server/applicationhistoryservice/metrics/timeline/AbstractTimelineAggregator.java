@@ -21,16 +21,14 @@ package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.codehaus.jackson.annotate.JsonCreator;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.annotate.JsonSubTypes;
-import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -42,14 +40,9 @@ import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
 public abstract class AbstractTimelineAggregator implements Runnable {
   protected final PhoenixHBaseAccessor hBaseAccessor;
   private final Log LOG;
-  private static final ObjectMapper mapper;
   protected final long checkpointDelayMillis;
   protected final Integer resultsetFetchSize;
   protected Configuration metricsConf;
-
-  static {
-    mapper = new ObjectMapper();
-  }
 
   public AbstractTimelineAggregator(PhoenixHBaseAccessor hBaseAccessor,
                                     Configuration metricsConf) {
@@ -162,8 +155,67 @@ public abstract class AbstractTimelineAggregator implements Runnable {
     FileUtils.writeStringToFile(checkpoint, String.valueOf(checkpointTime));
   }
 
-  // TODO: Abstract out doWork implementation for cluster and host levels
-  protected abstract boolean doWork(long startTime, long endTime);
+  /**
+   * Read metrics written during the time interval and save the sum and total
+   * in the aggregate table.
+   *
+   * @param startTime Sample start time
+   * @param endTime Sample end time
+   */
+  protected boolean doWork(long startTime, long endTime) {
+    LOG.info("Start aggregation cycle @ " + new Date() + ", " +
+      "startTime = " + new Date(startTime) + ", endTime = " + new Date(endTime));
+
+    boolean success = true;
+    PhoenixTransactSQL.Condition condition =
+      prepareMetricQueryCondition(startTime, endTime);
+
+    Connection conn = null;
+    PreparedStatement stmt = null;
+
+    try {
+      conn = hBaseAccessor.getConnection();
+      stmt = PhoenixTransactSQL.prepareGetMetricsSqlStmt(conn, condition);
+
+      LOG.debug("Query issued @: " + new Date());
+      ResultSet rs = stmt.executeQuery();
+      LOG.debug("Query returned @: " + new Date());
+
+      aggregate(rs, startTime, endTime);
+      LOG.info("End aggregation cycle @ " + new Date());
+
+    } catch (SQLException e) {
+      LOG.error("Exception during aggregating metrics.", e);
+      success = false;
+    } catch (IOException e) {
+      LOG.error("Exception during aggregating metrics.", e);
+      success = false;
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException e) {
+          // Ignore
+        }
+      }
+      if (conn != null) {
+        try {
+          conn.close();
+        } catch (SQLException sql) {
+          // Ignore
+        }
+      }
+    }
+
+    LOG.info("End aggregation cycle @ " + new Date());
+    return success;
+  }
+
+  protected abstract PhoenixTransactSQL.Condition
+  prepareMetricQueryCondition(long startTime, long endTime);
+
+  protected abstract void aggregate(ResultSet rs, long startTime, long endTime)
+    throws IOException, SQLException;
 
   protected abstract Long getSleepIntervalMillis();
 
@@ -177,189 +229,4 @@ public abstract class AbstractTimelineAggregator implements Runnable {
 
   protected abstract String getCheckpointLocation();
 
-  @JsonSubTypes({@JsonSubTypes.Type(value = MetricClusterAggregate.class),
-    @JsonSubTypes.Type(value = MetricHostAggregate.class)})
-  @InterfaceAudience.Public
-  @InterfaceStability.Unstable
-  public static class MetricAggregate {
-    protected Double sum = 0.0;
-    protected Double deviation;
-    protected Double max = Double.MIN_VALUE;
-    protected Double min = Double.MAX_VALUE;
-
-    public MetricAggregate() {
-    }
-
-    protected MetricAggregate(Double sum, Double deviation, Double max,
-                              Double min) {
-      this.sum = sum;
-      this.deviation = deviation;
-      this.max = max;
-      this.min = min;
-    }
-
-    void updateSum(Double sum) {
-      this.sum += sum;
-    }
-
-    void updateMax(Double max) {
-      if (max > this.max) {
-        this.max = max;
-      }
-    }
-
-    void updateMin(Double min) {
-      if (min < this.min) {
-        this.min = min;
-      }
-    }
-
-    @JsonProperty("sum")
-    Double getSum() {
-      return sum;
-    }
-
-    @JsonProperty("deviation")
-    Double getDeviation() {
-      return deviation;
-    }
-
-    @JsonProperty("max")
-    Double getMax() {
-      return max;
-    }
-
-    @JsonProperty("min")
-    Double getMin() {
-      return min;
-    }
-
-    public void setSum(Double sum) {
-      this.sum = sum;
-    }
-
-    public void setDeviation(Double deviation) {
-      this.deviation = deviation;
-    }
-
-    public void setMax(Double max) {
-      this.max = max;
-    }
-
-    public void setMin(Double min) {
-      this.min = min;
-    }
-
-    public String toJSON() throws IOException {
-      return mapper.writeValueAsString(this);
-    }
-  }
-
-  public static class MetricClusterAggregate extends MetricAggregate {
-    private int numberOfHosts;
-
-    @JsonCreator
-    public MetricClusterAggregate() {
-    }
-
-    MetricClusterAggregate(Double sum, int numberOfHosts, Double deviation,
-                           Double max, Double min) {
-      super(sum, deviation, max, min);
-      this.numberOfHosts = numberOfHosts;
-    }
-
-    @JsonProperty("numberOfHosts")
-    int getNumberOfHosts() {
-      return numberOfHosts;
-    }
-
-    void updateNumberOfHosts(int count) {
-      this.numberOfHosts += count;
-    }
-
-    public void setNumberOfHosts(int numberOfHosts) {
-      this.numberOfHosts = numberOfHosts;
-    }
-
-    /**
-     * Find and update min, max and avg for a minute
-     */
-    void updateAggregates(MetricClusterAggregate hostAggregate) {
-      updateMax(hostAggregate.getMax());
-      updateMin(hostAggregate.getMin());
-      updateSum(hostAggregate.getSum());
-      updateNumberOfHosts(hostAggregate.getNumberOfHosts());
-    }
-
-    @Override
-    public String toString() {
-//    MetricClusterAggregate
-      return "MetricAggregate{" +
-        "sum=" + sum +
-        ", numberOfHosts=" + numberOfHosts +
-        ", deviation=" + deviation +
-        ", max=" + max +
-        ", min=" + min +
-        '}';
-    }
-  }
-
-  /**
-   * Represents a collection of minute based aggregation of values for
-   * resolution greater than a minute.
-   */
-  public static class MetricHostAggregate extends MetricAggregate {
-
-    private long numberOfSamples = 0;
-
-    @JsonCreator
-    public MetricHostAggregate() {
-      super(0.0, 0.0, Double.MIN_VALUE, Double.MAX_VALUE);
-    }
-
-    public MetricHostAggregate(Double sum, int numberOfSamples,
-                               Double deviation,
-                               Double max, Double min) {
-      super(sum, deviation, max, min);
-      this.numberOfSamples = numberOfSamples;
-    }
-
-    @JsonProperty("numberOfSamples")
-    long getNumberOfSamples() {
-      return numberOfSamples == 0 ? 1 : numberOfSamples;
-    }
-
-    void updateNumberOfSamples(long count) {
-      this.numberOfSamples += count;
-    }
-
-    public void setNumberOfSamples(long numberOfSamples) {
-      this.numberOfSamples = numberOfSamples;
-    }
-
-    public double getAvg() {
-      return sum / numberOfSamples;
-    }
-
-    /**
-     * Find and update min, max and avg for a minute
-     */
-    void updateAggregates(MetricHostAggregate hostAggregate) {
-      updateMax(hostAggregate.getMax());
-      updateMin(hostAggregate.getMin());
-      updateSum(hostAggregate.getSum());
-      updateNumberOfSamples(hostAggregate.getNumberOfSamples());
-    }
-
-    @Override
-    public String toString() {
-      return "MetricHostAggregate{" +
-        "sum=" + sum +
-        ", numberOfSamples=" + numberOfSamples +
-        ", deviation=" + deviation +
-        ", max=" + max +
-        ", min=" + min +
-        '}';
-    }
-  }
 }
