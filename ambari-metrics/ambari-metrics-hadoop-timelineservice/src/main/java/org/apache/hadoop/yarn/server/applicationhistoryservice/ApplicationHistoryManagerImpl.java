@@ -39,9 +39,12 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.applicationhistoryservice.records.ApplicationAttemptHistoryData;
 import org.apache.hadoop.yarn.server.applicationhistoryservice.records.ApplicationHistoryData;
 import org.apache.hadoop.yarn.server.applicationhistoryservice.records.ContainerHistoryData;
+import org.apache.hadoop.yarn.server.applicationhistoryservice.timeline.MemoryTimelineStore;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.TimelineMetricConfiguration.DISABLE_APPLICATION_TIMELINE_STORE;
 
 public class ApplicationHistoryManagerImpl extends AbstractService implements
     ApplicationHistoryManager {
@@ -82,6 +85,10 @@ public class ApplicationHistoryManagerImpl extends AbstractService implements
 
   protected ApplicationHistoryStore createApplicationHistoryStore(
       Configuration conf) {
+    if (conf.getBoolean(DISABLE_APPLICATION_TIMELINE_STORE, true)) {
+      LOG.info("Explicitly disabled application timeline store.");
+      return new NullApplicationHistoryStore();
+    }
     return ReflectionUtils.newInstance(conf.getClass(
       YarnConfiguration.APPLICATION_HISTORY_STORE,
       NullApplicationHistoryStore.class,

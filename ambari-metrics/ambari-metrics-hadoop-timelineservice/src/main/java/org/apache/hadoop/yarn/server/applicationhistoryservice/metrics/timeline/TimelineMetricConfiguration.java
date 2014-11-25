@@ -104,4 +104,6 @@ public interface TimelineMetricConfiguration {
   public static final String CLUSTER_AGGREGATOR_HOUR_DISABLED =
     "timeline.metrics.cluster.aggregator.hourly.disabled";
 
+  public static final String DISABLE_APPLICATION_TIMELINE_STORE =
+    "timeline.service.disable.application.timeline.store";
 }
