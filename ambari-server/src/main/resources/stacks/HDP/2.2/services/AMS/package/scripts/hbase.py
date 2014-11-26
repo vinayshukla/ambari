@@ -26,7 +26,7 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
               ):
   import params
 
-  Directory( params.hbase_conf_dir,
+  Directory(params.hbase_conf_dir,
       owner = params.hbase_user,
       group = params.user_group,
       recursive = True
@@ -44,7 +44,7 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
              recursive = True
   )
 
-  XmlConfig( "hbase-site.xml",
+  XmlConfig("hbase-site.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['ams-hbase-site'],
             configuration_attributes=params.config['configuration_attributes']['ams-hbase-site'],
@@ -52,24 +52,8 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
             group = params.user_group
   )
 
-  # XmlConfig( "hdfs-site.xml",
-  #           conf_dir = params.hbase_conf_dir,
-  #           configurations = params.config['configurations']['hdfs-site'],
-  #           configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
-  #           owner = params.hbase_user,
-  #           group = params.user_group
-  # )
-  #
-  # XmlConfig("hdfs-site.xml",
-  #           conf_dir=params.hadoop_conf_dir,
-  #           configurations=params.config['configurations']['hdfs-site'],
-  #           configuration_attributes=params.config['configuration_attributes']['hdfs-site'],
-  #           owner=params.hdfs_user,
-  #           group=params.user_group
-  # )
-
   if 'ams-hbase-policy' in params.config['configurations']:
-    XmlConfig( "hbase-policy.xml",
+    XmlConfig("hbase-policy.xml",
             conf_dir = params.hbase_conf_dir,
             configurations = params.config['configurations']['ams-hbase-policy'],
             configuration_attributes=params.config['configuration_attributes']['ams-hbase-policy'],
@@ -86,13 +70,20 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
   File(format("{hbase_conf_dir}/hbase-env.sh"),
        owner = params.hbase_user,
        content=InlineTemplate(params.hbase_env_sh_template)
-  )     
+  )
+
+  # Metrics properties
+  File(os.path.join(params.hbase_conf_dir, "hadoop-metrics2-hbase.properties"),
+         owner = params.hbase_user,
+         group = params.user_group,
+         content=Template("hadoop-metrics2-hbase.properties.j2")
+    )
        
   # hbase_TemplateConfig( params.metric_prop_file_name,
   #   tag = 'GANGLIA-MASTER' if name == 'master' else 'GANGLIA-RS'
   # )
 
-  hbase_TemplateConfig( 'regionservers')
+  hbase_TemplateConfig('regionservers')
 
   if params.security_enabled:
     hbase_TemplateConfig( format("hbase_{name}_jaas.conf"))
@@ -121,21 +112,9 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
       group=params.user_group,
       owner=params.hbase_user
     )
-  # if name in ["master","regionserver"]:
-  #   params.HdfsDirectory(params.hbase_hdfs_root_dir,
-  #                        action="create_delayed",
-  #                        owner=params.hbase_user
-  #   )
-  #   params.HdfsDirectory(params.hbase_staging_dir,
-  #                        action="create_delayed",
-  #                        owner=params.hbase_user,
-  #                        mode=0711
-  #   )
-  #   params.HdfsDirectory(None, action="create")
 
-def hbase_TemplateConfig(name, 
-                         tag=None
-                         ):
+
+def hbase_TemplateConfig(name, tag=None):
   import params
 
   TemplateConfig( format("{hbase_conf_dir}/{name}"),
