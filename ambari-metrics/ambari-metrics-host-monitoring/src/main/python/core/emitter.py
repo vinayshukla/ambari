@@ -24,15 +24,14 @@ import time
 import urllib2
 
 logger = logging.getLogger()
-COLLECTOR_URL = "http://{0}/ws/v1/timeline/metrics"
-RETRY_SLEEP_INTERVAL = 5
-MAX_RETRY_COUNT = 3
 
 class Emitter(threading.Thread):
+  COLLECTOR_URL = "http://{0}/ws/v1/timeline/metrics"
+  RETRY_SLEEP_INTERVAL = 5
+  MAX_RETRY_COUNT = 3
   """
   Wake up every send interval seconds and empty the application metric map.
   """
-
   def __init__(self, config, application_metric_map):
     threading.Thread.__init__(self)
     logger.debug('Initializing Emitter thread.')
@@ -45,40 +44,40 @@ class Emitter(threading.Thread):
     logger.info('Running Emitter thread: %s' % threading.currentThread().getName())
     while True:
       try:
-        retry_count = 0
-        while retry_count < MAX_RETRY_COUNT:
-          self.application_metric_map.acquire_lock()
-          json_data = self.application_metric_map.flatten()
-          if json_data is None:
-            logger.info("Nothing to emit, resume waiting.")
-            break
-          pass
-          response = self.push_metrics(json_data)
-
-          if response and response.getcode() == 200:
-            retry_count = MAX_RETRY_COUNT
-            self.application_metric_map.clear()
-            self.application_metric_map.release_lock()
-          else:
-            logger.warn("Error sending metrics to server. Retrying after {0} "
-                        "...".format(RETRY_SLEEP_INTERVAL))
-            self.application_metric_map.release_lock()
-            retry_count += 1
-            time.sleep(RETRY_SLEEP_INTERVAL)
-          pass
-        pass
-
+        self.submit_metrics()
         time.sleep(self.send_interval)
       except Exception, e:
         logger.warn('Unable to emit events. %s' % str(e))
-        time.sleep(RETRY_SLEEP_INTERVAL)
-        logger.info('Retrying emit after %s seconds.' % RETRY_SLEEP_INTERVAL)
+        time.sleep(self.RETRY_SLEEP_INTERVAL)
+        logger.info('Retrying emit after %s seconds.' % self.RETRY_SLEEP_INTERVAL)
     pass
-
+  
+  def submit_metrics(self):
+    retry_count = 0
+    while retry_count < self.MAX_RETRY_COUNT:
+      json_data = self.application_metric_map.flatten()
+      if json_data is None:
+        logger.info("Nothing to emit, resume waiting.")
+        break
+      pass
+      response = self.push_metrics(json_data)
+  
+      if response and response.getcode() == 200:
+        retry_count = self.MAX_RETRY_COUNT
+        self.application_metric_map.clear()
+      else:
+        logger.warn("Error sending metrics to server. Retrying after {0} "
+                    "...".format(self.RETRY_SLEEP_INTERVAL))
+        retry_count += 1
+        time.sleep(self.RETRY_SLEEP_INTERVAL)
+      pass
+    pass
+  
   def push_metrics(self, data):
     headers = {"Content-Type" : "application/json", "Accept" : "*/*"}
-    server = COLLECTOR_URL.format(self.collector_address.strip())
+    server = self.COLLECTOR_URL.format(self.collector_address.strip())
     logger.info("server: %s" % server)
+    logger.debug("message to sent: %s" % data)
     req = urllib2.Request(server, data, headers)
     response = urllib2.urlopen(req, timeout=int(self.send_interval - 10))
     if response:

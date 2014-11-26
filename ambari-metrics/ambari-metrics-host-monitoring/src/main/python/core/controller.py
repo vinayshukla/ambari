@@ -19,14 +19,11 @@ limitations under the License.
 '''
 
 import logging
-import signal
 import threading
 import time
-import sys
 from Queue import Queue
 from threading import Timer
 from application_metric_map import ApplicationMetricMap
-from config_reader import Configuration
 from event_definition import HostMetricCollectEvent, ProcessMetricCollectEvent
 from metric_collector import MetricsCollector
 from emitter import Emitter
@@ -104,23 +101,3 @@ class Controller(threading.Thread):
 
   def start_emitter(self):
     self.emitter.start()
-
-def main(argv=None):
-  # Allow Ctrl-C
-  signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-  config = Configuration()
-  collector = Controller(config)
-
-  logger.setLevel(config.get_log_level())
-  #formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d - %(message)s")
-  stream_handler = logging.StreamHandler(sys.stdout)
-  stream_handler.setFormatter(formatter)
-  logger.addHandler(stream_handler)
-  logger.info('Starting Server RPC Thread: {0}'.format(sys.argv))
-
-  collector.start()
-  collector.start_emitter()
-
-if __name__ == '__main__':
-  main()

@@ -77,11 +77,7 @@ class MetricsCollector():
     pass
 
     if metrics:
-      self.application_metric_map.acquire_lock()
-      for metric_name, value in metrics.iteritems():
-        self.application_metric_map.put_metric(DEFAULT_HOST_APP_ID, metric_name, startTime, value)
-      pass
-      self.application_metric_map.release_lock()
+      self.application_metric_map.put_metric(DEFAULT_HOST_APP_ID, metrics, startTime)
     pass
 
   def process_process_collection_event(self, event):

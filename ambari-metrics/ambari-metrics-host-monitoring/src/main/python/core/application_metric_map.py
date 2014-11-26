@@ -35,34 +35,31 @@ class ApplicationMetricMap:
   metric_value   => numeric value
   """
 
-  app_metric_map = {}
 
   def __init__(self, hostname, ip_address):
     self.hostname = hostname
     self.ip_address = ip_address
     self.lock = RLock()
+    self.app_metric_map = {}
   pass
 
-  def acquire_lock(self):
-    self.lock.acquire()
-
-  def release_lock(self):
-    self.lock.release()
-
-  def put_metric(self, application_id, metric_id, timestamp, value):
-    metric_map = self.app_metric_map.get(application_id)
-    if not metric_map:
-      metric_map = { metric_id : { timestamp : value } }
-      self.app_metric_map[ application_id ] = metric_map
-    else:
-      metric_id_map = metric_map.get(metric_id)
-      if not metric_id_map:
-        metric_id_map = { timestamp : value }
-        metric_map[ metric_id ] = metric_id_map
-      else:
-        metric_map[ metric_id ].update( { timestamp : value } )
-      pass
-    pass
+  def put_metric(self, application_id, metric_id_to_value_map, timestamp):
+    with self.lock:
+      for metric_name, value in metric_id_to_value_map.iteritems():
+      
+        metric_map = self.app_metric_map.get(application_id)
+        if not metric_map:
+          metric_map = { metric_name : { timestamp : value } }
+          self.app_metric_map[ application_id ] = metric_map
+        else:
+          metric_id_map = metric_map.get(metric_name)
+          if not metric_id_map:
+            metric_id_map = { timestamp : value }
+            metric_map[ metric_name ] = metric_id_map
+          else:
+            metric_map[ metric_name ].update( { timestamp : value } )
+          pass
+        pass
   pass
 
   def delete_application_metrics(self, app_id):
@@ -76,41 +73,42 @@ class ApplicationMetricMap:
     {"metrics":[{"hostname":"a","metricname":"b","appid":"c",
     "instanceid":"d","starttime":"e","metrics":{"t":"v"}}]}
     """
-
-    timeline_metrics = { "metrics" : [] }
-    local_metric_map = {}
-
-    if application_id:
-      if self.app_metric_map.has_key(application_id):
-        local_metric_map = { application_id : self.app_metric_map[application_id] }
+    with self.lock:
+      timeline_metrics = { "metrics" : [] }
+      local_metric_map = {}
+  
+      if application_id:
+        if self.app_metric_map.has_key(application_id):
+          local_metric_map = { application_id : self.app_metric_map[application_id] }
+        else:
+          logger.info("application_id: {0}, not present in the map.".format(application_id))
       else:
-        logger.info("application_id: {0}, not present in the map.".format(application_id))
-    else:
-      local_metric_map = self.app_metric_map.copy()
-    pass
-
-    for appId, metrics in local_metric_map.iteritems():
-      for metricId, metricData in dict(metrics).iteritems():
-        # Create a timeline metric object
-        timeline_metric = {
-          "hostname" : self.hostname,
-          "metricname" : metricId,
-          "appid" : "HOST",
-          "instanceid" : "",
-          "starttime" : self.get_start_time(appId, metricId),
-          "metrics" : metricData
-        }
-        timeline_metrics[ "metrics" ].append( timeline_metric )
+        local_metric_map = self.app_metric_map.copy()
       pass
-    pass
-
-    return json.dumps(timeline_metrics)
+  
+      for appId, metrics in local_metric_map.iteritems():
+        for metricId, metricData in dict(metrics).iteritems():
+          # Create a timeline metric object
+          timeline_metric = {
+            "hostname" : self.hostname,
+            "metricname" : metricId,
+            "appid" : "HOST",
+            "instanceid" : "",
+            "starttime" : self.get_start_time(appId, metricId),
+            "metrics" : metricData
+          }
+          timeline_metrics[ "metrics" ].append( timeline_metric )
+        pass
+      pass
+      return json.dumps(timeline_metrics) if len(timeline_metrics[ "metrics" ]) > 0 else None
   pass
 
   def get_start_time(self, app_id, metric_id):
-    if self.app_metric_map.has_key(app_id):
-      if self.app_metric_map.get(app_id).has_key(metric_id):
-        return self.app_metric_map.get(app_id).get(metric_id).iteritems().next()[0]
+    with self.lock:
+      if self.app_metric_map.has_key(app_id):
+        if self.app_metric_map.get(app_id).has_key(metric_id):
+          metrics = self.app_metric_map.get(app_id).get(metric_id)
+          return min(metrics.iterkeys())
   pass
 
   def format_app_id(self, app_id, instance_id = None):
@@ -127,5 +125,6 @@ class ApplicationMetricMap:
   pass
 
   def clear(self):
-    self.app_metric_map.clear()
+    with self.lock:
+      self.app_metric_map.clear()
   pass

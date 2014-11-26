@@ -19,7 +19,8 @@ limitations under the License.
 '''
 
 import core
-from core.controller import Controller, Configuration
+from core.controller import Controller
+from core.config_reader import Configuration
 import logging
 import signal
 import sys
@@ -31,18 +32,32 @@ def main(argv=None):
   signal.signal(signal.SIGINT, signal.SIG_DFL)
 
   config = Configuration()
-  collector = Controller(config)
+  controller = Controller(config)
+  
+  _init_logging(config)
+  
+  logger.info('Starting Server RPC Thread: %s' % ' '.join(sys.argv))
+  controller.start()
+  controller.start_emitter()
 
-  logger.setLevel(logging.DEBUG)
-  formatter = logging.Formatter("%(asctime)s %(filename)s:%(lineno)d - %(message)s")
+def _init_logging(config):
+  _levels = {
+          'DEBUG': logging.DEBUG,
+          'INFO': logging.INFO,
+          'WARNING': logging.WARNING,
+          'ERROR': logging.ERROR,
+          'CRITICAL': logging.CRITICAL,
+          'NOTSET' : logging.NOTSET
+          }
+  level = logging.INFO
+  if config.get_log_level() in _levels:
+    level = _levels.get(config.get_log_level())
+  logger.setLevel(level)
+  formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s")
   stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(formatter)
   logger.addHandler(stream_handler)
-  logger.info('Starting Server RPC Thread: %s' % ' '.join(sys.argv))
-
-  collector.start()
-  collector.start_emitter()
-
+  
 
 if __name__ == '__main__':
   main()
