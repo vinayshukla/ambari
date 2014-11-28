@@ -152,6 +152,7 @@
                 <source>
                   <location>target/embedded/${hbase.folder}</location>
                   <excludes>
+                    <exclude>bin/**</exclude>
                     <exclude>bin/*</exclude>
                   </excludes>
                 </source>
@@ -187,17 +188,39 @@
               <sources>
                 <source>
                   <location>conf/unix/ambari-metrics-collector</location>
-                  <filter>true</filter>
+                  <filter>false</filter>
                 </source>
               </sources>
             </mapping>
             <mapping>
               <directory>/etc/ambari-metrics-collector/conf</directory>
               <configuration>true</configuration>
+              <sources>
+                <source>
+                  <location>conf/unix/ams-env.sh</location>
+                </source>
+                <source>
+                  <location>conf/unix/ams-site.xml</location>
+                </source>
+                <source>
+                  <location>conf/unix/log4j.properties</location>
+                </source>
+                <source>
+                  <location>target/embedded/${hbase.folder}/conf/hbase-site.xml</location>
+                </source>
+              </sources>
             </mapping>
             <mapping>
               <directory>/etc/ams-hbase/conf</directory>
               <configuration>true</configuration>
+              <sources>
+                <source>
+                  <location>target/embedded/${hbase.folder}/conf</location>
+                  <includes>
+                    <include>*.*</include>
+                  </includes>
+                </source>
+              </sources>
             </mapping>
             <mapping>
               <directory>/var/run/ams-hbase</directory>

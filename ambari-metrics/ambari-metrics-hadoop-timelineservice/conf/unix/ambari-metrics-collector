@@ -27,7 +27,7 @@ HBASE_DIR=/usr/lib/ams-hbase
 DAEMON_NAME=timelineserver
 
 COLLECTOR_CONF_DIR=/etc/ambari-metrics-collector/conf
-HBASE_CONF_DIR=${COLLECTOR_CONF_DIR}
+HBASE_CONF_DIR=/etc/ams-hbase/conf
 
 METRIC_COLLECTOR=ambari-metrics-collector
 

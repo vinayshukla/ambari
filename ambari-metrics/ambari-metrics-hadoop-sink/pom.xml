@@ -31,20 +31,6 @@ limitations under the License.
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/lib</outputDirectory>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <descriptors>
@@ -123,7 +109,7 @@ limitations under the License.
           <description>Maven Recipe: RPM Package.</description>
           <mappings>
             <mapping>
-              <directory>/usr/lib/hadoop/lib</directory>
+              <directory>/usr/lib/ambari-metrics-hadoop-sink</directory>
               <filemode>644</filemode>
               <username>root</username>
               <groupname>root</groupname>
@@ -131,9 +117,10 @@ limitations under the License.
                 <source>
                   <location>target/${project.artifactId}-${project.version}.jar</location>
                 </source>
-                <source>
-                  <location>target/lib</location>
-                </source>
+                <softlinkSource>
+                  <destination>ambari-metrics-hadoop-sink.jar</destination>
+                  <location>/usr/lib/ambari-metrics-hadoop-sink/${project.artifactId}-${project.version}.jar</location>
+                </softlinkSource>
               </sources>
 
             </mapping>

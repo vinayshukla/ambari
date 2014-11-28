@@ -39,6 +39,22 @@ def ams(name=None):
               group=params.user_group
     )
 
+    XmlConfig( "hbase-site.xml",
+               conf_dir = params.ams_collector_conf_dir,
+               configurations = params.config['configurations']['ams-hbase-site'],
+               configuration_attributes=params.config['configuration_attributes']['ams-hbase-site'],
+               owner = params.ams_user,
+               group = params.user_group
+    )
+
+    if (params.log4j_props != None):
+      File(format("{params.ams_collector_conf_dir}/log4j.properties"),
+           mode=0644,
+           group=params.user_group,
+           owner=params.ams_user,
+           content=params.log4j_props
+      )
+
     File(format("{ams_collector_conf_dir}/ams-env.sh"),
          owner=params.ams_user,
          content=InlineTemplate(params.ams_env_sh_template)

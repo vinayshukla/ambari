@@ -99,12 +99,12 @@ def hbase(name=None # 'master' or 'regionserver' or 'client'
       recursive = True
     )
 
-  if (params.log4j_props != None):
+  if (params.hbase_log4j_props != None):
     File(format("{params.hbase_conf_dir}/log4j.properties"),
          mode=0644,
          group=params.user_group,
          owner=params.hbase_user,
-         content=params.log4j_props
+         content=params.hbase_log4j_props
     )
   elif (os.path.exists(format("{params.hbase_conf_dir}/log4j.properties"))):
     File(format("{params.hbase_conf_dir}/log4j.properties"),

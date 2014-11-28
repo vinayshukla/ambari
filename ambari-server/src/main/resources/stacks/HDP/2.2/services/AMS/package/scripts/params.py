@@ -69,7 +69,7 @@ else:
 
 hadoop_conf_dir = "/etc/hadoop/conf"
 #hbase_conf_dir = "/etc/ams-hbase/conf"
-hbase_conf_dir = ams_collector_conf_dir
+hbase_conf_dir = "/etc/ams-hbase/conf"
 hbase_excluded_hosts = config['commandParams']['excluded_hosts']
 hbase_drain_only = config['commandParams']['mark_draining_only']
 hbase_included_hosts = config['commandParams']['included_hosts']
@@ -137,7 +137,12 @@ kinit_path_local = functions.get_kinit_path(["/usr/bin", "/usr/kerberos/bin", "/
 
 #log4j.properties
 if (('ams-hbase-log4j' in config['configurations']) and ('content' in config['configurations']['ams-hbase-log4j'])):
-  log4j_props = config['configurations']['ams-hbase-log4j']['content']
+  hbase_log4j_props = config['configurations']['ams-hbase-log4j']['content']
+else:
+  hbase_log4j_props = None
+
+if (('ams-log4j' in config['configurations']) and ('content' in config['configurations']['ams-log4j'])):
+  log4j_props = config['configurations']['ams-log4j']['content']
 else:
   log4j_props = None
 

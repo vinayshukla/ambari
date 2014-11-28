@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline;
+package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline.PhoenixTransactSQL.METRICS_AGGREGATE_HOURLY_TABLE_NAME;
@@ -48,8 +48,9 @@ public class TimelineMetricAggregatorFactory {
       TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR, DEFAULT_CHECKPOINT_LOCATION);
     String checkpointLocation = FilenameUtils.concat(checkpointDir,
       MINUTE_AGGREGATE_CHECKPOINT_FILE);
-    long sleepInterval = metricsConf.getLong
-      (HOST_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 300000l);  // 5 mins
+    long sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
+      (HOST_AGGREGATOR_MINUTE_SLEEP_INTERVAL, 300l));  // 5 mins
+
     int checkpointCutOffMultiplier = metricsConf.getInt
       (HOST_AGGREGATOR_MINUTE_CHECKPOINT_CUTOFF_MULTIPLIER, 3);
     String hostAggregatorDisabledParam = HOST_AGGREGATOR_MINUTE_DISABLED;
@@ -59,7 +60,7 @@ public class TimelineMetricAggregatorFactory {
 
     return new TimelineMetricAggregator(hBaseAccessor, metricsConf,
       checkpointLocation,
-      sleepInterval,
+      sleepIntervalMillis,
       checkpointCutOffMultiplier,
       hostAggregatorDisabledParam,
       inputTableName,
@@ -74,8 +75,9 @@ public class TimelineMetricAggregatorFactory {
       TIMELINE_METRICS_AGGREGATOR_CHECKPOINT_DIR, DEFAULT_CHECKPOINT_LOCATION);
     String checkpointLocation = FilenameUtils.concat(checkpointDir,
       MINUTE_AGGREGATE_HOURLY_CHECKPOINT_FILE);
-    long sleepInterval = metricsConf.getLong
-      (HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600000l);
+    long sleepIntervalMillis = SECONDS.toMillis(metricsConf.getLong
+      (HOST_AGGREGATOR_HOUR_SLEEP_INTERVAL, 3600l));
+
     int checkpointCutOffMultiplier = metricsConf.getInt
       (HOST_AGGREGATOR_HOUR_CHECKPOINT_CUTOFF_MULTIPLIER, 2);
     String hostAggregatorDisabledParam = HOST_AGGREGATOR_HOUR_DISABLED;
@@ -85,7 +87,7 @@ public class TimelineMetricAggregatorFactory {
 
     return new TimelineMetricAggregator(hBaseAccessor, metricsConf,
       checkpointLocation,
-      sleepInterval,
+      sleepIntervalMillis,
       checkpointCutOffMultiplier,
       hostAggregatorDisabledParam,
       inputTableName,

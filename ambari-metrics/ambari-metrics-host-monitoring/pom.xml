@@ -124,6 +124,10 @@
             <require>gcc</require>
             <require>python-devel</require>
           </requires>
+          <preremoveScriptlet>
+            <scriptFile>src/main/package/rpm/preremove.sh</scriptFile>
+            <fileEncoding>utf-8</fileEncoding>
+          </preremoveScriptlet>
           <mappings>
             <mapping>
               <directory>${resmonitor.install.dir}</directory>

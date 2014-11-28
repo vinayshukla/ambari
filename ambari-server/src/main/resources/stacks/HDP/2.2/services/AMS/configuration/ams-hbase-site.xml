@@ -91,6 +91,16 @@
     <description>The port for the HBase RegionServer web UI.</description>
   </property>
   <property>
+    <name>hbase.master.port</name>
+    <value>61300</value>
+    <description>The port for the HBase Master web UI.</description>
+  </property>
+  <property>
+    <name>hbase.regionserver.port</name>
+    <value>61320</value>
+    <description>The port for the HBase RegionServer web UI.</description>
+  </property>
+  <property>
     <name>hbase.hregion.majorcompaction</name>
     <value>0</value>
     <description>
@@ -203,6 +213,18 @@
     <description>
       Configuration key for the small compaction threads.
     </description>
+  </property>
+  <property>
+    <name>hbase.zookeeper.property.clientPort</name>
+    <value>61181</value>
+  </property>
+  <property>
+    <name>hbase.zookeeper.peerport</name>
+    <value>61288</value>
+  </property>
+  <property>
+    <name>hbase.zookeeper.leaderport</name>
+    <value>61388</value>
   </property>
   <property>
     <name>hbase.hstore.blockingStoreFiles</name>
