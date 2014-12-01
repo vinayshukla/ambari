@@ -18,13 +18,25 @@
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
   .timeline;
 
-
-import java.sql.Connection;
-import java.sql.SQLException;
-
 /**
- *
+ * RuntimeException for initialization of metrics schema. It is RuntimeException
+ * since this is a not recoverable situation, and should be handled by main or
+ * service method followed by shutdown.
  */
-public interface ConnectionProvider {
-  public Connection getConnection() throws SQLException;
+public class MetricsInitializationException extends RuntimeException {
+  public MetricsInitializationException() {
+  }
+
+  public MetricsInitializationException(String msg) {
+    super(msg);
+  }
+
+  public MetricsInitializationException(Throwable t) {
+    super(t);
+  }
+
+  public MetricsInitializationException(String msg, Throwable t) {
+    super(msg, t);
+  }
+
 }

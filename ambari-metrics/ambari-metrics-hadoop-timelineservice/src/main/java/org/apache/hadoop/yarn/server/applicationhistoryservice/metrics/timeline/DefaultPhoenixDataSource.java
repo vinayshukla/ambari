@@ -63,19 +63,16 @@ public class DefaultPhoenixDataSource implements ConnectionProvider {
    *
    * @return @java.sql.Connection
    */
-  public Connection getConnection() {
-    Connection connection = null;
+  public Connection getConnection() throws SQLException {
 
     LOG.debug("Metric store connection url: " + url);
     try {
-      // TODO: Exception is swallowed, it should be thrown - discuss it
-
-      connection = DriverManager.getConnection(url);
+      return DriverManager.getConnection(url);
     } catch (SQLException e) {
       LOG.warn("Unable to connect to HBase store using Phoenix.", e);
-    }
 
-    return connection;
+      throw e;
+    }
   }
 
 }

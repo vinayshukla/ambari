@@ -88,7 +88,7 @@ public class HBaseTimelineMetricStore extends AbstractService
                                    Configuration metricsConf) {
     hBaseAccessor = new PhoenixHBaseAccessor(hbaseConf, metricsConf);
     hBaseAccessor.initMetricSchema();
-//...BUG...
+
     // Start the cluster aggregator
     TimelineMetricClusterAggregator minuteClusterAggregator =
       new TimelineMetricClusterAggregator(hBaseAccessor, metricsConf);

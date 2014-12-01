@@ -18,9 +18,12 @@
 package org.apache.hadoop.yarn.server.applicationhistoryservice.metrics.timeline;
 
 
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.util.RetryCounter;
+import org.apache.hadoop.hbase.util.RetryCounterFactory;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetric;
 import org.apache.hadoop.metrics2.sink.timeline.TimelineMetrics;
 import org.apache.hadoop.yarn.util.timeline.TimelineUtils;
@@ -28,25 +31,74 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.PhoenixTransactSQL.*;
+  .timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL;
 import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
-  .timeline.TimelineMetricConfiguration.*;
+  .timeline.PhoenixTransactSQL.CREATE_METRICS_AGGREGATE_MINUTE_TABLE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL
+  .CREATE_METRICS_CLUSTER_AGGREGATE_HOURLY_TABLE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.CREATE_METRICS_CLUSTER_AGGREGATE_TABLE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.CREATE_METRICS_TABLE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.Condition;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.DEFAULT_ENCODING;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.DEFAULT_TABLE_COMPRESSION;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.METRICS_RECORD_TABLE_NAME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.UPSERT_AGGREGATE_RECORD_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.UPSERT_CLUSTER_AGGREGATE_TIME_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.PhoenixTransactSQL.UPSERT_METRICS_SQL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.CLUSTER_HOUR_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.CLUSTER_MINUTE_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.GLOBAL_RESULT_LIMIT;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HBASE_COMPRESSION_SCHEME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HBASE_ENCODING_SCHEME;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HOST_HOUR_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.HOST_MINUTE_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.PRECISION_TABLE_TTL;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.GLOBAL_MAX_RETRIES;
+import static org.apache.hadoop.yarn.server.applicationhistoryservice.metrics
+  .timeline.TimelineMetricConfiguration.GLOBAL_RETRY_INTERVAL;
 
 /**
  * Provides a facade over the Phoenix API to access HBase schema
  */
 public class PhoenixHBaseAccessor {
 
+  private static final Log LOG = LogFactory.getLog(PhoenixHBaseAccessor.class);
   private final Configuration hbaseConf;
   private final Configuration metricsConf;
-  static final Log LOG = LogFactory.getLog(PhoenixHBaseAccessor.class);
+  private final RetryCounterFactory retryCounterFactory;
 
   static final int PHOENIX_MAX_MUTATION_STATE_SIZE = 50000;
   /**
@@ -55,11 +107,8 @@ public class PhoenixHBaseAccessor {
   private static final int METRICS_PER_MINUTE = 4;
   public static int RESULTSET_LIMIT = (int)TimeUnit.DAYS.toMinutes(1) *
     METRICS_PER_MINUTE;
-  private static ObjectMapper mapper;
+  private static ObjectMapper mapper = new ObjectMapper();
 
-  static {
-    mapper = new ObjectMapper();
-  }
   private static TypeReference<Map<Long, Double>> metricValuesTypeRef =
     new TypeReference<Map<Long, Double>>() {};
   private final ConnectionProvider dataSource;
@@ -82,7 +131,29 @@ public class PhoenixHBaseAccessor {
       throw new IllegalStateException(e);
     }
     this.dataSource = dataSource;
+    this.retryCounterFactory = new RetryCounterFactory(
+      metricsConf.getInt(GLOBAL_MAX_RETRIES, 10),
+      (int) SECONDS.toMillis(metricsConf.getInt(GLOBAL_RETRY_INTERVAL, 5)));
   }
+
+
+  private Connection getConnectionRetryingOnException()
+    throws SQLException, InterruptedException {
+    RetryCounter retryCounter = retryCounterFactory.create();
+    while (true) {
+      try{
+        return getConnection();
+      } catch (SQLException e) {
+        if(!retryCounter.shouldRetry()){
+          LOG.error("HBaseAccessor getConnection failed after "
+            + retryCounter.getMaxAttempts() + " attempts");
+          throw e;
+        }
+      }
+      retryCounter.sleepUntilNextRetry();
+    }
+  }
+
 
   /**
    * Get JDBC connection to HBase store. Assumption is that the hbase
@@ -93,7 +164,7 @@ public class PhoenixHBaseAccessor {
    *
    * @return @java.sql.Connection
    */
-  public Connection getConnection() {
+  public Connection getConnection() throws SQLException {
     return dataSource.getConnection();
   }
 
@@ -169,7 +240,7 @@ public class PhoenixHBaseAccessor {
   }
 
   protected void initMetricSchema() {
-    Connection conn = getConnection();
+    Connection conn = null;
     Statement stmt = null;
 
     String encoding = metricsConf.get(HBASE_ENCODING_SCHEME, DEFAULT_ENCODING);
@@ -182,7 +253,9 @@ public class PhoenixHBaseAccessor {
 
     try {
       LOG.info("Initializing metrics schema...");
+      conn = getConnectionRetryingOnException();
       stmt = conn.createStatement();
+
       stmt.executeUpdate(String.format(CREATE_METRICS_TABLE_SQL,
         encoding, precisionTtl, compression));
       stmt.executeUpdate(String.format(CREATE_METRICS_AGGREGATE_HOURLY_TABLE_SQL,
@@ -196,6 +269,12 @@ public class PhoenixHBaseAccessor {
       conn.commit();
     } catch (SQLException sql) {
       LOG.warn("Error creating Metrics Schema in HBase using Phoenix.", sql);
+      throw new MetricsInitializationException(
+        "Error creating Metrics Schema in HBase using Phoenix.", sql);
+    } catch (InterruptedException e) {
+      LOG.warn("Error creating Metrics Schema in HBase using Phoenix.", e);
+      throw new MetricsInitializationException(
+        "Error creating Metrics Schema in HBase using Phoenix.", e);
     } finally {
       if (stmt != null) {
         try {

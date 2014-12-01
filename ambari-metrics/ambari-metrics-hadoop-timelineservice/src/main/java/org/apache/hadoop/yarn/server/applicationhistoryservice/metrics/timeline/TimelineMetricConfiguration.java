@@ -92,6 +92,12 @@ public interface TimelineMetricConfiguration {
   public static final String GLOBAL_RESULT_LIMIT =
     "timeline.metrics.service.default.result.limit";
 
+  public static final String GLOBAL_MAX_RETRIES =
+    "timeline.metrics.service.default.max_retries";
+
+  public static final String GLOBAL_RETRY_INTERVAL =
+    "timeline.metrics.service.default.retryInterval";
+
   public static final String HOST_AGGREGATOR_MINUTE_DISABLED =
     "timeline.metrics.host.aggregator.minute.disabled";
 
