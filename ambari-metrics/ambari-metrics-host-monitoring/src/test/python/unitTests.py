@@ -81,7 +81,7 @@ def main():
   sys.path.append(project_folder + "/src/main/python/core")
   sys.path.append(project_folder + "/src/main/resources/scripts")
   sys.path.append(project_folder + "/src/main/resources/custom_actions")
-  sys.path.append(project_folder + "/target/psutil_build/lib.linux-x86_64-2.6")
+  sys.path.append(project_folder + "/target/psutil_build")
 
   has_failures = False
   test_runs = 0

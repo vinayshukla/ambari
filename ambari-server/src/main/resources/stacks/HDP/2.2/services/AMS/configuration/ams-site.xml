@@ -205,9 +205,9 @@
   </property>
   <property>
     <name>timeline.metrics.service.checkpointDelay</name>
-    <value>120000</value>
+    <value>120</value>
     <description>
-      Time in milliseconds to sleep on the first run or when the checkpoint is
+      Time in seconds to sleep on the first run or when the checkpoint is
       too old.
     </description>
   </property>
