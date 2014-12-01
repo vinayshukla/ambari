@@ -27,4 +27,4 @@ HOST_COUNT=$2
 echo $$ > sim_pid
 cat sim_pid
 #HOMEDIR
-exec  java -jar ../lib/ambari-metrics/ambari-metrics-hadoop-timelineservice-simulator*.jar  -h `hostname -f` -n ${HOST_COUNT} -m ${METRICS_HOST} -c 15000 -s 60000
+exec  java -jar ../lib/ambari-metrics/ambari-metrics-timelineservice-simulator*.jar  -h `hostname -f` -n ${HOST_COUNT} -m ${METRICS_HOST} -c 15000 -s 60000

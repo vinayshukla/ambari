@@ -27,7 +27,7 @@
   <packaging>pom</packaging>
   <modules>
     <module>ambari-metrics-hadoop-sink</module>
-    <module>ambari-metrics-hadoop-timelineservice</module>
+    <module>ambari-metrics-timelineservice</module>
     <module>ambari-metrics-host-monitoring</module>
   </modules>
   <properties>
